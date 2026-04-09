@@ -11,7 +11,7 @@ export class HighlightManagerView extends ItemView {
     private activeTab: 'all' | 'notes' | 'tags' = 'all';
     private selectedFilePath: string | null = null;
     private selectedTags: Set<string> = new Set();
-    private sortBy: 'time' | 'az' = 'time';
+    private sortBy: 'az' | 'za' | 'time' = 'time';
     private viewMode: 'gallery' | 'review' = 'gallery';
     private expandedNotes: Set<string> = new Set();
     private reviewIndex: number = 0;
@@ -101,12 +101,19 @@ export class HighlightManagerView extends ItemView {
         this.createNavTab(navTabs, 'notes', '', 'file-text', '笔记');
         this.createNavTab(navTabs, 'tags', '', 'tag', '标签');
 
-        // Right side: Sort Switch
+        // Right side: Sort Switch - 三态循环: 时间 → A-Z → Z-A
         const sortBtn = controlsHeader.createEl('button', { cls: 'eme-studio-mini-btn', attr: { 'aria-label': '切换排序' } });
-        setIcon(sortBtn, this.sortBy === 'time' ? 'clock' : 'sort-asc');
+        const sortConfig: Record<string, { icon: string; title: string }> = {
+            'time': { icon: 'clock', title: '当前：按时间排序 → 切换为 A-Z' },
+            'az': { icon: 'sort-asc', title: '当前：A-Z 排序 → 切换为 Z-A' },
+            'za': { icon: 'sort-desc', title: '当前：Z-A 排序 → 切换为按时间' },
+        };
+        const cfg = sortConfig[this.sortBy];
+        setIcon(sortBtn, cfg.icon);
+        sortBtn.title = cfg.title;
         sortBtn.onclick = () => {
             if (Platform.isMobile) this.isSidebarPinned = true;
-            this.sortBy = this.sortBy === 'time' ? 'az' : 'time';
+            this.sortBy = this.sortBy === 'time' ? 'az' : this.sortBy === 'az' ? 'za' : 'time';
             this.render();
         };
 
@@ -156,9 +163,20 @@ export class HighlightManagerView extends ItemView {
         const sortedFiles = Array.from(filesMap.keys()).sort((a, b) => {
             const nameA = a.split('/').pop()!.toLowerCase();
             const nameB = b.split('/').pop()!.toLowerCase();
-            if (this.sortBy === 'az') return nameA.localeCompare(nameB);
-            // Default to loaded order (which is usually time-based from DB)
-            return 0;
+
+            // 笔记列表排序逻辑
+            if (this.sortBy === 'az') {
+                return nameA.localeCompare(nameB); // 字母升序
+            } else if (this.sortBy === 'za') {
+                return nameB.localeCompare(nameA); // 字母降序
+            } else {
+                // 时间排序 - 这里我们取该文件下第一条高亮笔记的创建时间
+                const notesFromA = this.highlights.filter(h => h.sourcePath === a);
+                const notesFromB = this.highlights.filter(h => h.sourcePath === b);
+                const timeA = notesFromA.length > 0 ? Math.max(...notesFromA.map(n => n.createdAt)) : 0;
+                const timeB = notesFromB.length > 0 ? Math.max(...notesFromB.map(n => n.createdAt)) : 0;
+                return timeB - timeA; // 时间倒序（最新的在前）
+            }
         });
 
         if (sortedFiles.length === 0) {
@@ -192,8 +210,14 @@ export class HighlightManagerView extends ItemView {
         });
 
         const sortedTags = Array.from(tagsMap.keys()).sort((a, b) => {
-            if (this.sortBy === 'az') return a.toLowerCase().localeCompare(b.toLowerCase());
-            return (tagsMap.get(b) || 0) - (tagsMap.get(a) || 0); // By popularity/count
+            // 标签列表排序逻辑
+            if (this.sortBy === 'az') {
+                return a.toLowerCase().localeCompare(b.toLowerCase()); // 字母升序
+            } else if (this.sortBy === 'za') {
+                return b.toLowerCase().localeCompare(a.toLowerCase()); // 字母降序
+            } else {
+                return (tagsMap.get(b) || 0) - (tagsMap.get(a) || 0); // 按数量倒序（最多的在前）
+            }
         });
 
         if (sortedTags.length === 0) {
@@ -218,7 +242,116 @@ export class HighlightManagerView extends ItemView {
                 else this.selectedTags.add(tag);
                 this.render();
             };
+
+            // Desktop: Right-click for management
+            if (!Platform.isMobile) {
+                item.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    this.showTagContextMenu(e, tag);
+                });
+            } else {
+                // Mobile: Long press for management
+                let longPressTimer: NodeJS.Timeout | null = null;
+                item.addEventListener('touchstart', () => {
+                    longPressTimer = setTimeout(() => {
+                        this.showTagContextMenu({ clientX: 0, clientY: 0 } as MouseEvent, tag);
+                    }, 800);
+                });
+                item.addEventListener('touchend', () => {
+                    if (longPressTimer) clearTimeout(longPressTimer);
+                });
+                item.addEventListener('touchmove', () => {
+                    if (longPressTimer) clearTimeout(longPressTimer);
+                });
+            }
         });
+    }
+
+    private showTagContextMenu(event: MouseEvent, tag: string) {
+        const menu = document.body.createDiv('eme-tag-context-menu');
+        let { clientX, clientY } = event;
+
+        // For mobile, center the menu
+        if (Platform.isMobile) {
+            clientX = window.innerWidth / 2;
+            clientY = window.innerHeight / 2;
+        }
+
+        menu.style.position = 'fixed';
+        menu.style.left = `${clientX}px`;
+        menu.style.top = `${clientY}px`;
+        menu.style.zIndex = '10000';
+        menu.style.background = 'var(--background-primary)';
+        menu.style.border = '1px solid var(--background-modifier-border)';
+        menu.style.borderRadius = '6px';
+        menu.style.padding = '4px 0';
+        menu.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        menu.style.minWidth = '140px';
+
+        const editItem = menu.createEl('button', { text: '编辑标签' });
+        this.styleMenuItem(editItem);
+        editItem.onclick = () => {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+            new TagEditModal(this.app, tag, async (newTag) => {
+                await this.updateTag(tag, newTag);
+            }).open();
+        };
+
+        const deleteItem = menu.createEl('button', { text: '删除标签' });
+        this.styleMenuItem(deleteItem);
+        deleteItem.style.color = 'var(--text-error)';
+        deleteItem.onclick = () => {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+            if (confirm(`确定要删除标签 "${tag}" 吗？\n此操作会从所有卡片上移除该标签，但不会删除卡片本身。`)) {
+                this.deleteTag(tag);
+            }
+        };
+
+        const closeMenu = (e: MouseEvent) => {
+            if (!menu.contains(e.target as Node)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenu), 0);
+    }
+
+    private styleMenuItem(el: HTMLButtonElement) {
+        Object.assign(el.style, {
+            width: '100%', textAlign: 'left', padding: '8px 16px',
+            border: 'none', background: 'none', color: 'var(--text-normal)',
+            cursor: 'pointer', fontSize: '14px', display: 'block'
+        });
+        el.onmouseenter = () => el.style.background = 'var(--background-modifier-hover)';
+        el.onmouseleave = () => el.style.background = 'none';
+    }
+
+    private async updateTag(oldTag: string, newTag: string) {
+        if (!newTag.trim() || oldTag === newTag.trim()) return;
+
+        const affectedNotes = this.highlights.filter(note => note.tags?.includes(oldTag));
+        for (const note of affectedNotes) {
+            const updatedTags = note.tags?.map(t => t === oldTag ? newTag.trim() : t);
+            await db.updateHighlightNote(note.id, { tags: updatedTags });
+        }
+
+        new Notice(`标签 "${oldTag}" 已更新为 "${newTag}"`);
+        await this.loadHighlights();
+        this.render();
+    }
+
+    private async deleteTag(tag: string) {
+        const affectedNotes = this.highlights.filter(note => note.tags?.includes(tag));
+        for (const note of affectedNotes) {
+            const updatedTags = note.tags?.filter(t => t !== tag);
+            await db.updateHighlightNote(note.id, { tags: updatedTags });
+        }
+
+        new Notice(`标签 "${tag}" 已从所有卡片中移除`);
+        await this.loadHighlights();
+        this.render();
     }
 
     private renderMainContent(parentProp?: HTMLElement) {
@@ -304,6 +437,7 @@ export class HighlightManagerView extends ItemView {
 
         filtered.sort((a, b) => {
             if (this.sortBy === 'az') return a.text.localeCompare(b.text);
+            if (this.sortBy === 'za') return b.text.localeCompare(a.text);
             return b.createdAt - a.createdAt;
         });
 
@@ -792,5 +926,74 @@ class NoteEditModal extends Modal {
 
         const cancelBtn = actions.createEl('button', { text: '取消' });
         cancelBtn.onclick = () => this.close();
+    }
+}
+
+class TagEditModal extends Modal {
+    private tag: string;
+    private onSubmit: (tag: string) => void;
+    private inputEl: HTMLInputElement;
+
+    constructor(app: App, tag: string, onSubmit: (tag: string) => void) {
+        super(app);
+        this.tag = tag;
+        this.onSubmit = onSubmit;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+        this.titleEl.setText('编辑标签');
+
+        const container = contentEl.createDiv('eme-tag-edit-container');
+        container.style.padding = '20px';
+
+        const label = container.createEl('p', { cls: 'eme-tag-edit-label', text: '新标签名：' });
+
+        const inputWrap = container.createDiv('eme-tag-edit-input-wrap');
+        this.inputEl = inputWrap.createEl('input', {
+            type: 'text',
+            placeholder: '请输入新标签名',
+            value: this.tag
+        });
+        Object.assign(this.inputEl.style, {
+            width: '100%',
+            padding: '8px 12px',
+            fontSize: '14px',
+            border: '1px solid var(--background-modifier-border)',
+            borderRadius: '4px',
+            backgroundColor: 'var(--background-primary)'
+        });
+
+        const actions = container.createDiv('eme-tag-edit-actions');
+        actions.style.display = 'flex';
+        actions.style.justifyContent = 'flex-end';
+        actions.style.gap = '8px';
+        actions.style.marginTop = '20px';
+
+        const cancelBtn = actions.createEl('button', { text: '取消' });
+        cancelBtn.onclick = () => this.close();
+
+        const confirmBtn = actions.createEl('button', { cls: 'mod-cta', text: '确定' });
+        confirmBtn.onclick = () => this.handleSubmit();
+
+        this.inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.handleSubmit();
+            if (e.key === 'Escape') this.close();
+        });
+
+        setTimeout(() => this.inputEl.focus(), 50);
+    }
+
+    private handleSubmit() {
+        const newTag = this.inputEl.value.trim();
+        if (newTag && newTag !== this.tag) {
+            this.onSubmit(newTag);
+        }
+        this.close();
+    }
+
+    onClose() {
+        this.contentEl.empty();
     }
 }

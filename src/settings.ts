@@ -2,9 +2,11 @@
 // HiLighter - Settings Tab
 // ============================================================
 
-import { App, PluginSettingTab, Setting, Platform } from 'obsidian';
+import { App, PluginSettingTab, Setting, Platform, Notice } from 'obsidian';
 import type HiLighterPlugin from './main';
 import { DEFAULT_SETTINGS, type EMESettings } from './models';
+import { db } from './db';
+import type { HighlightNote } from './models';
 
 export { DEFAULT_SETTINGS };
 export type { EMESettings };
@@ -148,6 +150,73 @@ export class EMESettingTab extends PluginSettingTab {
 				t.inputEl.rows = 8;
 				t.inputEl.style.width = '100%';
 			});
+
+		// ── Data Management ──────────────────────────────────────
+		containerEl.createEl('h3', { text: '数据管理' });
+
+		// Export Data
+		new Setting(containerEl)
+			.setName('导出数据')
+			.setDesc('将所有高亮笔记数据导出为 JSON 文件')
+			.addButton(btn => btn
+				.setButtonText('导出')
+				.onClick(async () => {
+					const data = await db.getAllHighlights();
+					const dataStr = JSON.stringify(data, null, 2);
+					const blob = new Blob([dataStr], { type: 'application/json' });
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement('a');
+					a.href = url;
+					a.download = `hilighter-data-${new Date().toISOString().split('T')[0]}.json`;
+					a.click();
+					URL.revokeObjectURL(url);
+					new Notice('数据导出成功');
+				})
+			);
+
+		// Import Data
+		new Setting(containerEl)
+			.setName('导入数据')
+			.setDesc('从 JSON 文件导入高亮笔记数据')
+			.addButton(btn => btn
+				.setButtonText('导入')
+				.onClick(() => {
+					const input = document.createElement('input');
+					input.type = 'file';
+					input.accept = 'application/json';
+					input.onchange = async (e) => {
+						const file = (e.target as HTMLInputElement).files?.[0];
+						if (!file) return;
+
+						try {
+							const reader = new FileReader();
+							reader.onload = async (event) => {
+								try {
+									const importedData = JSON.parse(event.target?.result as string);
+									if (Array.isArray(importedData)) {
+										let count = 0;
+										for (const item of importedData) {
+											if (item.id && item.text && item.color) {
+												await db.addHighlightNote(item);
+												count++;
+											}
+										}
+										new Notice(`成功导入 ${count} 条高亮笔记`);
+									}
+								} catch (err) {
+									console.error('Import error:', err);
+									new Notice('导入失败：文件格式无效');
+								}
+							};
+							reader.readAsText(file);
+						} catch (err) {
+							console.error('File read error:', err);
+							new Notice('导入失败：无法读取文件');
+						}
+					};
+					input.click();
+				})
+			);
 
 		// ── Ribbon Icons ──────────────────────────────────────
 		containerEl.createEl('h3', { text: '侧边栏图标' });
