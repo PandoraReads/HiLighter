@@ -2,16 +2,16 @@
 // HiLighter - Settings Tab
 // ============================================================
 
-import { App, PluginSettingTab, Setting, Platform, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting, Platform, Notice, Modal } from 'obsidian';
 import type HiLighterPlugin from './main';
-import { DEFAULT_SETTINGS, type EMESettings } from './models';
+import { DEFAULT_SETTINGS, type HiLighterSettings, type ResearchPrompt } from './models';
 import { db } from './db';
 import type { HighlightNote } from './models';
 
 export { DEFAULT_SETTINGS };
-export type { EMESettings };
+export type { HiLighterSettings };
 
-export class EMESettingTab extends PluginSettingTab {
+export class HiLighterSettingTab extends PluginSettingTab {
 	plugin: HiLighterPlugin;
 
 	constructor(app: App, plugin: HiLighterPlugin) {
@@ -22,7 +22,7 @@ export class EMESettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		containerEl.addClass('eme-settings');
+		containerEl.addClass('hl-settings');
 
 		containerEl.createEl('h2', { text: 'HiLighter' });
 
@@ -39,7 +39,7 @@ export class EMESettingTab extends PluginSettingTab {
 					.addOption('custom', '自定义 (OpenAI 兼容)')
 					.setValue(this.plugin.settings.aiProvider)
 					.onChange(async (v) => {
-						this.plugin.settings.aiProvider = v as EMESettings['aiProvider'];
+						this.plugin.settings.aiProvider = v as HiLighterSettings['aiProvider'];
 						await this.plugin.saveSettings();
 						this.display();
 					});
@@ -130,26 +130,88 @@ export class EMESettingTab extends PluginSettingTab {
 					}));
 		}
 
-		// ── Research Prompt ────────────────────────────────────
-		containerEl.createEl('h3', { text: '研究提示语设置' });
+		// ── Research Prompts ────────────────────────────────────
+		containerEl.createEl('h3', { text: '研究提示语管理' });
 
 		containerEl.createEl('p', {
-			text: '自定义点击卡片"研究"按钮时发送给大模型的系统提示语。留空则使用默认提示语。',
-			cls: 'eme-settings-hint'
+			text: '管理多个研究提示语，在使用中切换。点击卡片的"研究"按钮时将使用当前选中的提示语。',
+			cls: 'hl-settings-hint'
 		});
 
+		// Active prompt selector
 		new Setting(containerEl)
-			.setName('研究提示语')
-			.addTextArea(t => {
-				t.setPlaceholder('在此输入自定义的研究提示语...')
-					.setValue(this.plugin.settings.researchPrompt || '')
+			.setName('当前使用的提示语')
+			.addDropdown(drop => {
+				const prompts = this.plugin.settings.researchPrompts;
+				prompts.forEach(p => {
+					drop.addOption(p.id, p.name);
+				});
+				drop.setValue(this.plugin.settings.activeResearchPromptId || prompts[0]?.id || '')
 					.onChange(async (v) => {
-						this.plugin.settings.researchPrompt = v;
+						this.plugin.settings.activeResearchPromptId = v;
 						await this.plugin.saveSettings();
+						this.display();
 					});
-				t.inputEl.rows = 8;
-				t.inputEl.style.width = '100%';
 			});
+
+		// Prompt list
+		const prompts = this.plugin.settings.researchPrompts;
+		prompts.forEach((prompt, index) => {
+			const isActive = prompt.id === this.plugin.settings.activeResearchPromptId;
+			const promptSetting = new Setting(containerEl)
+				.setName(prompt.name + (isActive ? ' (当前使用)' : ''))
+				.setDesc(prompt.prompt.length > 80 ? prompt.prompt.substring(0, 80) + '...' : prompt.prompt)
+				.addButton(btn => btn
+					.setButtonText('编辑')
+					.onClick(() => {
+						new PromptEditModal(this.app, prompt, async (updated) => {
+							const prompts = this.plugin.settings.researchPrompts;
+							const idx = prompts.findIndex(p => p.id === prompt.id);
+							if (idx !== -1) {
+								const existing = prompts[idx];
+								prompts[idx] = { id: existing!.id, name: updated.name, prompt: updated.prompt };
+								await this.plugin.saveSettings();
+								this.display();
+							}
+						}).open();
+					}));
+
+			// Don't allow deleting the last prompt
+			if (prompts.length > 1) {
+				promptSetting.addButton(btn => btn
+					.setButtonText('删除')
+					.setWarning()
+					.onClick(async () => {
+						const prompts = this.plugin.settings.researchPrompts;
+						this.plugin.settings.researchPrompts = prompts.filter(p => p.id !== prompt.id);
+						// If deleting the active prompt, switch to the first one
+						if (this.plugin.settings.activeResearchPromptId === prompt.id) {
+							this.plugin.settings.activeResearchPromptId = this.plugin.settings.researchPrompts[0]?.id || '';
+						}
+						await this.plugin.saveSettings();
+						this.display();
+					}));
+			}
+		});
+
+		// Add new prompt button
+		new Setting(containerEl)
+			.setName('添加新提示语')
+			.addButton(btn => btn
+				.setButtonText('新增')
+				.onClick(() => {
+					new PromptEditModal(this.app, null, async (result) => {
+						const newPrompt: ResearchPrompt = {
+							id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+							name: result.name,
+							prompt: result.prompt,
+						};
+						this.plugin.settings.researchPrompts.push(newPrompt);
+						this.plugin.settings.activeResearchPromptId = newPrompt.id;
+						await this.plugin.saveSettings();
+						this.display();
+					}).open();
+				}));
 
 		// ── Data Management ──────────────────────────────────────
 		containerEl.createEl('h3', { text: '数据管理' });
@@ -217,28 +279,86 @@ export class EMESettingTab extends PluginSettingTab {
 					input.click();
 				})
 			);
+	}
+}
 
-		// ── Ribbon Icons ──────────────────────────────────────
-		containerEl.createEl('h3', { text: '侧边栏图标' });
+// ── Prompt Edit Modal (Glass Morphism) ──────────────────────
+class PromptEditModal extends Modal {
+	private prompt: ResearchPrompt | null;
+	private onSubmit: (result: { name: string; prompt: string }) => void;
+	private nameInput!: HTMLInputElement;
+	private promptInput!: HTMLTextAreaElement;
 
-		new Setting(containerEl)
-			.setName('显示高亮笔记图标')
-			.addToggle(t => t
-				.setValue(this.plugin.settings.ribbonHighlightIcon)
-				.onChange(async (v) => {
-					this.plugin.settings.ribbonHighlightIcon = v;
-					await this.plugin.saveSettings();
-				}));
+	constructor(app: App, prompt: ResearchPrompt | null, onSubmit: (result: { name: string; prompt: string }) => void) {
+		super(app);
+		this.prompt = prompt;
+		this.onSubmit = onSubmit;
+	}
 
-		// ── Device Info ─────────────────────────────────────────
-		containerEl.createEl('h3', { text: '设备信息' });
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		this.titleEl.setText(this.prompt ? '编辑研究提示语' : '新增研究提示语');
+		this.modalEl.addClass('hl-glass-modal');
 
-		new Setting(containerEl)
-			.setName('当前设备 ID')
-			.setDesc('唯一设备标识')
-			.addText(t => t
-				.setValue(this.plugin.settings.deviceId)
-				.setDisabled(true)
-			);
+		const container = contentEl.createDiv('hl-glass-modal-body');
+
+		// Name input
+		const nameWrap = container.createDiv('hl-glass-field');
+		nameWrap.createEl('label', { text: '提示语名称', cls: 'hl-glass-label' });
+		this.nameInput = nameWrap.createEl('input', {
+			type: 'text',
+			placeholder: '例如：深度解析、快速摘要...',
+			cls: 'hl-glass-input'
+		});
+		this.nameInput.value = this.prompt?.name || '';
+
+		// Prompt textarea
+		const promptWrap = container.createDiv('hl-glass-field');
+		promptWrap.createEl('label', { text: '提示语内容', cls: 'hl-glass-label' });
+		this.promptInput = promptWrap.createEl('textarea', {
+			placeholder: '输入自定义研究提示语...',
+			cls: 'hl-glass-textarea'
+		});
+		this.promptInput.value = this.prompt?.prompt || '';
+
+		// Actions
+		const actions = container.createDiv('hl-glass-modal-actions');
+		const cancelBtn = actions.createEl('button', { text: '取消', cls: 'hl-glass-btn-cancel' });
+		cancelBtn.onclick = () => this.close();
+
+		const confirmBtn = actions.createEl('button', { cls: 'hl-glass-btn-confirm', text: '保存' });
+		confirmBtn.onclick = () => this.handleSubmit();
+
+		this.nameInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				this.promptInput.focus();
+			}
+		});
+		this.promptInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') this.close();
+		});
+
+		setTimeout(() => this.nameInput.focus(), 50);
+	}
+
+	private handleSubmit() {
+		const name = this.nameInput.value.trim();
+		const prompt = this.promptInput.value.trim();
+		if (!name) {
+			new Notice('请输入提示语名称');
+			return;
+		}
+		if (!prompt) {
+			new Notice('请输入提示语内容');
+			return;
+		}
+		this.onSubmit({ name, prompt });
+		this.close();
+	}
+
+	onClose() {
+		this.contentEl.empty();
 	}
 }

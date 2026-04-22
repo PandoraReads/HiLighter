@@ -12,26 +12,38 @@ import {
 	TextComponent,
 	Modal
 } from 'obsidian';
-import { EMESettingTab, DEFAULT_SETTINGS } from './settings';
-import type { EMESettings } from './models';
+import { HiLighterSettingTab, DEFAULT_SETTINGS } from './settings';
+import type { HiLighterSettings } from './models';
+import { DEFAULT_RESEARCH_PROMPTS } from './models';
 import { HighlightView, HIGHLIGHT_VIEW_TYPE } from './highlight-view';
 import { HighlightManagerView, HIGHLIGHT_MANAGER_VIEW_TYPE, HighlightDetailModal } from './highlight-manager';
-import { db } from './db';
+import { db, initDb } from './db';
 import type { HighlightNote } from './models';
 import { randomUUID } from './mocks/crypto';
 
 export default class HiLighterPlugin extends Plugin {
-	settings: EMESettings;
+	settings: HiLighterSettings;
 	private highlightMenu: HTMLElement | null = null;
 	private lastSelection: string = '';
 	private lastContext: any = null;
 
 	async onload() {
+		// Initialize vault-specific database before anything else
+		initDb(this.app.vault.adapter.basePath || this.app.vault.getRoot().path);
+
 		await this.loadSettings();
 
-		// 0. Device ID Initialize
-		if (!this.settings.deviceId) {
-			this.settings.deviceId = randomUUID();
+		// Migrate: ensure researchPrompts exists
+		if (!this.settings.researchPrompts || this.settings.researchPrompts.length === 0) {
+			if (this.settings.researchPrompt) {
+				this.settings.researchPrompts = [
+					{ id: 'default', name: '默认提示语', prompt: this.settings.researchPrompt },
+					{ id: 'classic', name: '经典哲学解析', prompt: DEFAULT_RESEARCH_PROMPTS[0].prompt },
+				];
+			} else {
+				this.settings.researchPrompts = [...DEFAULT_RESEARCH_PROMPTS];
+			}
+			this.settings.activeResearchPromptId = this.settings.researchPrompts[0].id;
 			await this.saveSettings();
 		}
 
@@ -42,18 +54,16 @@ export default class HiLighterPlugin extends Plugin {
 		// 2. Initialize
 		this.initializeFeatures();
 
-		// 3. Settings Tab (Always available)
-		this.addSettingTab(new EMESettingTab(this.app, this));
+		// 3. Settings Tab
+		this.addSettingTab(new HiLighterSettingTab(this.app, this));
 	}
 
 	/**
 	 * Initialize actual workspace features
 	 */
 	private initializeFeatures() {
-		// 1. Ribbon Icons
-		if (this.settings.ribbonHighlightIcon) {
-			this.addRibbonIcon('highlighter', '高亮笔记', () => this.activateView(HIGHLIGHT_VIEW_TYPE, 'right'));
-		}
+		// 1. Ribbon Icon
+		this.addRibbonIcon('highlighter', '高亮笔记', () => this.activateView(HIGHLIGHT_VIEW_TYPE, 'right'));
 
 		// 2. Commands
 		this.addCommand({
@@ -64,6 +74,11 @@ export default class HiLighterPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-highlight-manager',
 			name: '管理所有高亮笔记',
+			callback: () => this.activateView(HIGHLIGHT_MANAGER_VIEW_TYPE, 'main'),
+		});
+		this.addCommand({
+			id: 'open-card-collection',
+			name: '打开卡片集',
 			callback: () => this.activateView(HIGHLIGHT_MANAGER_VIEW_TYPE, 'main'),
 		});
 
@@ -187,15 +202,15 @@ export default class HiLighterPlugin extends Plugin {
 		}
 
 		if (!this.highlightMenu) {
-			this.highlightMenu = doc.body.createDiv('eme-highlight-menu');
+			this.highlightMenu = doc.body.createDiv('hl-highlight-menu');
 		}
 
-		this.highlightMenu.toggleClass('eme-mobile-menu', Platform.isMobile);
+		this.highlightMenu.toggleClass('hl-mobile-menu', Platform.isMobile);
 		this.highlightMenu.empty();
 
-		const colors = this.highlightMenu.createDiv('eme-h-menu-colors');
+		const colors = this.highlightMenu.createDiv('hl-h-menu-colors');
 		['yellow', 'pink', 'blue', 'green'].forEach(color => {
-			const dot = colors.createDiv(`eme-h-color-dot ${color}`);
+			const dot = colors.createDiv(`hl-h-color-dot ${color}`);
 			const applyAction = (e: Event) => {
 				e.preventDefault();
 				e.stopPropagation();
@@ -227,7 +242,7 @@ export default class HiLighterPlugin extends Plugin {
 			(this.app.workspace.activeLeaf?.view as any);
 
 		if (!view || (view.getViewType && view.getViewType() !== 'markdown') || !view.editor) {
-			console.warn('[EME] Could not find markdown editor view', view);
+			console.warn('[HiLighter] Could not find markdown editor view', view);
 			new Notice('未发现编辑窗口，请确保光标在笔记中');
 			return;
 		}
@@ -239,7 +254,7 @@ export default class HiLighterPlugin extends Plugin {
 
 		const editor = view.editor;
 		const id = randomUUID();
-		const highlightTag = `<mark class="eme-highlight eme-h-${color}" data-id="${id}">${text}</mark>`;
+		const highlightTag = `<mark class="hl-highlight hl-h-${color}" data-id="${id}">${text}</mark>`;
 
 		try {
 			editor.focus();
@@ -275,7 +290,7 @@ export default class HiLighterPlugin extends Plugin {
 				}
 			});
 		} catch (err) {
-			console.error('[EME] Highlight save error', err);
+			console.error('[HiLighter] Highlight save error', err);
 		}
 	}
 
@@ -351,7 +366,7 @@ export default class HiLighterPlugin extends Plugin {
 						const text = (current.textContent || '').trim();
 						if (text.toLowerCase().indexOf(selection.toLowerCase()) !== -1) {
 							lineText = text;
-							if (current.matches('p, li, h1, h2, h3, h4, h5, h6, .textLayer, .eme-shadowing-item, .markdown-rendered')) {
+							if (current.matches('p, li, h1, h2, h3, h4, h5, h6, .textLayer, .hl-shadowing-item, .markdown-rendered')) {
 								break;
 							}
 						}
@@ -377,11 +392,11 @@ export default class HiLighterPlugin extends Plugin {
 						}
 					}
 				} catch (fileErr) {
-					console.error('[EME] Global scan error', fileErr);
+					console.error('[HiLighter] Global scan error', fileErr);
 				}
 			}
 		} catch (e) {
-			console.error('[EME] Capture error', e);
+			console.error('[HiLighter] Capture error', e);
 		}
 
 		lineText = (lineText || '').trim();

@@ -5,11 +5,11 @@
 import Dexie, { type Table } from 'dexie';
 import type { HighlightNote } from './models';
 
-export class EMEDatabase extends Dexie {
+export class HiLighterDatabase extends Dexie {
     highlightNotes!: Table<HighlightNote, string>;
 
-    constructor() {
-        super('HiLighterDB');
+    constructor(dbName: string) {
+        super(dbName);
 
         this.version(2).stores({
             highlightNotes: 'id, sourcePath, createdAt',
@@ -27,11 +27,11 @@ export class EMEDatabase extends Dexie {
     }
 
     async getHighlightsByPath(path: string): Promise<HighlightNote[]> {
-        return this.highlightNotes.where('sourcePath').equals(path).toArray();
+        return await this.highlightNotes.where('sourcePath').equals(path).toArray();
     }
 
     async getAllHighlights(): Promise<HighlightNote[]> {
-        return this.highlightNotes.orderBy('createdAt').reverse().toArray();
+        return await this.highlightNotes.orderBy('createdAt').reverse().toArray();
     }
 
     async updateHighlightNote(id: string, changes: Partial<HighlightNote>): Promise<void> {
@@ -43,8 +43,6 @@ export class EMEDatabase extends Dexie {
     }
 
     async updateHighlightPaths(oldPath: string, newPath: string): Promise<void> {
-        // Handle both file rename and folder rename
-        // If it's a folder, all files inside will have paths starting with oldPath/
         const isFolder = !oldPath.endsWith('.md');
 
         if (isFolder) {
@@ -61,7 +59,6 @@ export class EMEDatabase extends Dexie {
                 await this.highlightNotes.update(h.id, { sourcePath: updatedPath });
             }
         } else {
-            // Single file rename
             const highlights = await this.highlightNotes
                 .where('sourcePath')
                 .equals(oldPath)
@@ -74,5 +71,37 @@ export class EMEDatabase extends Dexie {
     }
 }
 
-// Singleton
-export const db = new EMEDatabase();
+// Derive a short, safe suffix from the vault path for DB isolation
+function vaultDbName(vaultPath: string): string {
+    // Use a hash-like suffix from the vault path to keep the name short
+    let hash = 0;
+    for (let i = 0; i < vaultPath.length; i++) {
+        hash = ((hash << 5) - hash + vaultPath.charCodeAt(i)) | 0;
+    }
+    // Convert to positive hex string
+    const suffix = (hash >>> 0).toString(36);
+    return `HiLighterDB_${suffix}`;
+}
+
+// Lazy singleton - initialized per vault
+let _db: HiLighterDatabase | null = null;
+
+export function initDb(vaultPath: string): HiLighterDatabase {
+    const name = vaultDbName(vaultPath);
+    if (_db && _db.name === name) return _db;
+    _db = new HiLighterDatabase(name);
+    return _db;
+}
+
+export function getDb(): HiLighterDatabase {
+    if (!_db) throw new Error('Database not initialized. Call initDb(vaultPath) first.');
+    return _db;
+}
+
+// Backward-compatible alias for existing imports
+export const db = new Proxy({} as HiLighterDatabase, {
+    get(_target, prop, _receiver) {
+        if (!_db) throw new Error('Database not initialized. Call initDb(vaultPath) first.');
+        return (_db as any)[prop];
+    }
+});

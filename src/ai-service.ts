@@ -3,7 +3,7 @@
 // ============================================================
 
 import { requestUrl } from 'obsidian';
-import type { EMESettings } from './models';
+import type { HiLighterSettings } from './models';
 
 export type AIAction = 'translate' | 'annotate' | 'research';
 
@@ -19,9 +19,13 @@ const DEFAULT_RESEARCH_PROMPT = `你是一位充满智慧且言简意赅的哲�
 若内容与个人成长或工作实践相关，请提供凝练的行动启发。`;
 
 export class AIService {
-    private settings: EMESettings;
+    private settings: HiLighterSettings;
 
-    constructor(settings: EMESettings) {
+    constructor(settings: HiLighterSettings) {
+        this.settings = settings;
+    }
+
+    updateSettings(settings: HiLighterSettings) {
         this.settings = settings;
     }
 
@@ -71,8 +75,10 @@ export class AIService {
             case 'annotate':
                 return `你是一个语言学专家和百科全书。请对以下文本中的生僻词汇、重难点、术语或特殊表达进行深入注解。解释其含义、语法、词义辨析及背景知识。"${text}"${strictSuffix}`;
             case 'research':
-                const userPrompt = this.settings.researchPrompt?.trim();
-                const researchInstruction = userPrompt || DEFAULT_RESEARCH_PROMPT;
+                const activePrompt = this.settings.researchPrompts?.find(
+                    p => p.id === this.settings.activeResearchPromptId
+                );
+                const researchInstruction = activePrompt?.prompt || DEFAULT_RESEARCH_PROMPT;
                 return `${researchInstruction}\n\n"${text}"${strictSuffix}`;
             default:
                 return text;
