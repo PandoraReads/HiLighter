@@ -1,11 +1,13 @@
 # HiLighter - Obsidian 高亮笔记管理工具
 
-[![Plugin Version](https://img.shields.io/github/v/release/papple/hilighter?label=Version&color=blue)](https://github.com/papple/hilighter/releases)
+[![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/PandoraReads/HiLighter/releases/)
 [![Obsidian Version](https://img.shields.io/badge/Obsidian-v3.4.0%2B-purple)](https://obsidian.md)
 
-**HiLighter** 是一款专注于高亮笔记管理的 Obsidian 插件。它将高亮内容转化为可管理的笔记卡片，支持多种颜色标注、AI辅助分析和智能搜索功能，让你的笔记整理更加高效。
+**HiLighter** 是一款专注于高亮笔记管理的 Obsidian 插件。它将高亮内容转化为可管理的笔记卡片，支持多种颜色标注、AI辅助分析和智能搜索功能，让你在阅读和研究中实现更高效的笔记管理和研究。
 
 ---
+
+![screenshot1](screenshots/screenshot1.png)
 
 ## ✨ 核心特性
 
@@ -26,6 +28,8 @@
     *   **分类标签**：为每张卡片添加标签进行分类整理，支持批量标签操作。
     *   **批量删除**：进入批量模式，多选卡片后一键删除，高效清理无用笔记。
     *   **复习模式**：随机打乱卡片顺序进行复习巩固，支持归档已掌握的内容。
+
+![screenshot2](screenshots/screenshot2.png)
 
 ---
 

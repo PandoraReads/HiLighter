@@ -1,11 +1,13 @@
 # HiLighter - Obsidian Highlight Note Management Tool
 
-[![Plugin Version](https://img.shields.io/github/v/release/papple/hilighter?label=Version&color=blue)](https://github.com/papple/hilighter/releases)
+[![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/pandorareads/hilighter/releases)
 [![Obsidian Version](https://img.shields.io/badge/Obsidian-v3.4.0%2B-purple)](https://obsidian.md)
 
 **HiLighter** is an Obsidian plugin focused on highlight note management. It transforms highlighted content into manageable note cards with support for multiple color annotations, AI-powered analysis, and intelligent search features, making your note organization more efficient.
 
 ---
+
+![screenshot1](screenshots/screenshot1.png)
 
 ## ✨ Core Features
 
@@ -26,6 +28,8 @@
     *   **Classification Tags**: Add tags to each card for organized categorization, with support for batch tag operations.
     *   **Batch Deletion**: Enter batch mode to multi-select cards and delete them in one click for efficient cleanup.
     *   **Review Mode**: Shuffle cards randomly for review and consolidation, with an archive option for mastered content.
+
+![screenshot2](screenshots/screenshot2.png)
 
 ---
 
