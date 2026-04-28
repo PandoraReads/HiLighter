@@ -1,3 +1,6 @@
+# Source code (not needed for Obsidian plugin release)
+src/
+
 # Dependencies
 node_modules/
 
