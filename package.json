@@ -1,6 +1,6 @@
 {
   "name": "hilighter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A powerful highlight note management tool with multiple colors, AI assistance, and smart review features.",
   "main": "main.js",
   "type": "module",

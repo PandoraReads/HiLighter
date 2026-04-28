@@ -16,11 +16,16 @@
     *   **Keyword Search**: Real-time filtering of note content via top search bar.
 *   **AI-Powered Intelligence**:
     *   **AI Translation (Languages)**: One-click precise translation of highlighted sentences.
-    *   **AI Research (Microscope)**: **Three-layer philosophical depth analysis** (essence extraction, conceptual perspective, practical pathway) providing thoughtful background expansion.
+    *   **AI Research (Microscope)**: Comes with multiple built-in research prompt templates (philosophical analysis, concise summary, critical analysis) and supports **custom research prompts** — freely add, edit, and switch between prompts to suit different deep reading scenarios.
 *   **Flexible Interaction**:
     *   **Quick Edit**: Click pencil icon to directly edit notes on cards with auto-adjusting height.
     *   **Tag System**: Support for custom tags with built-in intelligent recommendation algorithm.
     *   **Card Collection Navigation**: One-click switch to full-screen "Card Studio" mode for centralized inspiration management.
+*   **Note Card Management**:
+    *   **Locate Original Text**: Click a card to instantly jump to the highlighted position in the source note for quick context recovery.
+    *   **Classification Tags**: Add tags to each card for organized categorization, with support for batch tag operations.
+    *   **Batch Deletion**: Enter batch mode to multi-select cards and delete them in one click for efficient cleanup.
+    *   **Review Mode**: Shuffle cards randomly for review and consolidation, with an archive option for mastered content.
 
 ---
 

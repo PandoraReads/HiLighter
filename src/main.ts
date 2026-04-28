@@ -26,6 +26,7 @@ export default class HiLighterPlugin extends Plugin {
 	private highlightMenu: HTMLElement | null = null;
 	private lastSelection: string = '';
 	private lastContext: any = null;
+	private pendingSelectionInfo: { selection: string; context: any; x: number; y: number; doc: Document } | null = null;
 
 	async onload() {
 		// Initialize vault-specific database before anything else
@@ -124,6 +125,7 @@ export default class HiLighterPlugin extends Plugin {
 			const selection = sel?.toString().trim();
 
 			if (!selection || selection.length === 0 || selection.length > 2000) {
+				this.pendingSelectionInfo = null;
 				if (this.highlightMenu && !this.highlightMenu.contains(target)) {
 					this.hideHighlightMenu();
 				}
@@ -143,14 +145,32 @@ export default class HiLighterPlugin extends Plugin {
 				const rect = range.getBoundingClientRect();
 				if (rect.width > 0) {
 					context.leaf = leaf;
-					this.showHighlightMenu(selection, context, rect.left + rect.width / 2, rect.top - 50, doc);
+					// Store selection info instead of showing menu immediately
+					this.pendingSelectionInfo = {
+						selection,
+						context,
+						x: rect.left + rect.width / 2,
+						y: rect.top - 50,
+						doc,
+					};
 				}
 			}
 		};
 
+		const handleKeydown = (evt: KeyboardEvent) => {
+			if (!this.pendingSelectionInfo) return;
+			if (!this.matchesShortcut(evt)) return;
+
+			evt.preventDefault();
+			const info = this.pendingSelectionInfo;
+			this.showHighlightMenu(info.selection, info.context, info.x, info.y, info.doc);
+		};
+
 		const setupWindow = (win: Window) => {
 			this.registerDomEvent(win.document as any, 'mouseup', (evt: MouseEvent) => handleSelection(evt));
+			this.registerDomEvent(win.document as any, 'keydown', (evt: KeyboardEvent) => handleKeydown(evt));
 			this.registerDomEvent(win.document as any, 'mousedown', (evt: MouseEvent) => {
+				this.pendingSelectionInfo = null;
 				if (this.highlightMenu && !this.highlightMenu.contains(evt.target as Node)) {
 					this.hideHighlightMenu();
 				}
@@ -159,6 +179,27 @@ export default class HiLighterPlugin extends Plugin {
 
 		setupWindow(window);
 		this.app.workspace.on('window-open', (win) => setupWindow(win as any));
+	}
+
+	private matchesShortcut(evt: KeyboardEvent): boolean {
+		const shortcut = this.settings.highlightShortcut || (navigator.platform?.includes('Mac') ? 'Meta+2' : 'Control+2');
+		const parts = shortcut.split('+');
+		const key = parts[parts.length - 1];
+
+		if (evt.key !== key) return false;
+
+		const modifiers = parts.slice(0, -1).map(p => p.toLowerCase());
+		const requireMeta = modifiers.includes('meta') || modifiers.includes('cmd');
+		const requireCtrl = modifiers.includes('ctrl') || modifiers.includes('control');
+		const requireAlt = modifiers.includes('alt') || modifiers.includes('option');
+		const requireShift = modifiers.includes('shift');
+
+		if (requireMeta !== evt.metaKey) return false;
+		if (requireCtrl !== evt.ctrlKey) return false;
+		if (requireAlt !== evt.altKey) return false;
+		if (requireShift !== evt.shiftKey) return false;
+
+		return true;
 	}
 
 	private initMobileSupport() {

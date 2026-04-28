@@ -1,10 +1,8 @@
 # Dependencies
 node_modules/
 
-# Build output
-main.js
-styles.css
-manifest.json
+# Build output (source maps only - main.js, styles.css, manifest.json must be committed for Obsidian release)
+*.map
 
 # OS files
 .DS_Store

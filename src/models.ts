@@ -29,6 +29,8 @@ export interface HiLighterSettings {
     activeResearchPromptId: string;
     // UI
     ribbonHighlightIcon: boolean;
+    // Desktop Shortcut
+    highlightShortcut: string;
 }
 
 const DEFAULT_PHILOSOPHER_PROMPT = `你是一位充满智慧且言简意赅的哲学家朋友。请对以下文本进行深度解析，并按以下三层结构组织：
@@ -83,6 +85,7 @@ export const DEFAULT_SETTINGS: HiLighterSettings = {
     researchPrompts: DEFAULT_RESEARCH_PROMPTS,
     activeResearchPromptId: 'philosopher',
     ribbonHighlightIcon: true,
+    highlightShortcut: '',
 };
 
 /**

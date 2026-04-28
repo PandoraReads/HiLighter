@@ -130,6 +130,41 @@ export class HiLighterSettingTab extends PluginSettingTab {
 					}));
 		}
 
+		// ── Shortcut Settings (desktop only) ────────────────────────
+		if (!Platform.isMobile) {
+			containerEl.createEl('h3', { text: '快捷键设置' });
+
+			containerEl.createEl('p', {
+				text: '选中文本后，按下快捷键才会弹出高亮菜单。',
+				cls: 'hl-settings-hint'
+			});
+
+			containerEl.createEl('p', {
+				text: '注意：请避免使用 Obsidian 或系统已占用的快捷键，否则可能无法生效。',
+				cls: 'hl-settings-hint'
+			});
+			containerEl.querySelector('.hl-settings-hint:last-of-type')?.setAttr('style', 'color: var(--text-warning)');
+
+			const isMac = navigator.platform?.includes('Mac');
+				const defaultShortcut = isMac ? 'Cmd+2' : 'Ctrl+2';
+
+				new Setting(containerEl)
+					.setName('高亮快捷键')
+					.setDesc('格式: 修饰键+按键，例如 Cmd+2、Ctrl+Shift+H')
+					.addText(t => {
+						t.setPlaceholder(defaultShortcut)
+							.setValue(this.plugin.settings.highlightShortcut || defaultShortcut)
+							.onChange(async (v) => {
+								const cleaned = v.trim();
+								if (cleaned.includes('+') && cleaned.split('+').pop()!.length > 0) {
+									this.plugin.settings.highlightShortcut = cleaned;
+									await this.plugin.saveSettings();
+								}
+							});
+						t.inputEl.style.width = '120px';
+					});
+		}
+
 		// ── Research Prompts ────────────────────────────────────
 		containerEl.createEl('h3', { text: '研究提示语管理' });
 
