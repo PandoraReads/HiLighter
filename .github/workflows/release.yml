@@ -16,11 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build
-        run: |
-          npm install
-          npm run build
-
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
         with:
