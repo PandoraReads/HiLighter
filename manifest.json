@@ -3,7 +3,7 @@
 	"name": "HiLighter",
 	"version": "1.1.1",
 	"minAppVersion": "1.0.0",
-	"description": "A powerful highlight note manager with multi-color annotations, AI-assisted notes, and smart review",
+	"description": "A powerful highlight note manager with multi-color annotations, AI-assisted notes, and smart review.",
 	"author": "PandoraReads",
 	"authorUrl": "https://github.com/PandoraReads",
 	"isDesktopOnly": false
