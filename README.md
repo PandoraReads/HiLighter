@@ -3,7 +3,7 @@
 [![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/pandorareads/hilighter/releases)
 [![Obsidian Version](https://img.shields.io/badge/Obsidian-v3.4.0%2B-purple)](https://obsidian.md)
 
-**HiLighter** is an Obsidian plugin focused on highlight note management. It transforms highlighted content into manageable note cards with support for multiple color annotations, AI-powered analysis, and intelligent search features, making your note organization more efficient.
+**HiLighter** is an Obsidian plugin focused on highlight note management. It transforms highlighted content into manageable note cards with support for multiple color annotations, AI-powered analysis, and intelligent search features, making your note organization more efficient. [中文](./README_ZH.md)
 
 ---
 

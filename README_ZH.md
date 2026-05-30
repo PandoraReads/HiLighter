@@ -3,7 +3,7 @@
 [![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/PandoraReads/HiLighter/releases/)
 [![Obsidian Version](https://img.shields.io/badge/Obsidian-v3.4.0%2B-purple)](https://obsidian.md)
 
-**HiLighter** 是一款专注于高亮笔记管理的 Obsidian 插件。它将高亮内容转化为可管理的笔记卡片，支持多种颜色标注、AI辅助分析和智能搜索功能，让你在阅读和中实现更高效的笔记管理和研究。[ENGLISH](https://github.com/PandoraReads/HiLighter/blob/929ddd2b78c6cec2685f436a92b30e80c0541d0c/README_EN.md)
+**HiLighter** 是一款专注于高亮笔记管理的 Obsidian 插件。它将高亮内容转化为可管理的笔记卡片，支持多种颜色标注、AI辅助分析和智能搜索功能，让你在阅读和中实现更高效的笔记管理和研究。[ENGLISH](./README.md)
 
 ---
 
