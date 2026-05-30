@@ -1,89 +1,72 @@
-# HiLighter - Obsidian 高亮笔记管理工具
+# HiLighter - Obsidian Highlight Note Management Tool
 
-[![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/PandoraReads/HiLighter/releases/)
+[![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/pandorareads/hilighter/releases)
 [![Obsidian Version](https://img.shields.io/badge/Obsidian-v3.4.0%2B-purple)](https://obsidian.md)
 
-**HiLighter** 是一款专注于高亮笔记管理的 Obsidian 插件。它将高亮内容转化为可管理的笔记卡片，支持多种颜色标注、AI辅助分析和智能搜索功能，让你在阅读和中实现更高效的笔记管理和研究。[ENGLISH](https://github.com/PandoraReads/HiLighter/blob/929ddd2b78c6cec2685f436a92b30e80c0541d0c/README_EN.md)
+**HiLighter** is an Obsidian plugin focused on highlight note management. It transforms highlighted content into manageable note cards with support for multiple color annotations, AI-powered analysis, and intelligent search features, making your note organization more efficient.
 
 ---
 
 ![screenshot1](screenshots/screenshot1.png)
 
-## ✨ 核心特性
+## ✨ Core Features
 
-### 🎨 高亮笔记卡片管理 (Highlight Note Cards)
-*   **侧边栏管理**：汇总当前文档或所有库文件中的 `<mark>` 高亮内容，支持**点击卡片瞬间跳转**至原文。
-*   **多维筛选**：
-    *   **颜色过滤**：支持按黄色、粉色、蓝色、绿色四种高亮颜色快速分类。
-    *   **关键词检索**：在顶部搜索框实时过滤笔记内容。
-*   **AI 深度赋能**：
-    *   **AI 翻译 (Languages)**：一键获取高亮句子的精准翻译。
-    *   **AI 研究 (Microscope)**：内置多套研究提示词模板（哲学解析、精炼摘要、批判分析），并支持**自定义研究提示词**——可自由新增、编辑、切换，满足不同场景的深度阅读需求。
-*   **灵活交互**：
-    *   **快速编辑**：点击铅笔图标即可直接在卡片上修改笔记，支持自动调整高度。
-    *   **标签系统**：支持为卡片添加自定义标签，内置智能推荐算法。
-    *   **卡片集导航**：一键切换至全屏”卡片工作室”模式，集中管理所有灵感。
-*   **笔记卡片管理**：
-    *   **原文定位**：点击卡片即可瞬间跳转至原文高亮位置，快速回到上下文。
-    *   **分类标签**：为每张卡片添加标签进行分类整理，支持批量标签操作。
-    *   **批量删除**：进入批量模式，多选卡片后一键删除，高效清理无用笔记。
-    *   **复习模式**：随机打乱卡片顺序进行复习巩固，支持归档已掌握的内容。
+### 🎨 Highlight Note Cards Management
+*   **Sidebar Management**: Aggregates `<mark>` highlighted content from current document or entire library, supporting **instant navigation** to original text via card click.
+*   **Multi-Dimensional Filtering**:
+    *   **Color Filter**: Quick categorization by four highlight colors: yellow, pink, blue, and green.
+    *   **Keyword Search**: Real-time filtering of note content via top search bar.
+*   **AI-Powered Intelligence**:
+    *   **AI Translation (Languages)**: One-click precise translation of highlighted sentences.
+    *   **AI Research (Microscope)**: Comes with multiple built-in research prompt templates (philosophical analysis, concise summary, critical analysis) and supports **custom research prompts** — freely add, edit, and switch between prompts to suit different deep reading scenarios.
+*   **Flexible Interaction**:
+    *   **Quick Edit**: Click pencil icon to directly edit notes on cards with auto-adjusting height.
+    *   **Tag System**: Support for custom tags with built-in intelligent recommendation algorithm.
+    *   **Card Collection Navigation**: One-click switch to full-screen "Card Studio" mode for centralized inspiration management.
+*   **Note Card Management**:
+    *   **Locate Original Text**: Click a card to instantly jump to the highlighted position in the source note for quick context recovery.
+    *   **Classification Tags**: Add tags to each card for organized categorization, with support for batch tag operations.
+    *   **Batch Deletion**: Enter batch mode to multi-select cards and delete them in one click for efficient cleanup.
+    *   **Review Mode**: Shuffle cards randomly for review and consolidation, with an archive option for mastered content.
 
 ![screenshot2](screenshots/screenshot2.png)
 
 ---
 
-## 🚀 快速上手
+## 🚀 Quick Start
 
-### 安装方式
-1. **手动安装（推荐）：**
-    *   获取本插件最新版的 `main.js`, `manifest.json`, `styles.css` 三个主文件。
-    *   将其放入你的库文件夹：`.obsidian/plugins/hilighter/`。
-    *   在设置的第三方插件中启用插件。
-2. **社区插件（暂未上架）：** 在 Obsidian 设置中的“社区插件”市场搜索 `HiLighter` 并安装。
+### Installation
+1. **Manual Installation (Recommended):**
+    *   Obtain the latest version's three main files: `main.js`, `manifest.json`, and `styles.css`.
+    *   Place them in your vault folder: `.obsidian/plugins/hilighter/`.
+    *   Enable the plugin in Settings > Third-party plugins.
+2. **Community Plugins (Coming Soon):** Search for `HiLighter` in the Obsidian Community Plugins market and install.
 
-### 基础配置
-1.  **AI 大模型 API（重要）**：为使用 AI 翻译和 AI 研究功能，需在插件设置中配置 AI 大模型 API。支持 DeepSeek、Google Gemini、火山引擎等主流服务商。
-2. **AI研究提示词**：支持为笔记研究自定义提示词。
----
-
-## 🛠 开发与构建
-
-欢迎开发者参与改进本项目！
-
-*   **环境要求**：NodeJS (v16+)
-*   **安装依赖**：`npm install`
-*   **开发模式**：`npm run dev`
-*   **构建生产版本**：`npm run build`
+### Basic Configuration
+1.  **AI LLM API (Important)**: To use AI Translation and AI Research features, configure an AI LLM API in plugin settings. Supports mainstream providers including DeepSeek, Google Gemini, and Volcano Engine (Ark).
+2.  **Ribbon Icon**: You can control whether to display the sidebar highlight notes icon in settings.
 
 ---
 
-## ❤️ 支持与反馈
+## 🛠 Development & Build
 
-如果你喜欢这个插件，可以通过以下方式支持：
+Developers are welcome to contribute to improving this project!
 
-*   **关注公众号**：潘多拉的数字花园
-*   **多平台支持**：支持同名微博、小红书、知识星球
-*   **联系与反馈**：欢迎加 VX: **PandoraReads**
-
----
-
-## 📋 更新日志
-
-### v1.1.1 (2025-05-25)
-- **AI 提示词选择弹窗**：点击"全文AI解析"或卡片"AI研究"按钮时，现在会弹出提示词选择弹窗，用户可以从预设列表中选择不同的研究提示词，再发送给大模型进行分析。
-- 支持中英双语界面（i18n）。
-- 支持自定义翻译目标语言设置。
-
-### v1.1.0
-- 新增多模型管理，支持 DeepSeek、Gemini、Kimi、Qwen、豆包、OpenAI 等。
-- 新增研究提示词管理（新增、编辑、删除、切换）。
-- 新增全文 AI 解析功能。
-- 新增数据同步（通过仓库文件多设备同步）。
-
-### v1.0.1
-- 初始发布版本，上架 Obsidian 社区插件市场。
+*   **Requirements**: NodeJS (v16+)
+*   **Install Dependencies**: `npm install`
+*   **Development Mode**: `npm run dev`
+*   **Production Build**: `npm run build`
 
 ---
 
-*"让高亮笔记成为灵感的催化剂。" — HiLighter*
+## ❤️ Support & Feedback
+
+If you enjoy this plugin, you can show your support through:
+
+*   **Follow Official Account**: 潘多拉的数字花园 (Pandora's Digital Garden)
+*   **Multi-Platform Support**: Also available on Weibo, Xiaohongshu (Little Red Book), and Knowledge Planet under the same name
+*   **Contact & Feedback**: Feel free to add VX: **PandoraReads**
+
+---
+
+*"Let highlighted notes become the catalyst for inspiration." — HiLighter*
