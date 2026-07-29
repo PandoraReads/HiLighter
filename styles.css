@@ -4545,7 +4545,8 @@ mark.hl-h-green {
     display: inline-block;
 }
 
-.hl-filter-trigger {
+.hl-filter-trigger,
+.hl-sort-trigger {
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -4561,7 +4562,9 @@ mark.hl-h-green {
 }
 
 .hl-filter-trigger:hover,
-.hl-filter-trigger.is-open {
+.hl-filter-trigger.is-open,
+.hl-sort-trigger:hover,
+.hl-sort-trigger.is-open {
     border-color: var(--hl-accent);
     color: var(--text-normal);
 }
@@ -4588,11 +4591,13 @@ mark.hl-h-green {
     transition: transform 0.18s ease;
 }
 
-.hl-filter-trigger.is-open .hl-filter-trigger-chev svg {
+.hl-filter-trigger.is-open .hl-filter-trigger-chev svg,
+.hl-sort-trigger.is-open .hl-filter-trigger-chev svg {
     transform: rotate(180deg);
 }
 
-.hl-filter-dropdown {
+.hl-filter-dropdown,
+.hl-sort-dropdown {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
@@ -4626,7 +4631,8 @@ mark.hl-h-green {
     padding: 4px;
 }
 
-.hl-filter-row {
+.hl-filter-row,
+.hl-sort-row {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -4638,11 +4644,13 @@ mark.hl-h-green {
     transition: background 0.12s;
 }
 
-.hl-filter-row:hover {
+.hl-filter-row:hover,
+.hl-sort-row:hover {
     background: var(--background-modifier-hover);
 }
 
-.hl-filter-row.is-selected {
+.hl-filter-row.is-selected,
+.hl-sort-row.is-selected {
     color: var(--hl-accent);
     font-weight: 600;
 }
@@ -4678,6 +4686,19 @@ mark.hl-h-green {
     color: var(--text-faint);
     font-size: 0.9em;
     flex-shrink: 0;
+}
+
+/* Trailing check mark for the selected sort option */
+.hl-filter-row-tick {
+    display: inline-flex;
+    align-items: center;
+    color: var(--hl-accent);
+    flex-shrink: 0;
+}
+
+.hl-filter-row-tick svg {
+    width: 14px !important;
+    height: 14px !important;
 }
 
 /* ── Floating color popover (change highlight color) ── */
