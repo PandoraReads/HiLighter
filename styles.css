@@ -4195,47 +4195,9 @@ mark.hl-h-green {
 }
 
 /* ============================================================
-   COLOR SEMANTICS — labeled filter pills + card meaning chips
+   COLOR SEMANTICS — card meaning chips
+   (Filter pills always stay plain color dots; see .hl-color-pill)
    ============================================================ */
-.hl-color-pill.is-labeled {
-    width: auto;
-    height: auto;
-    min-height: 22px;
-    border-radius: 11px;
-    padding: 2px 9px 2px 7px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: rgba(var(--hl-accent-rgb), 0.06);
-    border: 1px solid var(--hl-glass-border);
-    box-shadow: none;
-    font-size: 0.72em;
-    font-weight: 600;
-    color: var(--text-normal);
-}
-
-.hl-color-pill.is-labeled:hover {
-    transform: none;
-    background: rgba(var(--hl-accent-rgb), 0.12);
-}
-
-.hl-color-pill.is-labeled.is-active {
-    background: rgba(var(--hl-accent-rgb), 0.2);
-    border-color: var(--hl-accent);
-    transform: none;
-    box-shadow: none;
-}
-
-.hl-pill-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.hl-pill-text {
-    white-space: nowrap;
-}
 
 /* Card footer meaning chip */
 .hl-color-chip {
