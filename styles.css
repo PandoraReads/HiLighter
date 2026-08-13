@@ -410,10 +410,10 @@
 }
 
 .hl-h-card-note {
-    background: #fcfcfc;
+    background: rgba(var(--background-secondary-rgb), 0.4);
     padding: 12px;
     border-radius: 10px;
-    border: 1px dashed #eee;
+    border: 1px dashed var(--hl-glass-border);
 }
 
 .hl-h-textarea {
@@ -423,7 +423,7 @@
     font-size: 0.9em;
     min-height: 50px;
     resize: vertical;
-    color: #444;
+    color: var(--text-normal);
     line-height: 1.4;
     font-family: inherit;
 }
