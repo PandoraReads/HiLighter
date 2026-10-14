@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { setLang } from '../src/i18n';
+import type { ColorDef } from '../src/colors';
 import {
     filterHighlights,
     sortHighlights,
@@ -9,6 +10,15 @@ import {
     dayKey,
 } from '../src/studio/grouping';
 import type { HighlightNote } from '../src/models';
+
+/** Preset + one custom, in getColors order. */
+const COLORS: ColorDef[] = [
+    { id: 'yellow', label: 'Yellow', hex: '#ffd700', isCustom: false },
+    { id: 'pink', label: 'Pink', hex: '#ff8fb7', isCustom: false },
+    { id: 'blue', label: 'Questions', hex: '#87ceeb', isCustom: false },
+    { id: 'green', label: 'Green', hex: '#98fb98', isCustom: false },
+    { id: 'c_abcd1234', label: '紫色', hex: '#b39ddb', isCustom: true },
+];
 
 function makeNote(overrides: Partial<HighlightNote> = {}): HighlightNote {
     return {
@@ -103,7 +113,7 @@ describe('groupHighlights', () => {
             makeNote({ id: '2', sourcePath: 'big.md' }),
             makeNote({ id: '3', sourcePath: 'big.md' }),
         ];
-        const groups = groupHighlights(notes, 'file');
+        const groups = groupHighlights(notes, 'file', COLORS);
         expect(groups.map(g => g.name)).toEqual(['big', 'small']);
         expect(groups[0]!.items).toHaveLength(2);
     });
@@ -115,27 +125,30 @@ describe('groupHighlights', () => {
             makeNote({ id: '2', tags: ['x'] }),
             makeNote({ id: '3', tags: ['x', 'y'] }),
         ];
-        const groups = groupHighlights(notes, 'tag');
+        const groups = groupHighlights(notes, 'tag', COLORS);
         expect(groups.map(g => g.key)).toEqual(['x', 'y', '__untagged__']);
         expect(groups[2]!.name).toBe('未标签');
     });
 
-    it('groups by color in preset order, skipping empty colors', () => {
-        setLang('en');
+    it('groups by color in preset order (customs after presets)', () => {
         const notes = [
             makeNote({ color: 'green' }),
+            makeNote({ color: 'c_abcd1234' }),
             makeNote({ color: 'yellow' }),
             makeNote({ color: 'green' }),
         ];
-        const groups = groupHighlights(notes, 'color');
-        expect(groups.map(g => g.key)).toEqual(['yellow', 'green']);
-        expect(groups[0]!.name).toBe('Yellow');
+        const groups = groupHighlights(notes, 'color', COLORS);
+        expect(groups.map(g => g.key)).toEqual(['yellow', 'green', 'c_abcd1234']);
+        expect(groups[1]!.items).toHaveLength(2);
     });
 
-    it('uses the user semantic color label when provided', () => {
-        setLang('en');
-        const groups = groupHighlights([makeNote({ color: 'blue' })], 'color', { blue: 'Questions' });
-        expect(groups[0]!.name).toBe('Questions');
+    it('uses the resolved color label (custom name or semantic label)', () => {
+        const groups = groupHighlights(
+            [makeNote({ color: 'blue' }), makeNote({ color: 'c_abcd1234' })],
+            'color',
+            COLORS,
+        );
+        expect(groups.map(g => g.name)).toEqual(['Questions', '紫色']);
     });
 
     it('groups by month, newest first', () => {
@@ -143,7 +156,7 @@ describe('groupHighlights', () => {
             makeNote({ createdAt: new Date('2026-01-05').getTime() }),
             makeNote({ createdAt: new Date('2025-12-01').getTime() }),
         ];
-        const groups = groupHighlights(notes, 'date');
+        const groups = groupHighlights(notes, 'date', COLORS);
         expect(groups.map(g => g.key)).toEqual(['2026-01', '2025-12']);
     });
 });
@@ -155,20 +168,20 @@ describe('collectFilterItems', () => {
             makeNote({ sourcePath: 'x/a.md' }),
             makeNote({ sourcePath: 'y/b.md' }),
         ];
-        const items = collectFilterItems(notes, 'file');
+        const items = collectFilterItems(notes, 'file', COLORS);
         expect(items[0]).toMatchObject({ key: 'x/a.md', label: 'a', count: 2 });
         expect(items[1]).toMatchObject({ key: 'y/b.md', label: 'b', count: 1 });
     });
 
-    it('returns color facets in preset order with hexes', () => {
+    it('returns color facets in resolved order with hexes', () => {
         const notes = [makeNote({ color: 'pink' }), makeNote({ color: 'yellow' })];
-        const items = collectFilterItems(notes, 'color');
+        const items = collectFilterItems(notes, 'color', COLORS);
         expect(items.map(i => i.key)).toEqual(['yellow', 'pink']);
         expect(items[0]!.color).toBe('#ffd700');
     });
 
     it('returns empty for an unknown dimension', () => {
-        expect(collectFilterItems([makeNote()], 'file')).toHaveLength(1);
+        expect(collectFilterItems([makeNote()], 'file', COLORS)).toHaveLength(1);
     });
 });
 
