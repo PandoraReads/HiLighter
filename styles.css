@@ -5423,3 +5423,34 @@ mark.hl-note-anchor,
 .hl-note-img-btn input.is-hidden {
     display: none;
 }
+
+/* ============================================================
+   PDF — textLayer overlay guards + card page badge
+   ============================================================ */
+
+/* Overlaid marks must not shift pdf.js layout */
+.textLayer mark.hl-highlight {
+    line-height: inherit !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 2px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.textLayer mark.hl-highlight > span {
+    /* pdf.js positions each span absolutely; keep it intact inside the mark */
+    display: initial;
+    top: inherit;
+    left: inherit;
+}
+
+/* Page badge on pdf-anchored cards */
+.hl-list-row .hl-list-src::before,
+.hl-pdf-page-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.85em;
+    opacity: 0.75;
+}
