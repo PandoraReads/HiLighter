@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "dexie": "^4.3.0",
+    "epubjs": "^0.3.93",
     "obsidian": "latest",
     "ts-fsrs": "^5.4.2"
   }

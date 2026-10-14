@@ -5454,3 +5454,68 @@ mark.hl-note-anchor,
     font-size: 0.85em;
     opacity: 0.75;
 }
+
+/* ============================================================
+   EPUB READER VIEW
+   ============================================================ */
+
+.hl-epub-view {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.hl-epub-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    flex-shrink: 0;
+}
+
+.hl-epub-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: background 0.15s, color 0.15s;
+}
+
+.hl-epub-nav:hover {
+    background: rgba(var(--hl-accent-rgb), 0.1);
+    color: var(--hl-accent);
+}
+
+.hl-epub-chapter {
+    flex: 1;
+    text-align: center;
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hl-epub-container {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+
+.hl-epub-container iframe {
+    border: none;
+    background: transparent;
+}
+
+/* epub.js annotation fill uses inline SVG attributes; the class is a hook
+   for potential per-color overrides. */
+.epubjs-hl.hl-epub-hl {
+    cursor: pointer;
+}
