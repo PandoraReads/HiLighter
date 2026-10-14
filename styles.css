@@ -5667,8 +5667,3 @@ mark.hl-note-anchor,
     font-weight: 600;
     cursor: pointer;
 }
-
-/* Image/screenshot note FAB in the sidebar */
-.hl-fab.hl-fab--image {
-    background: linear-gradient(135deg, #8e6bbf, #b39ddb);
-}
