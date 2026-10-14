@@ -5590,3 +5590,85 @@ mark.hl-note-anchor,
 .hl-studio-group.is-drop-target .hl-studio-group-name {
     color: var(--hl-accent);
 }
+
+/* ============================================================
+   COLOR ADD FORM (sidebar popover) + IMAGE FAB
+   ============================================================ */
+
+.hl-color-add-wrap {
+    display: inline-flex;
+}
+
+/* "+" dot inside the sidebar color popover */
+.hl-color-popover .hl-color-dot.hl-dot-add {
+    background: transparent;
+    border: 1.5px dashed var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hl-color-popover .hl-color-dot.hl-dot-add svg {
+    width: 12px !important;
+    height: 12px !important;
+    color: var(--text-muted);
+}
+
+.hl-color-popover .hl-color-dot.hl-dot-add:hover {
+    border-color: var(--hl-accent);
+}
+
+.hl-color-popover .hl-color-dot.hl-dot-add:hover svg {
+    color: var(--hl-accent);
+}
+
+/* Inline add form appended to the popover */
+.hl-color-add-form-wrap {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.hl-add-color-form .hl-add-color-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hl-add-color-form .hl-add-color-input {
+    width: 34px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.hl-add-color-form .hl-add-color-name {
+    width: 96px;
+    height: 26px;
+    padding: 0 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 0.8em;
+}
+
+.hl-add-color-form .hl-add-color-save {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: none;
+    background: var(--hl-accent);
+    color: var(--text-on-accent, #fff);
+    font-size: 0.78em;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Image/screenshot note FAB in the sidebar */
+.hl-fab.hl-fab--image {
+    background: linear-gradient(135deg, #8e6bbf, #b39ddb);
+}
