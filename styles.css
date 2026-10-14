@@ -5205,3 +5205,221 @@ mark.hl-h-green {
 .hl-review-spread.is-flipped-card .hl-review-notes-header {
     opacity: 1;
 }
+
+/* ============================================================
+   CLICK-TO-NOTE — anchor mark, popup, anchor cards, image chips
+   ============================================================ */
+
+/* Subtle in-source anchor for click-notes: dotted underline, no fill.
+   Must never match the mark.hl-h-* highlight rules above. */
+mark.hl-note-anchor,
+.markdown-rendered mark.hl-note-anchor,
+.cm-s-obsidian .cm-line mark.hl-note-anchor {
+    background: transparent !important;
+    background-image: none !important;
+    color: inherit !important;
+    border-bottom: 1.5px dotted rgba(var(--hl-accent-rgb), 0.75);
+    padding: 0 !important;
+    cursor: help;
+}
+
+/* ── Anchored note popup ── */
+.hl-note-popup {
+    position: fixed;
+    z-index: 1002;
+    width: 320px;
+    max-width: calc(100vw - 24px);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+    padding: 10px 12px;
+    animation: hl-pop-in 0.18s ease;
+}
+
+.hl-note-popup-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.hl-note-popup-title {
+    font-size: 0.8em;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.hl-note-popup-word {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--hl-accent);
+    border-bottom: 1.5px dotted rgba(var(--hl-accent-rgb), 0.75);
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hl-note-popup-close {
+    margin-left: auto;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 1.1em;
+    line-height: 1;
+    padding: 2px 6px;
+}
+
+.hl-note-popup-close:hover {
+    color: var(--text-normal);
+}
+
+.hl-note-popup-textarea {
+    width: 100%;
+    min-height: 64px;
+    resize: vertical;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 0.88em;
+    font-family: var(--hl-font-sans);
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.hl-note-popup-textarea:focus {
+    outline: none;
+    border-color: var(--hl-accent);
+}
+
+.hl-note-popup-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.hl-img-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    background: rgba(var(--hl-accent-rgb), 0.1);
+    color: var(--hl-accent);
+    font-size: 0.75em;
+    font-weight: 600;
+    max-width: 100%;
+}
+
+.hl-img-chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+}
+
+.hl-img-chip-remove {
+    cursor: pointer;
+    opacity: 0.7;
+    font-weight: 700;
+}
+
+.hl-img-chip-remove:hover {
+    opacity: 1;
+}
+
+.hl-note-popup-dropzone {
+    margin-top: 8px;
+    padding: 10px;
+    border: 1.5px dashed var(--background-modifier-border);
+    border-radius: 8px;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 0.75em;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.hl-note-popup-dropzone.hl-img-dropzone-active,
+.hl-img-dropzone-active {
+    border-color: var(--hl-accent);
+    color: var(--hl-accent);
+    background: rgba(var(--hl-accent-rgb), 0.06);
+}
+
+.hl-note-popup-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+    align-items: center;
+}
+
+.hl-note-img-btn {
+    margin-right: auto;
+    border: 1px dashed var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.75em;
+    border-radius: 7px;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+
+.hl-note-popup-cancel,
+.hl-note-popup-save {
+    border-radius: 8px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    font-size: 0.8em;
+    font-weight: 600;
+    padding: 5px 14px;
+    cursor: pointer;
+}
+
+.hl-note-popup-save {
+    background: var(--hl-accent);
+    border-color: var(--hl-accent);
+    color: var(--text-on-accent, #fff);
+}
+
+/* ── Sidebar anchor cards ── */
+.hl-highlight-card.hl-anchor-card {
+    border-left: 2px dashed rgba(var(--hl-accent-rgb), 0.6) !important;
+    background: rgba(var(--hl-accent-rgb), 0.03);
+}
+
+.hl-anchor-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 2px;
+}
+
+.hl-anchor-badge-icon svg {
+    width: 13px !important;
+    height: 13px !important;
+    color: var(--hl-accent);
+}
+
+.hl-anchor-badge-word {
+    font-size: 0.72em;
+    font-weight: 700;
+    color: var(--hl-accent);
+    border-bottom: 1.5px dotted rgba(var(--hl-accent-rgb), 0.75);
+}
+
+/* Sidebar note textareas show a drop hint while dragging over */
+.hl-h-textarea.hl-img-dropzone-active {
+    border-color: var(--hl-accent) !important;
+    box-shadow: 0 0 0 2px rgba(var(--hl-accent-rgb), 0.15);
+}
+
+.hl-note-img-btn.is-desktop-hidden,
+.hl-note-img-btn input.is-hidden {
+    display: none;
+}
