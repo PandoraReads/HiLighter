@@ -8,6 +8,9 @@ import {
     collectFilterItems,
     monthKey,
     dayKey,
+    planGroupDrop,
+    dropEnabled,
+    UNTAGGED_KEY,
 } from '../src/studio/grouping';
 import type { HighlightNote } from '../src/models';
 
@@ -192,5 +195,37 @@ describe('key helpers', () => {
 
     it('monthKey zero-pads the month', () => {
         expect(monthKey(new Date(2026, 10, 20).getTime())).toBe('2026-11');
+    });
+});
+
+describe('planGroupDrop (drag between groups)', () => {
+    it('color dimension: dropping on another color group recolors; same group is a no-op', () => {
+        const note = makeNote({ color: 'yellow' });
+        expect(planGroupDrop('color', 'blue', note)).toEqual({ type: 'color', color: 'blue' });
+        expect(planGroupDrop('color', 'yellow', note)).toEqual({ type: 'noop' });
+    });
+
+    it('tag dimension: adds the target tag; existing tag is a no-op', () => {
+        const note = makeNote({ tags: ['x'] });
+        expect(planGroupDrop('tag', 'y', note)).toEqual({ type: 'addTag', tag: 'y' });
+        expect(planGroupDrop('tag', 'x', note)).toEqual({ type: 'noop' });
+    });
+
+    it('tag dimension: dropping on the untagged group clears all tags (no-op when already empty)', () => {
+        expect(planGroupDrop('tag', UNTAGGED_KEY, makeNote({ tags: ['x', 'y'] }))).toEqual({ type: 'clearTags' });
+        expect(planGroupDrop('tag', UNTAGGED_KEY, makeNote({ tags: [] }))).toEqual({ type: 'noop' });
+    });
+
+    it('file and date dimensions own no editable attribute', () => {
+        const note = makeNote({ sourcePath: 'a.md', createdAt: 1000 });
+        expect(planGroupDrop('file', 'b.md', note)).toEqual({ type: 'unsupported' });
+        expect(planGroupDrop('date', '2026-10', note)).toEqual({ type: 'unsupported' });
+    });
+
+    it('dropEnabled matches the droppable dimensions', () => {
+        expect(dropEnabled('color')).toBe(true);
+        expect(dropEnabled('tag')).toBe(true);
+        expect(dropEnabled('file')).toBe(false);
+        expect(dropEnabled('date')).toBe(false);
     });
 });

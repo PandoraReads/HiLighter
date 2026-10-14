@@ -5519,3 +5519,74 @@ mark.hl-note-anchor,
 .epubjs-hl.hl-epub-hl {
     cursor: pointer;
 }
+
+/* ============================================================
+   TOOLBAR ICON BUTTONS + COLLAPSE-ALL + GROUP DRAG & DROP
+   ============================================================ */
+
+/* Compact icon-only button (collapse/expand all groups) */
+.hl-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.hl-icon-btn:hover {
+    border-color: var(--hl-accent);
+    color: var(--text-normal);
+}
+
+.hl-icon-btn svg {
+    width: 15px !important;
+    height: 15px !important;
+}
+
+/* Icon-only tool buttons (review / batch / stats) */
+.hl-tool-btn svg {
+    width: 15px !important;
+    height: 15px !important;
+}
+
+.hl-view-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 4px 10px;
+}
+
+.hl-view-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+/* ── Group drag & drop ── */
+.hl-studio-card[draggable="true"],
+.hl-list-row[draggable="true"] {
+    cursor: grab;
+}
+
+.hl-studio-card.is-dragging,
+.hl-list-row.is-dragging {
+    opacity: 0.45;
+}
+
+.hl-studio-group.is-drop-target .hl-studio-group-header {
+    background: rgba(var(--hl-accent-rgb), 0.12);
+    border-radius: 10px;
+    outline: 1.5px dashed var(--hl-accent);
+    outline-offset: -1px;
+}
+
+.hl-studio-group.is-drop-target .hl-studio-group-name {
+    color: var(--hl-accent);
+}
