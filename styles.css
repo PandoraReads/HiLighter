@@ -5082,3 +5082,126 @@ mark.hl-h-green {
 .hl-color-pill[data-custom-pill] {
     box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
+
+/* ============================================================
+   FSRS FLASHCARD REVIEW — rating row, summary, fsrs chip
+   ============================================================ */
+
+/* Rating row: appears under the spread once the card is flipped */
+.hl-review-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 18px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.hl-review-actions.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.hl-review-rate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 18px;
+    border-radius: 12px;
+    border: 1px solid var(--hl-glass-border);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+    font-weight: 600;
+    font-family: var(--font-interface);
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.hl-review-rate-btn:hover {
+    transform: translateY(-2px);
+    border-color: var(--hl-accent);
+}
+
+.hl-review-rate-btn .hl-rate-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 5px;
+    background: rgba(var(--hl-accent-rgb), 0.15);
+    color: var(--hl-accent);
+    font-size: 0.75em;
+    font-weight: 700;
+}
+
+.hl-review-rate-btn.rate-again:hover { color: #e05c5c; border-color: #e05c5c; }
+.hl-review-rate-btn.rate-hard:hover { color: #e0a35c; border-color: #e0a35c; }
+.hl-review-rate-btn.rate-good:hover { color: #5cb46e; border-color: #5cb46e; }
+.hl-review-rate-btn.rate-easy:hover { color: #5c9de0; border-color: #5c9de0; }
+
+/* Per-card FSRS chip in the bottom strip */
+.hl-review-fsrs-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: rgba(var(--hl-accent-rgb), 0.1);
+    color: var(--hl-accent);
+    font-size: 0.72em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.hl-fsrs-chip-icon svg {
+    width: 13px !important;
+    height: 13px !important;
+}
+
+.hl-review-jump {
+    cursor: pointer;
+}
+
+/* Session summary screen */
+.hl-review-summary {
+    max-width: 560px;
+    margin: 8vh auto 0;
+    text-align: center;
+    padding: 0 24px;
+}
+
+.hl-review-summary-title {
+    font-family: var(--hl-font-serif);
+    font-size: 1.8em;
+    margin-bottom: 24px;
+}
+
+.hl-review-summary .hl-insights-tiles {
+    justify-content: center;
+}
+
+.hl-review-summary-next {
+    margin-top: 18px;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.hl-review-summary-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 28px;
+}
+
+/* Front/back emphasis: dim the not-yet-revealed side's header */
+.hl-review-spread.is-front-card .hl-review-notes-header {
+    opacity: 0.35;
+}
+
+.hl-review-spread.is-flipped-card .hl-review-notes-header {
+    opacity: 1;
+}

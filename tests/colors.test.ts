@@ -71,8 +71,13 @@ describe('generateCustomColorCss', () => {
 
     it('produces valid darker backgrounds for dark mode and pastels for light mode', () => {
         const css = generateCustomColorCss(settingsWith([{ id: 'c_abcd1234', name: '', hex: '#b39ddb' }]));
-        const lightBg = css.match(/^mark\.hl-h-c_abcd1234 \{ background-color: (#[0-9a-f]{6})/m)?.[1]!;
-        const darkBg = css.match(/^\.theme-dark mark\.hl-h-c_abcd1234 \{ background-color: (#[0-9a-f]{6})/m)?.[1]!;
+        const grab = (re: RegExp): string => {
+            const m = css.match(re);
+            if (!m || !m[1]) throw new Error(`pattern not found: ${re.source}`);
+            return m[1];
+        };
+        const lightBg = grab(/^mark\.hl-h-c_abcd1234 \{ background-color: (#[0-9a-f]{6})/m);
+        const darkBg = grab(/^\.theme-dark mark\.hl-h-c_abcd1234 \{ background-color: (#[0-9a-f]{6})/m);
         const lum = (hex: string) => {
             const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
             return 0.2126 * r + 0.7152 * g + 0.0722 * b;
