@@ -62,15 +62,14 @@ export function showHighlightMenu(
     });
 
     // Dynamic anchor positioning: coordinates depend on the selection rect.
-    // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-    menu.style.display = 'flex';
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
-    // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-    menu.style.transform = 'translateX(-50%)';
+    menu.setCssProps({
+        display: 'flex',
+        left: `${x}px`,
+        top: `${y}px`,
+        transform: 'translateX(-50%)',
+    });
 }
 
 export function hideHighlightMenu(plugin: SelectionMenuHost): void {
-    // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-    if (plugin.highlightMenu) plugin.highlightMenu.style.display = 'none';
+    if (plugin.highlightMenu) plugin.highlightMenu.setCssProps({ display: 'none' });
 }

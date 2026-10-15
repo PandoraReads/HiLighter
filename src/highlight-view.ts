@@ -689,7 +689,8 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
             const previewEl = card.createDiv('hl-ai-preview');
             previewEl.createDiv({ text: t('ai.preview.header'), cls: 'hl-preview-header' });
             const contentEl = previewEl.createDiv({ cls: 'hl-preview-content' });
-            MarkdownRenderer.renderMarkdown(preview, contentEl, note.sourcePath, this);
+            void MarkdownRenderer.render(this.app, preview, contentEl, note.sourcePath, this)
+                .catch(err => console.error('[HiLighter] AI preview render failed:', err));
 
             const pActions = previewEl.createDiv('hl-preview-actions');
             const keepBtn = pActions.createEl('button', { cls: 'hl-mini-btn btn-success', text: t('ai.preview.addToNote') });
@@ -731,8 +732,8 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
 
         // Auto-resize the textarea based on content
         const autoResize = () => {
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.max(textarea.scrollHeight, 60) + 'px';
+            textarea.setCssProps({ height: 'auto' });
+            textarea.setCssProps({ height: Math.max(textarea.scrollHeight, 60) + 'px' });
         };
         textarea.oninput = autoResize;
         textarea.addEventListener('focus', autoResize, { once: true });
@@ -740,7 +741,8 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
         const isExpanded = this.expandedNotes.has(note.id);
         const renderedNote = noteArea.createDiv(`hl-h-card-note-rendered ${!isExpanded ? 'is-collapsed-note' : ''}`);
         if (note.note) {
-            MarkdownRenderer.renderMarkdown(note.note, renderedNote, note.sourcePath, this);
+            void MarkdownRenderer.render(this.app, note.note, renderedNote, note.sourcePath, this)
+                .catch(err => console.error('[HiLighter] note render failed:', err));
 
             // Add expand/collapse toggle if note exists
             const toggleWrap = noteArea.createDiv('hl-note-toggle-wrap');
@@ -1042,8 +1044,8 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
                 const filtered = allTagsArr.filter(t =>
                     t.toLowerCase().includes(filter.toLowerCase()) && !existing.includes(t)
                 );
-                if (filtered.length === 0) { dropdown.style.display = 'none'; return; }
-                dropdown.style.display = 'block';
+                if (filtered.length === 0) { dropdown.setCssProps({ display: 'none' }); return; }
+                dropdown.setCssProps({ display: 'block' });
                 filtered.forEach(t => {
                     const opt = dropdown.createDiv({ text: t, cls: 'hl-tag-dropdown-item' });
                     opt.onclick = async (ev) => {

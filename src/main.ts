@@ -347,7 +347,7 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	private matchesShortcut(evt: KeyboardEvent): boolean {
-		const shortcut = this.settings.highlightShortcut || (navigator.platform?.includes('Mac') ? 'Meta+2' : 'Control+2');
+		const shortcut = this.settings.highlightShortcut || (Platform.isMacOS ? 'Meta+2' : 'Control+2');
 		const parts = shortcut.split('+');
 		const key = parts[parts.length - 1];
 
@@ -428,7 +428,7 @@ export default class HiLighterPlugin extends Plugin {
 		// Priority 3: Try to find any active MarkdownView
 		let view = (context?.leaf?.view as MarkdownView) ||
 			(this.app.workspace.getActiveViewOfType(MarkdownView)) ||
-			(this.app.workspace.activeLeaf?.view as any);
+			(this.app.workspace.getMostRecentLeaf()?.view as any);
 
 		if (!view || (view.getViewType && view.getViewType() !== 'markdown') || !view.editor) {
 			console.warn('[HiLighter] Could not find markdown editor view', view);
@@ -589,7 +589,7 @@ export default class HiLighterPlugin extends Plugin {
 					if (l.view.containerEl.contains(target)) activeLeaf = l;
 				});
 			}
-			if (!activeLeaf) activeLeaf = this.app.workspace.activeLeaf;
+			if (!activeLeaf) activeLeaf = this.app.workspace.getMostRecentLeaf();
 
 			const view = activeLeaf?.view!;
 			const isMarkdown = view?.getViewType() === 'markdown';

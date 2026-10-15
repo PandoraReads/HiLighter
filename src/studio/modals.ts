@@ -9,6 +9,7 @@ import { t } from '../i18n';
 import { generateXhsImage } from './xhs';
 import { removeHighlightFromVault } from './actions';
 import { attachImageHandlers } from '../image-paste';
+import { ConfirmModal } from '../ui/confirm-modal';
 import { jumpToPdfNote } from '../pdf/pdf-anchors';
 import { jumpToEpubNote } from '../epub/epub-jump';
 
@@ -121,9 +122,9 @@ export class HighlightDetailModal extends Modal {
         const deleteBtn = footerRow1.createEl('button', { cls: 'hl-studio-mini-btn hl-detail-delete-btn', attr: { 'aria-label': t('modal.detail.aria.delete') } });
         setIcon(deleteBtn, 'trash-2');
         deleteBtn.onclick = () => {
-            // eslint-disable-next-line no-alert -- matches the plugin's existing confirm() UX
-            if (!confirm(t('modal.detail.deleteConfirm'))) return;
-            void this.handleDelete();
+            new ConfirmModal(this.app, t('modal.detail.deleteConfirm'), () => {
+                void this.handleDelete();
+            }, { confirmText: t('btn.delete'), warning: true }).open();
         };
 
         const actions = footerRow1.createDiv('hl-detail-actions');

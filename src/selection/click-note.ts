@@ -164,13 +164,15 @@ function wordFromPoint(doc: Document, x: number, y: number): string | null {
     try {
         let node: Node | null = null;
         let offset = 0;
-        const anyDoc = doc as Document & {
+        // Typed standalone (not intersected with Document) so the deprecated
+        // DOM lib symbol for caretRangeFromPoint is not referenced. Chromium
+        // exposes caretRangeFromPoint; the standard caretPositionFromPoint is
+        // the fallback elsewhere.
+        const anyDoc = doc as unknown as {
             caretRangeFromPoint?: (x: number, y: number) => Range | null;
             caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
         };
-        // eslint-disable-next-line @typescript-eslint/no-deprecated -- Chromium-only API; the standard caretPositionFromPoint is the fallback
         if (typeof anyDoc.caretRangeFromPoint === 'function') {
-            // eslint-disable-next-line @typescript-eslint/no-deprecated
             const r = anyDoc.caretRangeFromPoint(x, y);
             if (r) { node = r.startContainer; offset = r.startOffset; }
         } else if (typeof anyDoc.caretPositionFromPoint === 'function') {

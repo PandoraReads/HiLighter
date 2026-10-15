@@ -9,6 +9,7 @@ import { db } from './db';
 import type { HighlightNote } from './models';
 import { t, setLang } from './i18n';
 import { newCustomColorId } from './colors';
+import { ConfirmModal } from './ui/confirm-modal';
 
 /** Rotating starter hexes for the "add custom color" button. */
 const DEFAULT_NEW_COLOR_HEXES = ['#b39ddb', '#f0a35e', '#64b5f6', '#81c784', '#e57373', '#4db6ac'];
@@ -29,10 +30,11 @@ export class HiLighterSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		containerEl.addClass('hl-settings');
 
-		containerEl.createEl('h2', { text: 'HiLighter' });
+		// No plugin-name heading here: Obsidian already shows the plugin name
+		// in the settings tab, and the review rules forbid repeating it.
 
 		// ── Language ──────────────────────────────────────────
-		containerEl.createEl('h3', { text: t('settings.language') });
+		new Setting(containerEl).setName(t('settings.language')).setHeading();
 
 		new Setting(containerEl)
 			.setName(t('settings.language'))
@@ -62,7 +64,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 				}));
 
 		// ── Appearance ──────────────────────────────────────────
-		containerEl.createEl('h3', { text: t('settings.appearance') });
+		new Setting(containerEl).setName(t('settings.appearance')).setHeading();
 
 		new Setting(containerEl)
 			.setName(t('settings.appearance.theme'))
@@ -156,12 +158,12 @@ export class HiLighterSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 							this.plugin.refreshAllViews();
 						});
-					txt.inputEl.style.width = '180px';
+					txt.inputEl.setCssProps({ width: '180px' });
 				});
 		});
 
 		// ── Custom highlight colors manager ─────────────────────
-		containerEl.createEl('h4', { text: t('settings.customColors') });
+		new Setting(containerEl).setName(t('settings.customColors')).setHeading();
 		containerEl.createEl('p', {
 			text: t('settings.customColors.desc'),
 			cls: 'hl-settings-hint'
@@ -194,19 +196,19 @@ export class HiLighterSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 							this.plugin.refreshAllViews();
 						});
-					txt.inputEl.style.width = '140px';
+					txt.inputEl.setCssProps({ width: '140px' });
 				});
 				row.addExtraButton(btn => {
 					btn.setIcon('trash-2')
 						.setTooltip(t('colors.delete'))
-						.onClick(async () => {
-							// eslint-disable-next-line no-alert -- matches the plugin's existing confirm() UX
-							if (!confirm(t('colors.deleteConfirm', { name: c.name || c.hex }))) return;
-							this.plugin.settings.customColors = (this.plugin.settings.customColors || [])
-								.filter(x => x.id !== c.id);
-							await this.plugin.saveSettings();
-							this.plugin.refreshAllViews();
-							renderCustomColors(wrap);
+						.onClick(() => {
+							new ConfirmModal(this.app, t('colors.deleteConfirm', { name: c.name || c.hex }), async () => {
+								this.plugin.settings.customColors = (this.plugin.settings.customColors || [])
+									.filter(x => x.id !== c.id);
+								await this.plugin.saveSettings();
+								this.plugin.refreshAllViews();
+								renderCustomColors(wrap);
+							}, { confirmText: t('btn.delete'), warning: true }).open();
 						});
 				});
 			});
@@ -233,7 +235,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 		renderCustomColors(containerEl.createDiv('hl-custom-colors-wrap'));
 
 		// ── Flashcard Review (FSRS) ─────────────────────────────
-		containerEl.createEl('h3', { text: t('settings.fsrs.title') });
+		new Setting(containerEl).setName(t('settings.fsrs.title')).setHeading();
 		containerEl.createEl('p', {
 			text: t('settings.fsrs.desc'),
 			cls: 'hl-settings-hint'
@@ -270,7 +272,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 						};
 						await this.plugin.saveSettings();
 					});
-				txt.inputEl.style.width = '80px';
+				txt.inputEl.setCssProps({ width: '80px' });
 			});
 
 		new Setting(containerEl)
@@ -293,12 +295,12 @@ export class HiLighterSettingTab extends PluginSettingTab {
 			.addExtraButton(btn => {
 				btn.setIcon('rotate-ccw')
 					.setTooltip(t('fsrs.resetAll'))
-					.onClick(async () => {
-						// eslint-disable-next-line no-alert -- destructive action needs a hard confirm
-						if (!confirm(t('fsrs.resetAllConfirm'))) return;
-						const cleared = await db.resetAllFsrs();
-						new Notice(t('fsrs.resetAllDone', { count: cleared }));
-						this.plugin.refreshAllViews();
+					.onClick(() => {
+						new ConfirmModal(this.app, t('fsrs.resetAllConfirm'), async () => {
+							const cleared = await db.resetAllFsrs();
+							new Notice(t('fsrs.resetAllDone', { count: cleared }));
+							this.plugin.refreshAllViews();
+						}, { confirmText: t('btn.confirm'), warning: true }).open();
 					});
 			});
 
@@ -349,9 +351,9 @@ export class HiLighterSettingTab extends PluginSettingTab {
 
 		// ── Shortcut Settings (desktop only) ────────────────────────
 		if (!Platform.isMobile) {
-			containerEl.createEl('h3', { text: t('settings.shortcuts') });
+			new Setting(containerEl).setName(t('settings.shortcuts')).setHeading();
 
-			const isMac = navigator.platform?.includes('Mac');
+			const isMac = Platform.isMacOS;
 			const defaultShortcut = isMac ? 'Cmd+2' : 'Ctrl+2';
 
 			new Setting(containerEl)
@@ -389,13 +391,13 @@ export class HiLighterSettingTab extends PluginSettingTab {
 									await this.plugin.saveSettings();
 								}
 							});
-						t.inputEl.style.width = '120px';
+						t.inputEl.setCssProps({ width: '120px' });
 					});
 			}
 		}
 
 		// ── AI Integration ──────────────────────────────────────
-		containerEl.createEl('h3', { text: t('settings.aiSection') });
+		new Setting(containerEl).setName(t('settings.aiSection')).setHeading();
 
 		// Active model selector
 		if (this.plugin.settings.aiModels.length > 0) {
@@ -487,7 +489,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 		});
 
 		// ── Research Prompts ────────────────────────────────────
-		containerEl.createEl('h3', { text: t('settings.research') });
+		new Setting(containerEl).setName(t('settings.research')).setHeading();
 
 		containerEl.createEl('p', {
 			text: t('settings.research.hint'),
@@ -570,7 +572,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 				}));
 
 		// ── Data Management ──────────────────────────────────────
-		containerEl.createEl('h3', { text: t('settings.data') });
+		new Setting(containerEl).setName(t('settings.data')).setHeading();
 
 		// Export Data
 		new Setting(containerEl)
@@ -637,7 +639,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 			);
 
 		// ── Data Sync ──────────────────────────────────────────
-		containerEl.createEl('h3', { text: t('settings.sync') });
+		new Setting(containerEl).setName(t('settings.sync')).setHeading();
 
 		new Setting(containerEl)
 			.setName(t('settings.sync.enable'))

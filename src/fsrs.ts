@@ -52,8 +52,9 @@ export function fromCard(card: Card): FsrsState {
         due: card.due.getTime(),
         stability: card.stability,
         difficulty: card.difficulty,
-        // eslint-disable-next-line @typescript-eslint/no-deprecated -- v5 field; must round-trip until ts-fsrs 6
-        elapsedDays: card.elapsed_days,
+        // ts-fsrs v5 deprecated the snake_case fields but they must round-trip
+        // until ts-fsrs 6; the cast avoids referencing the deprecated symbol.
+        elapsedDays: (card as { elapsed_days: number }).elapsed_days,
         scheduledDays: card.scheduled_days,
         learningSteps: card.learning_steps,
         reps: card.reps,
@@ -163,7 +164,6 @@ export function nextDueAt(notes: HighlightNote[], now: Date = new Date()): numbe
 
 /** Clears scheduling progress (card becomes new again). */
 export function resetFsrs(note: HighlightNote): HighlightNote {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructure-strip is intentional
     const { fsrs: _dropped, ...rest } = note;
     return { ...rest };
 }

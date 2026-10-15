@@ -7,6 +7,7 @@ import { db } from '../db';
 import { t } from '../i18n';
 import { removeHighlightFromVault, refreshSidebarViews } from './actions';
 import { BatchTagModal } from './modals';
+import { ConfirmModal } from '../ui/confirm-modal';
 import type { HighlightManagerView } from './studio-view';
 
 export function toggleBatchMode(view: HighlightManagerView): void {
@@ -15,22 +16,21 @@ export function toggleBatchMode(view: HighlightManagerView): void {
     view.render();
 }
 
-export async function handleBatchDelete(view: HighlightManagerView): Promise<void> {
+export function handleBatchDelete(view: HighlightManagerView): void {
     if (view.selectedNotes.size === 0) return;
-    // eslint-disable-next-line no-alert -- matches the plugin's existing confirm() UX
-    if (!confirm(t('manager.confirm.batchDelete', { count: view.selectedNotes.size }))) return;
-
-    const ids = Array.from(view.selectedNotes);
-    for (const id of ids) {
-        const note = view.highlights.find(h => h.id === id);
-        if (note) await removeHighlightFromVault(view.app, note);
-        await db.deleteHighlightNote(id);
-    }
-    new Notice(t('manager.notice.batchDeleted', { count: ids.length }));
-    view.selectedNotes.clear();
-    await view.loadHighlights();
-    view.render();
-    refreshSidebarViews(view.app);
+    new ConfirmModal(view.app, t('manager.confirm.batchDelete', { count: view.selectedNotes.size }), async () => {
+        const ids = Array.from(view.selectedNotes);
+        for (const id of ids) {
+            const note = view.highlights.find(h => h.id === id);
+            if (note) await removeHighlightFromVault(view.app, note);
+            await db.deleteHighlightNote(id);
+        }
+        new Notice(t('manager.notice.batchDeleted', { count: ids.length }));
+        view.selectedNotes.clear();
+        await view.loadHighlights();
+        view.render();
+        refreshSidebarViews(view.app);
+    }, { confirmText: t('btn.delete'), warning: true }).open();
 }
 
 export function handleBatchTag(view: HighlightManagerView): void {
