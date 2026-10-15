@@ -1,7 +1,7 @@
 # HiLighter - Obsidian Highlight Note Management Tool
 
 [![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/pandorareads/hilighter/releases)
-[![Obsidian Version](https://img.shields.io/badge/Obsidian-v3.4.0%2B-purple)](https://obsidian.md)
+[![Obsidian Version](https://img.shields.io/badge/Obsidian-v1.0.0%2B-purple)](https://obsidian.md)
 
 **HiLighter** is an Obsidian plugin focused on highlight note management. It transforms highlighted content into manageable note cards with support for multiple color annotations, AI-powered analysis, and intelligent search features, making your note organization more efficient. [中文](./README_ZH.md)
 
@@ -40,7 +40,7 @@
     *   Obtain the latest version's three main files: `main.js`, `manifest.json`, and `styles.css`.
     *   Place them in your vault folder: `.obsidian/plugins/hilighter/`.
     *   Enable the plugin in Settings > Third-party plugins.
-2. **Community Plugins (Coming Soon):** Search for `HiLighter` in the Obsidian Community Plugins market and install.
+2. **Community Plugins:** Search for `HiLighter` in Obsidian's Community Plugins browser and install it directly.
 
 ### Basic Configuration
 1.  **AI LLM API (Important)**: To use AI Translation and AI Research features, configure an AI LLM API in plugin settings. Supports mainstream providers including DeepSeek, Google Gemini, and Volcano Engine (Ark).

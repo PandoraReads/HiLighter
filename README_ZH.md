@@ -1,7 +1,7 @@
 # HiLighter - Obsidian 高亮笔记管理工具
 
 [![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/PandoraReads/HiLighter/releases/)
-[![Obsidian Version](https://img.shields.io/badge/Obsidian-v3.4.0%2B-purple)](https://obsidian.md)
+[![Obsidian Version](https://img.shields.io/badge/Obsidian-v1.0.0%2B-purple)](https://obsidian.md)
 
 **HiLighter** 是一款专注于高亮笔记管理的 Obsidian 插件。它将高亮内容转化为可管理的笔记卡片，支持多种颜色标注、AI辅助分析和智能搜索功能，让你在阅读和中实现更高效的笔记管理和研究。[ENGLISH](./README.md)
 
@@ -40,7 +40,7 @@
     *   获取本插件最新版的 `main.js`, `manifest.json`, `styles.css` 三个主文件。
     *   将其放入你的库文件夹：`.obsidian/plugins/hilighter/`。
     *   在设置的第三方插件中启用插件。
-2. **社区插件（暂未上架）：** 在 Obsidian 设置中的“社区插件”市场搜索 `HiLighter` 并安装。
+2. **社区插件：** 在 Obsidian 设置中的“社区插件”市场搜索 `HiLighter` 并安装。
 
 ### 基础配置
 1.  **AI 大模型 API（重要）**：为使用 AI 翻译和 AI 研究功能，需在插件设置中配置 AI 大模型 API。支持 DeepSeek、Google Gemini、火山引擎等主流服务商。

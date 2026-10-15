@@ -1,7 +1,70 @@
 import esbuild from "esbuild";
 import process from "process";
+import path from "path";
 import { builtinModules } from 'node:module';
+import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync } from 'node:fs';
+
+const require = createRequire(import.meta.url);
+
+// Resolve jszip's CommonJS source entry instead of its prebuilt browser
+// dist bundle. The dist bundle inlines the "setimmediate" polyfill, which
+// uses new Function() and createElement("script") - both rejected by the
+// Obsidian plugin review. Bundling lib/ directly lets us replace those
+// polyfills with the safe shims aliased below.
+const jszipEntry = path.join(
+  path.dirname(require.resolve("jszip/package.json")),
+  "lib",
+  "index.js",
+);
+
+// Strip dynamically-generated-code patterns from vendored dependencies at
+// bundle time. Obsidian's plugin review rejects eval() / new Function() /
+// createElement("script"), and static analysis cannot prove these vendored
+// fallbacks are unreachable. Each replacement preserves behavior in
+// Obsidian's Chromium renderer:
+// - epubjs Contents.addScript(): generic "append <script> to iframe head"
+//   API, never called by this plugin.
+// - epubjs Rendition.injectScript(): only registered when settings.script is
+//   set, which this plugin never sets.
+// - lodash _root.js global detection: `self` is always defined in the
+//   renderer, so the Function('return this') fallback never runs; globalThis
+//   is an equivalent, analysis-friendly replacement.
+const stripVendoredDynamicCode = {
+  name: "strip-vendored-dynamic-code",
+  setup(build) {
+    build.onLoad({ filter: /epubjs[/\\]src[/\\]contents\.js$/ }, async (args) => {
+      let code = readFileSync(args.path, "utf8");
+      const patched = code.replace(
+        /\taddScript\(src\) \{[\s\S]*?\n\t\}/,
+        '\taddScript(src) {\n\t\t// Script injection removed for Obsidian plugin compliance\n\t\treturn Promise.resolve(false);\n\t}',
+      );
+      if (patched === code) {
+        throw new Error("Failed to patch epubjs contents.js addScript - review the epubjs version");
+      }
+      return { contents: patched, loader: "js" };
+    });
+    build.onLoad({ filter: /epubjs[/\\]src[/\\]rendition\.js$/ }, async (args) => {
+      let code = readFileSync(args.path, "utf8");
+      const patched = code.replace(
+        /\tinjectScript\(doc, section\) \{[\s\S]*?\n\t\}/,
+        '\tinjectScript(doc, section) {\n\t\t// Script injection removed for Obsidian plugin compliance\n\t}',
+      );
+      if (patched === code) {
+        throw new Error("Failed to patch epubjs rendition.js injectScript - review the epubjs version");
+      }
+      return { contents: patched, loader: "js" };
+    });
+    build.onLoad({ filter: /lodash[/\\]_root\.js$/ }, async (args) => {
+      let code = readFileSync(args.path, "utf8");
+      const patched = code.replace(/Function\(['"]return this['"]\)\(\)/g, "globalThis");
+      if (patched === code) {
+        throw new Error("Failed to patch lodash _root.js - review the lodash version");
+      }
+      return { contents: patched, loader: "js" };
+    });
+  },
+};
 
 const banner =
 `/*
@@ -26,8 +89,26 @@ const context = await esbuild.context({
   ],
   alias: {
     "crypto": "./src/mocks/crypto.ts",
-    "node:crypto": "./src/mocks/crypto.ts"
+    "node:crypto": "./src/mocks/crypto.ts",
+    // Use jszip's CJS source instead of its prebuilt dist bundle
+    // (see jszipEntry comment above). epubjs imports the dist path
+    // directly, so both the bare package and the dist subpath are aliased.
+    "jszip": jszipEntry,
+    "jszip/dist/jszip": jszipEntry,
+    // Replace polyfills that use forbidden dynamic-code techniques with
+    // safe shims. Obsidian's Chromium provides native equivalents.
+    "lie": "./src/mocks/native-promise.cjs",
+    "setimmediate": "./src/mocks/setimmediate.cjs",
+    // jszip's browser readable-stream shim requires node's "stream"; stub it
+    // (nodestream output support is unused in the browser).
+    "stream": "./src/mocks/empty-module.cjs",
+    // localforage's prebuilt dist inlines the "immediate" scheduler polyfill
+    // (createElement("script")). epubjs only touches it inside the lazily
+    // constructed Store class, which this plugin never instantiates, so stub
+    // it out entirely.
+    "localforage": "./src/mocks/empty-module.cjs",
   },
+  plugins: [stripVendoredDynamicCode],
   mainFields: ["module", "main"],
   conditions: ["import"],
   format: "cjs",

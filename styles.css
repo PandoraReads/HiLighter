@@ -590,8 +590,6 @@ mark.hl-highlight {
     border-radius: 2px;
     padding: 1px 0;
     transition: all 0.2s;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
 }
 
 /* Fix for highlight overlap - Tight fit on all platforms */
@@ -693,10 +691,6 @@ mark.hl-h-green {
     transform: rotateY(180deg);
     justify-content: flex-start;
     overflow-y: auto;
-    scrollbar-width: none;
-    /* Firefox */
-    -ms-overflow-style: none;
-    /* IE and Edge */
 }
 
 .hl-card-back::-webkit-scrollbar {
@@ -5434,8 +5428,6 @@ mark.hl-note-anchor,
     padding: 0 !important;
     margin: 0 !important;
     border-radius: 2px;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
 }
 
 .textLayer mark.hl-highlight > span {

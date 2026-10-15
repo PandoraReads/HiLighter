@@ -1,6 +1,6 @@
 {
   "name": "hilighter",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A powerful highlight note management tool with multiple colors, AI assistance, and smart review features.",
   "main": "main.js",
   "type": "module",
@@ -21,19 +21,21 @@
   "devDependencies": {
     "@eslint/js": "9.30.1",
     "@types/node": "^22.20.5",
+    "dexie": "^4.3.0",
+    "epubjs": "^0.3.93",
     "esbuild": "0.25.5",
     "eslint-plugin-obsidianmd": "0.1.9",
     "globals": "14.0.0",
     "jiti": "2.6.1",
+    "obsidian": "1.10.3",
+    "ts-fsrs": "^5.4.2",
     "tslib": "2.4.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "8.35.1",
     "vitest": "^3.2.7"
   },
-  "dependencies": {
-    "dexie": "^4.3.0",
-    "epubjs": "^0.3.93",
-    "obsidian": "latest",
-    "ts-fsrs": "^5.4.2"
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.12",
+    "moment": "^2.30.1"
   }
 }
