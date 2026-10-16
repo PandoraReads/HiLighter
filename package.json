@@ -25,6 +25,7 @@
     "epubjs": "^0.3.93",
     "esbuild": "0.25.5",
     "eslint-plugin-obsidianmd": "^0.4.2",
+    "fake-indexeddb": "^6.2.6",
     "globals": "14.0.0",
     "jiti": "2.6.1",
     "obsidian": "1.10.3",

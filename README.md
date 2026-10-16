@@ -48,6 +48,33 @@
 
 ---
 
+## 🔄 Data Sync
+
+HiLighter stores highlights in a per-device IndexedDB, but it can sync them across devices through a vault file (default `.hilighter/sync-data.json`). Enable **Sync** in settings and let **iCloud** or **Obsidian Sync** sync that file.
+
+- **Auto-import**: the plugin watches the sync file and merges changes from other devices automatically (~30s poll + on window focus).
+- **Auto-export**: local changes are exported back (debounced ~20s), merging the remote file first so you don't clobber other devices.
+- **Deletes propagate** via lightweight tombstones (pruned after 30 days).
+- **Add/update only**: sync merges rows but never deletes rows that were not explicitly tombstoned; it does not read Obsidian Sync's `*-conflicted-*` copies.
+
+You can still trigger sync manually with the **Export to Vault** / **Import from Vault** commands.
+
+### Deep links
+
+`obsidian://hilighter?op=...` supports:
+
+| op | action |
+|---|---|
+| `sync-import` | import from the sync file |
+| `sync-export` | export to the sync file |
+| `sync` | import then export |
+| `open-studio` | open the Card Studio |
+| `open-view` | open the highlight sidebar (add `&side=main` for the main area) |
+
+Useful from iOS Shortcuts and other apps. Without a `vault=` parameter the URL targets the last-active vault.
+
+---
+
 ## 🛠 Development & Build
 
 Developers are welcome to contribute to improving this project!

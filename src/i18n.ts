@@ -452,6 +452,19 @@ const zh: Record<string, string> = {
 	'sync.import.fail': '导入失败: ${message}',
 	'cmd.exportSync': '导出同步数据到仓库',
 	'cmd.importSync': '从仓库导入同步数据',
+	'cmd.syncNow': '立即同步',
+	'settings.sync.autoImport': '自动导入',
+	'settings.sync.autoImport.desc': '监听同步文件变化，自动合并其他设备的更新到本地',
+	'settings.sync.autoExport': '自动导出',
+	'settings.sync.autoExport.desc': '本地数据变化后自动导出到同步文件（防抖合并，导出前先合并远端）',
+	'settings.sync.status.auto': '自动同步：${state}',
+	'settings.sync.status.watching': '监听中',
+	'settings.sync.status.paused': '已暂停',
+	'sync.autoImport.success': '自动同步：新增 ${added} 条，更新 ${updated} 条',
+	'sync.autoExport.blocked': '本地无高亮数据，已跳过自动导出以避免覆盖远端 ${count} 条',
+	'sync.auto.error': '自动同步出错：${message}',
+	'protocol.missingOp': '缺少操作参数（op）',
+	'protocol.unknownOp': '未知的 HiLighter 链接操作：${op}',
 };
 
 const en: Record<string, string> = {
@@ -894,6 +907,19 @@ const en: Record<string, string> = {
 	'sync.import.fail': 'Import failed: ${message}',
 	'cmd.exportSync': 'Export sync data to vault',
 	'cmd.importSync': 'Import sync data from vault',
+	'cmd.syncNow': 'Sync Now',
+	'settings.sync.autoImport': 'Auto-import',
+	'settings.sync.autoImport.desc': 'Watch the sync file and automatically merge updates from other devices',
+	'settings.sync.autoExport': 'Auto-export',
+	'settings.sync.autoExport.desc': 'Automatically export local changes to the sync file (debounced, merges remote first)',
+	'settings.sync.status.auto': 'Auto-sync: ${state}',
+	'settings.sync.status.watching': 'watching',
+	'settings.sync.status.paused': 'paused',
+	'sync.autoImport.success': 'Auto-sync: ${added} added, ${updated} updated',
+	'sync.autoExport.blocked': 'No local highlights; auto-export skipped to avoid overwriting ${count} remote entries',
+	'sync.auto.error': 'Auto-sync error: ${message}',
+	'protocol.missingOp': 'Missing op parameter',
+	'protocol.unknownOp': 'Unknown HiLighter link op: ${op}',
 };
 
 export function t(key: string, params?: Record<string, string | number>): string {
@@ -906,4 +932,9 @@ export function t(key: string, params?: Record<string, string | number>): string
 		}
 	}
 	return text;
+}
+
+/** Return the key sets of both dictionaries (for parity checks). */
+export function listKeys(): { zh: string[]; en: string[] } {
+	return { zh: Object.keys(zh), en: Object.keys(en) };
 }

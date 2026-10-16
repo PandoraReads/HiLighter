@@ -14,6 +14,7 @@ import { getColors, getColorDef } from './colors';
 import { attachImageHandlers } from './image-paste';
 import { jumpToPdfNote } from './pdf/pdf-anchors';
 import { jumpToEpubNote } from './epub/epub-jump';
+import { locateHighlightMark } from './locate';
 import { changeNoteColor } from './studio/actions';
 import { renderAddColorForm } from './color-add';
 import { applyAppearance } from './appearance';
@@ -1169,23 +1170,8 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (view) {
             const editor = view.editor;
-            const lineCount = editor.lineCount();
-            let targetLine = -1;
-
-            // 2. Scan Editor for the specific ID (Robust navigation)
-            for (let i = 0; i < lineCount; i++) {
-                if (editor.getLine(i).includes(`data-id="${note.id}"`)) {
-                    targetLine = i;
-                    break;
-                }
-            }
-
-            // Fallback to lineIndex if not found (unexpected, but safe)
-            if (targetLine === -1) targetLine = note.lineIndex ?? 0;
-
-            // 3. Navigate
-            editor.setCursor(targetLine, 0);
-            editor.scrollIntoView({ from: { line: targetLine, ch: 0 }, to: { line: targetLine, ch: 0 } }, true);
+            // Scan for the id, then anchor the cursor to the sentence (not the line).
+            locateHighlightMark(editor, note.id, note.lineIndex ?? 0);
         }
     }
     private async removeHighlightFromVault(note: HighlightNote) {

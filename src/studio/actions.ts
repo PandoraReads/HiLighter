@@ -8,6 +8,7 @@ import type { HiLighterSettings, HighlightNote } from '../models';
 import { t } from '../i18n';
 import { getColorDef } from '../colors';
 import { HIGHLIGHT_VIEW_TYPE } from '../view-types';
+import { locateHighlightMark } from '../locate';
 import type { HighlightView } from '../highlight-view';
 import type { HighlightManagerView } from './studio-view';
 
@@ -125,15 +126,11 @@ export async function removeHighlightFromVault(app: App, note: HighlightNote): P
     }
 }
 
-/** Opens the source file and scrolls to the anchored line. */
+/** Opens the source file and scrolls to the anchored sentence. */
 export async function jumpToSource(app: App, note: HighlightNote): Promise<void> {
     await app.workspace.openLinkText(note.sourcePath, '', false);
     const view = app.workspace.getActiveViewOfType(MarkdownView);
     if (view && view.editor) {
-        view.editor.setCursor(note.lineIndex, 0);
-        view.editor.scrollIntoView(
-            { from: { line: note.lineIndex, ch: 0 }, to: { line: note.lineIndex, ch: 0 } },
-            true,
-        );
+        locateHighlightMark(view.editor, note.id, note.lineIndex ?? 0);
     }
 }

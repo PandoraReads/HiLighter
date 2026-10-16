@@ -22,7 +22,7 @@ import { HighlightManagerView, HIGHLIGHT_MANAGER_VIEW_TYPE } from './studio/stud
 import { HIGHLIGHT_VIEW_TYPE } from './view-types';
 import { showHighlightMenu, hideHighlightMenu } from './selection/selection-menu';
 import { registerClickNoteTriggers, openImageNoteCommand } from './selection/click-note';
-import { isValidColorId, getColorDef } from './colors';
+import { getColorDef } from './colors';
 import { injectCustomColorStyles } from './appearance';
 import { capturePdfContext } from './pdf/pdf-anchors';
 import { registerPdfOverlay } from './pdf/pdf-overlay';
@@ -32,6 +32,9 @@ import { db, initDb } from './db';
 import type { HighlightNote } from './models';
 import { randomUUID } from './mocks/crypto';
 import { setLang, t } from './i18n';
+import { initSync, type SyncController } from './sync/controller';
+import { createSyncHost } from './sync/obsidian-host';
+import { handleProtocolOp } from './protocol';
 
 export default class HiLighterPlugin extends Plugin {
 	settings: HiLighterSettings;
@@ -39,6 +42,9 @@ export default class HiLighterPlugin extends Plugin {
 	lastSelection: string = '';
 	lastContext: any = null;
 	pendingSelectionInfo: { selection: string; context: any; x: number; y: number; doc: Document } | null = null;
+	syncController: SyncController | null = null;
+	private syncPathLast: string | null = null;
+	private syncRestartTimer: number | null = null;
 
 	async onload() {
 		// Initialize vault-specific database before anything else
@@ -208,6 +214,28 @@ export default class HiLighterPlugin extends Plugin {
 			name: t('cmd.importSync'),
 			callback: () => this.importSyncFile(),
 		});
+		this.addCommand({
+			id: 'sync-now',
+			name: t('cmd.syncNow'),
+			callback: () => { void this.syncController?.syncNow(); },
+		});
+
+		// Automatic two-way sync + obsidian:// deep links
+		this.syncController = initSync(createSyncHost(this));
+		this.app.workspace.onLayoutReady(() => this.syncController?.start());
+		this.registerObsidianProtocolHandler('hilighter', (params) => {
+			handleProtocolOp(params, {
+				syncImport: () => { void this.syncController?.importNow(); },
+				syncExport: () => { void this.syncController?.exportNow(); },
+				sync: () => { void this.syncController?.syncNow(); },
+				openStudio: () => { void this.activateView(HIGHLIGHT_MANAGER_VIEW_TYPE, 'main'); },
+				openView: (view, side) => {
+					const type = view === 'manager' ? HIGHLIGHT_MANAGER_VIEW_TYPE : HIGHLIGHT_VIEW_TYPE;
+					void this.activateView(type, side === 'main' ? 'main' : 'right');
+				},
+				notice: (message) => new Notice(message),
+			});
+		});
 
 		// 4. Sync Highlight Paths on Rename/Move
 		this.registerEvent(
@@ -225,6 +253,7 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	async onunload() {
+		this.syncController?.dispose();
 		if (this.settings.syncEnabled && this.settings.syncOnUnload && !Platform.isMobile) {
 			try {
 				await this.exportSyncFile();
@@ -233,6 +262,26 @@ export default class HiLighterPlugin extends Plugin {
 			}
 		}
 		this.hideHighlightMenu();
+	}
+
+	/**
+	 * Restart the auto-sync watcher after a settings change. Debounced because
+	 * the sync-path text field fires on every keystroke; resets remote state
+	 * only when the path actually changed.
+	 */
+	restartSyncWatcher(): void {
+		const ctrl = this.syncController;
+		if (!ctrl) return;
+		const newPath = this.settings.syncFilePath;
+		if (this.syncRestartTimer !== null) window.clearTimeout(this.syncRestartTimer);
+		this.syncRestartTimer = window.setTimeout(() => {
+			this.syncRestartTimer = null;
+			if (this.syncPathLast !== null && this.syncPathLast !== newPath) {
+				ctrl.setPath();
+			}
+			this.syncPathLast = newPath;
+			ctrl.restart();
+		}, 800);
 	}
 
 	/**
@@ -685,59 +734,11 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	async exportSyncFile(): Promise<void> {
-		try {
-			const data = await db.getAllHighlights();
-			const syncPayload = {
-				version: 2,
-				exportedAt: Date.now(),
-				count: data.length,
-				highlights: data,
-			};
-			const jsonStr = JSON.stringify(syncPayload, null, 2);
-			const path = this.settings.syncFilePath;
-			const dir = path.substring(0, path.lastIndexOf('/'));
-			if (dir && !await this.app.vault.adapter.exists(dir)) {
-				await this.app.vault.adapter.mkdir(dir);
-			}
-			await this.app.vault.adapter.write(path, jsonStr);
-			new Notice(t('sync.export.success', { count: data.length }));
-		} catch (err) {
-			new Notice(t('sync.export.fail', { message: String(err) }));
-		}
+		await this.syncController?.exportNow();
 	}
 
 	async importSyncFile(): Promise<void> {
-		const path = this.settings.syncFilePath;
-		try {
-			if (!await this.app.vault.adapter.exists(path)) {
-				new Notice(t('sync.import.fileNotFound'));
-				return;
-			}
-			const content = await this.app.vault.adapter.read(path);
-			const data = JSON.parse(content);
-			if ((data.version !== 1 && data.version !== 2) || !data.highlights || !Array.isArray(data.highlights)) {
-				new Notice(t('sync.import.invalidFile'));
-				return;
-			}
-			// v1 files only carry the 4 preset ids; v2 adds custom ids + hex snapshots.
-			const validHighlights = data.highlights
-				.filter((h: any) =>
-					h && typeof h.id === 'string' && typeof h.text === 'string' && typeof h.color === 'string'
-				)
-				.map((h: any) => ({
-					...h,
-					color: isValidColorId(this.settings, h.color) ? h.color : 'yellow',
-				}));
-			if (validHighlights.length === 0) {
-				new Notice(t('sync.import.invalidFile'));
-				return;
-			}
-			const result = await db.upsertHighlights(validHighlights);
-			new Notice(t('sync.import.success', { added: result.added, updated: result.updated }));
-			this.refreshAllViews();
-		} catch (err) {
-			new Notice(t('sync.import.fail', { message: String(err) }));
-		}
+		await this.syncController?.importNow();
 	}
 }
 

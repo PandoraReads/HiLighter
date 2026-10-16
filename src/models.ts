@@ -145,6 +145,8 @@ export interface HiLighterSettings {
     syncEnabled: boolean;
     syncFilePath: string;
     syncOnUnload: boolean;
+    syncAutoImport: boolean;
+    syncAutoExport: boolean;
 }
 
 const DEFAULT_PHILOSOPHER_PROMPT = `你是一位充满智慧且言简意赅的哲学家朋友。请对以下文本进行深度解析，并按以下三层结构组织：
@@ -211,6 +213,8 @@ export const DEFAULT_SETTINGS: HiLighterSettings = {
     syncEnabled: false,
     syncFilePath: '.hilighter/sync-data.json',
     syncOnUnload: true,
+    syncAutoImport: true,
+    syncAutoExport: true,
 };
 
 /**
@@ -233,4 +237,10 @@ export interface HighlightNote {
     contextQuote?: string;       // Surrounding text for DB-only anchors
     colorHex?: string;           // Hex snapshot, written when the color is custom
     fsrs?: FsrsState;            // Absent = new card
+}
+
+/** A deleted highlight id + when it was deleted (cross-device delete propagation). */
+export interface SyncTombstone {
+    id: string;
+    deletedAt: number;
 }

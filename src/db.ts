@@ -3,46 +3,67 @@
 // ============================================================
 
 import Dexie, { type Table } from 'dexie';
-import type { FsrsState, HighlightNote } from './models';
-
-/** Whichever fsrs state was reviewed more recently wins (fallback: more reps). */
-function pickNewerFsrs(local?: FsrsState, incoming?: FsrsState): FsrsState | undefined {
-    if (local && incoming) {
-        const la = local.lastReview ?? 0;
-        const ia = incoming.lastReview ?? 0;
-        if (la !== ia) return la > ia ? local : incoming;
-        return incoming.reps >= local.reps ? incoming : local;
-    }
-    return incoming ?? local;
-}
-
-function fsrsDiffers(a?: FsrsState, b?: FsrsState): boolean {
-    if ((a == null) !== (b == null)) return true;
-    if (a == null || b == null) return false;
-    return a.due !== b.due || a.reps !== b.reps || a.lapses !== b.lapses || a.lastReview !== b.lastReview;
-}
+import type { FsrsState, HighlightNote, SyncTombstone } from './models';
+import {
+    planMerge,
+    dedupeById,
+    shouldPruneTombstone,
+    TOMBSTONE_TTL_MS,
+} from './sync/merge';
 
 export class HiLighterDatabase extends Dexie {
     highlightNotes!: Table<HighlightNote, string>;
+    syncTombstones!: Table<SyncTombstone, string>;
+
+    private changeSeq = 0;
+    private changeListeners = new Set<() => void>();
 
     constructor(dbName: string) {
         super(dbName);
 
         // v3: fsrs.due nested index for due-card queries. Records without an
         // fsrs state simply sit outside the index (= new-card semantics).
-        // Additive only: no upgrade function needed; old rows load unchanged.
+        // v4: syncTombstones tracks deleted ids so deletes survive auto-import.
+        // Both additive only: no upgrade function needed; old rows load unchanged.
         this.version(2).stores({
             highlightNotes: 'id, sourcePath, createdAt',
         });
         this.version(3).stores({
             highlightNotes: 'id, sourcePath, createdAt, fsrs.due',
         });
+        this.version(4).stores({
+            highlightNotes: 'id, sourcePath, createdAt, fsrs.due',
+            syncTombstones: 'id, deletedAt',
+        });
     }
+
+    // ──── Change notification (post-commit, proxy-safe arrow fields) ────
+
+    /** Subscribe to local writes. Returns an unsubscribe function. */
+    onChange = (cb: () => void): (() => void) => {
+        this.changeListeners.add(cb);
+        return () => this.changeListeners.delete(cb);
+    };
+
+    /** Monotonic counter of local writes (drives the controller's dirty flag). */
+    getChangeSeq = (): number => this.changeSeq;
+
+    private notify = (): void => {
+        this.changeSeq++;
+        for (const cb of this.changeListeners) {
+            try {
+                cb();
+            } catch (e) {
+                console.error('[HiLighter] db change listener failed', e);
+            }
+        }
+    };
 
     // ──── Highlight Note CRUD ──────────────────────────────────
 
     async addHighlightNote(note: HighlightNote): Promise<void> {
         await this.highlightNotes.put(note);
+        this.notify();
     }
 
     async getHighlightNote(id: string): Promise<HighlightNote | undefined> {
@@ -55,6 +76,10 @@ export class HiLighterDatabase extends Dexie {
 
     async getAllHighlights(): Promise<HighlightNote[]> {
         return await this.highlightNotes.orderBy('createdAt').reverse().toArray();
+    }
+
+    async countHighlights(): Promise<number> {
+        return this.highlightNotes.count();
     }
 
     /** Scheduled cards whose due time has arrived (excludes new cards). */
@@ -80,15 +105,22 @@ export class HiLighterDatabase extends Dexie {
             await this.highlightNotes.update(h.id, { fsrs: undefined });
             cleared++;
         }
+        if (cleared > 0) this.notify();
         return cleared;
     }
 
     async updateHighlightNote(id: string, changes: Partial<HighlightNote>): Promise<void> {
         await this.highlightNotes.update(id, changes);
+        this.notify();
     }
 
+    /** Delete a highlight and record a tombstone so auto-import cannot resurrect it. */
     async deleteHighlightNote(id: string): Promise<void> {
-        await this.highlightNotes.delete(id);
+        await this.transaction('rw', this.highlightNotes, this.syncTombstones, async () => {
+            await this.highlightNotes.delete(id);
+            await this.syncTombstones.put({ id, deletedAt: Date.now() });
+        });
+        this.notify();
     }
 
     async updateHighlightPaths(oldPath: string, newPath: string): Promise<void> {
@@ -117,51 +149,73 @@ export class HiLighterDatabase extends Dexie {
                 await this.highlightNotes.update(h.id, { sourcePath: newPath });
             }
         }
+        this.notify();
     }
 
     async upsertHighlights(notes: HighlightNote[]): Promise<{ added: number; updated: number; skipped: number }> {
-        // Deduplicate by ID (last occurrence wins)
-        const unique = [...new Map(notes.map(n => [n.id, n])).values()];
-        const ids = unique.map(n => n.id);
-        const existing: (HighlightNote | undefined)[] = await this.highlightNotes.bulkGet(ids);
+        return this.transaction('rw', this.highlightNotes, this.syncTombstones, async () => {
+            const unique = dedupeById(notes);
+            const ids = unique.map(n => n.id);
+            const existing = await this.highlightNotes.bulkGet(ids);
+            const tombstones = await this.liveTombstoneMap();
 
-        let added = 0;
-        let updated = 0;
-        let skipped = 0;
-        const toPut: HighlightNote[] = [];
+            const plan = planMerge(unique, existing, tombstones, Date.now());
+            if (plan.toPut.length > 0) {
+                await this.highlightNotes.bulkPut(plan.toPut);
+                this.notify();
+            }
+            return { added: plan.added, updated: plan.updated, skipped: plan.skipped };
+        });
+    }
 
-        for (let i = 0; i < unique.length; i++) {
-            const note = unique[i]!;
-            const ex = existing[i];
-            if (ex) {
-                const changed = ex.text !== note.text ||
-                    ex.note !== note.note ||
-                    ex.color !== note.color ||
-                    ex.sourcePath !== note.sourcePath ||
-                    fsrsDiffers(ex.fsrs, note.fsrs);
-                if (changed) {
-                    // Merge: keep local note/tags if incoming is empty; resolve
-                    // fsrs by the newer lastReview (fall back to reps).
-                    const merged: HighlightNote = {
-                        ...note,
-                        note: note.note || ex.note,
-                        tags: [...new Set([...(ex.tags || []), ...(note.tags || [])])],
-                        fsrs: pickNewerFsrs(ex.fsrs, note.fsrs),
-                    };
-                    toPut.push(merged);
-                    updated++;
-                } else {
-                    skipped++;
+    // ──── Tombstones ──────────────────────────────────────────
+
+    async getTombstones(): Promise<SyncTombstone[]> {
+        return this.syncTombstones.toArray();
+    }
+
+    /** Remove tombstones past the TTL; returns how many were pruned. */
+    async pruneTombstones(now: number = Date.now()): Promise<number> {
+        const all = await this.syncTombstones.toArray();
+        const expired = all.filter(t => shouldPruneTombstone(t.deletedAt, now, TOMBSTONE_TTL_MS));
+        if (expired.length > 0) {
+            await this.syncTombstones.bulkDelete(expired.map(t => t.id));
+        }
+        return expired.length;
+    }
+
+    /**
+     * Merge remote tombstones in (keep the newer deletedAt), deleting any local
+     * rows they mark. Used by the import path so deletes propagate both ways.
+     */
+    async applyRemoteTombstones(remote: SyncTombstone[]): Promise<void> {
+        if (remote.length === 0) return;
+        await this.transaction('rw', this.highlightNotes, this.syncTombstones, async () => {
+            const existing = await this.syncTombstones.bulkGet(remote.map(t => t.id));
+            let changed = false;
+            for (let i = 0; i < remote.length; i++) {
+                const incoming = remote[i]!;
+                const local = existing[i];
+                if (!local || local.deletedAt < incoming.deletedAt) {
+                    await this.syncTombstones.put({ id: incoming.id, deletedAt: incoming.deletedAt });
+                    changed = true;
                 }
-            } else {
-                toPut.push(note);
-                added++;
+                await this.highlightNotes.delete(incoming.id);
+            }
+            if (changed) this.notify();
+        });
+    }
+
+    private async liveTombstoneMap(): Promise<Map<string, number>> {
+        const all = await this.syncTombstones.toArray();
+        const now = Date.now();
+        const map = new Map<string, number>();
+        for (const t of all) {
+            if (!shouldPruneTombstone(t.deletedAt, now, TOMBSTONE_TTL_MS)) {
+                map.set(t.id, t.deletedAt);
             }
         }
-        if (toPut.length > 0) {
-            await this.highlightNotes.bulkPut(toPut);
-        }
-        return { added, updated, skipped };
+        return map;
     }
 }
 

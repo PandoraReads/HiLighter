@@ -649,6 +649,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 				.onChange(async (v) => {
 					this.plugin.settings.syncEnabled = v;
 					await this.plugin.saveSettings();
+					this.plugin.restartSyncWatcher();
 					this.display();
 				}));
 
@@ -662,6 +663,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 					.onChange(async (v) => {
 						this.plugin.settings.syncFilePath = v.trim() || '.hilighter/sync-data.json';
 						await this.plugin.saveSettings();
+						this.plugin.restartSyncWatcher();
 					}));
 
 			if (!Platform.isMobile) {
@@ -674,6 +676,34 @@ export class HiLighterSettingTab extends PluginSettingTab {
 							this.plugin.settings.syncOnUnload = v;
 							await this.plugin.saveSettings();
 						}));
+			}
+
+			new Setting(containerEl)
+				.setName(t('settings.sync.autoImport'))
+				.setDesc(t('settings.sync.autoImport.desc'))
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.syncAutoImport)
+					.onChange(async (v) => {
+						this.plugin.settings.syncAutoImport = v;
+						await this.plugin.saveSettings();
+						this.plugin.restartSyncWatcher();
+					}));
+
+			new Setting(containerEl)
+				.setName(t('settings.sync.autoExport'))
+				.setDesc(t('settings.sync.autoExport.desc'))
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.syncAutoExport)
+					.onChange(async (v) => {
+						this.plugin.settings.syncAutoExport = v;
+						await this.plugin.saveSettings();
+						this.plugin.restartSyncWatcher();
+					}));
+
+			if (this.plugin.syncController) {
+				const autoStatus = this.plugin.syncController.getSyncStatus();
+				const state = autoStatus.paused ? t('settings.sync.status.paused') : t('settings.sync.status.watching');
+				new Setting(containerEl).setName(t('settings.sync.status.auto', { state }));
 			}
 
 			// Sync status

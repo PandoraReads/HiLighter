@@ -12,6 +12,7 @@ import { attachImageHandlers } from '../image-paste';
 import { ConfirmModal } from '../ui/confirm-modal';
 import { jumpToPdfNote } from '../pdf/pdf-anchors';
 import { jumpToEpubNote } from '../epub/epub-jump';
+import { locateHighlightMark } from '../locate';
 
 export class BatchTagModal extends Modal {
     private onSubmit: (tag: string) => void | Promise<void>;
@@ -226,11 +227,7 @@ export class HighlightDetailModal extends Modal {
         await this.app.workspace.openLinkText(this.note.sourcePath, '', false);
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (view && view.editor) {
-            view.editor.setCursor(this.note.lineIndex, 0);
-            view.editor.scrollIntoView(
-                { from: { line: this.note.lineIndex, ch: 0 }, to: { line: this.note.lineIndex, ch: 0 } },
-                true,
-            );
+            locateHighlightMark(view.editor, this.note.id, this.note.lineIndex ?? 0);
         }
     }
 
