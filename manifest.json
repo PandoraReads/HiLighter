@@ -1,7 +1,7 @@
 {
 	"id": "hilighter",
 	"name": "HiLighter",
-	"version": "2.0.2",
+	"version": "2.1.0",
 	"minAppVersion": "1.7.2",
 	"description": "A powerful highlight note manager with multi-color annotations, AI-assisted notes, and smart review.",
 	"author": "PandoraReads",
