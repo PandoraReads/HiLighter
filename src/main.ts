@@ -22,7 +22,7 @@ import { HighlightManagerView, HIGHLIGHT_MANAGER_VIEW_TYPE } from './studio/stud
 import { HIGHLIGHT_VIEW_TYPE } from './view-types';
 import { showHighlightMenu, hideHighlightMenu } from './selection/selection-menu';
 import { registerClickNoteTriggers, openImageNoteCommand } from './selection/click-note';
-import { getColorDef } from './colors';
+import { getColorDef, normalizeCustomColors } from './colors';
 import { injectCustomColorStyles } from './appearance';
 import { capturePdfContext } from './pdf/pdf-anchors';
 import { registerPdfOverlay } from './pdf/pdf-overlay';
@@ -726,7 +726,10 @@ export default class HiLighterPlugin extends Plugin {
 		return { lineText, sourcePath, lineIndex };
 	}
 
-	async loadSettings() { this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()); }
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings.customColors = normalizeCustomColors(this.settings.customColors);
+	}
 	async saveSettings() {
 		await this.saveData(this.settings);
 		// Custom color definitions may have changed; refresh the runtime CSS.
