@@ -16,7 +16,7 @@ import type { HighlightManagerView } from './studio-view';
 export function refreshSidebarViews(app: App): void {
     app.workspace.iterateAllLeaves((leaf) => {
         if (leaf.view.getViewType() === HIGHLIGHT_VIEW_TYPE) {
-            const view = leaf.view as HighlightView;
+            const view = leaf.view as unknown as HighlightView;
             // Add a small buffer on mobile to ensure DB writes are finished
             if (Platform.isMobile) {
                 void new Promise<void>((resolve) => {

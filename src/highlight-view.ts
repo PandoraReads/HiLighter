@@ -80,6 +80,8 @@ export class HighlightView extends ItemView {
     private autoOpenNoteId: string | null = null;
     private expandedNotes: Set<string> = new Set();
     private pendingDeleteIds: Set<string> = new Set();
+    private markdownObserver: IntersectionObserver | null = null;
+    private lazyMarkdownCallbacks = new WeakMap<HTMLElement, Array<() => void>>();
 
     constructor(leaf: WorkspaceLeaf, plugin: HiLighterPlugin) {
         super(leaf);
@@ -123,6 +125,56 @@ export class HighlightView extends ItemView {
         }));
     }
 
+    onClose() {
+        this.markdownObserver?.disconnect();
+        this.markdownObserver = null;
+        if ((this as any)._renderTimer) {
+            clearTimeout((this as any)._renderTimer);
+            (this as any)._renderTimer = null;
+        }
+    }
+
+    private prepareMarkdownObserver(root: HTMLElement) {
+        this.markdownObserver?.disconnect();
+        this.lazyMarkdownCallbacks = new WeakMap();
+
+        if (typeof IntersectionObserver === 'undefined') {
+            this.markdownObserver = null;
+            return;
+        }
+
+        this.markdownObserver = new IntersectionObserver((entries, observer) => {
+            for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+
+                const card = entry.target as HTMLElement;
+                observer.unobserve(card);
+                const callbacks = this.lazyMarkdownCallbacks.get(card) || [];
+                this.lazyMarkdownCallbacks.delete(card);
+                callbacks.forEach(render => render());
+            }
+        }, { root, rootMargin: '120px 0px' });
+    }
+
+    private renderMarkdownWhenVisible(card: HTMLElement, target: HTMLElement, markdown: string, sourcePath: string) {
+        const render = () => {
+            if (!target.isConnected || target.dataset.hlMarkdownRendered === 'true') return;
+            target.dataset.hlMarkdownRendered = 'true';
+            void MarkdownRenderer.render(this.app, markdown, target, sourcePath, this)
+                .catch(err => console.error('[HiLighter] card markdown render failed:', err));
+        };
+
+        if (!this.markdownObserver) {
+            render();
+            return;
+        }
+
+        const callbacks = this.lazyMarkdownCallbacks.get(card) || [];
+        callbacks.push(render);
+        this.lazyMarkdownCallbacks.set(card, callbacks);
+        this.markdownObserver.observe(card);
+    }
+
     /**
      * Coalesce rapid workspace events (layout-change fires very often) into a single
      * render. Without this, many cards cause a visible empty→rebuild flicker on every
@@ -150,6 +202,7 @@ export class HighlightView extends ItemView {
 
             // Sync scope from settings (active = current file, all = entire vault)
             this.currentFilter = this.plugin.settings.sidebarScope;
+            contentEl.setAttribute('data-hl-scope', this.currentFilter);
 
             // 1. Preserve Scroll Position
             const containerEl = contentEl.querySelector('.hl-highlight-container');
@@ -230,6 +283,7 @@ export class HighlightView extends ItemView {
                 (this as any)._lastCardSig = cardSig;
 
                 // Now that we have the data, safely clear the container
+                this.prepareMarkdownObserver(container);
                 container.empty();
 
                 if (highlights.length === 0) {
@@ -690,8 +744,7 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
             const previewEl = card.createDiv('hl-ai-preview');
             previewEl.createDiv({ text: t('ai.preview.header'), cls: 'hl-preview-header' });
             const contentEl = previewEl.createDiv({ cls: 'hl-preview-content' });
-            void MarkdownRenderer.render(this.app, preview, contentEl, note.sourcePath, this)
-                .catch(err => console.error('[HiLighter] AI preview render failed:', err));
+            this.renderMarkdownWhenVisible(card, contentEl, preview, note.sourcePath);
 
             const pActions = previewEl.createDiv('hl-preview-actions');
             const keepBtn = pActions.createEl('button', { cls: 'hl-mini-btn btn-success', text: t('ai.preview.addToNote') });
@@ -742,8 +795,7 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
         const isExpanded = this.expandedNotes.has(note.id);
         const renderedNote = noteArea.createDiv(`hl-h-card-note-rendered ${!isExpanded ? 'is-collapsed-note' : ''}`);
         if (note.note) {
-            void MarkdownRenderer.render(this.app, note.note, renderedNote, note.sourcePath, this)
-                .catch(err => console.error('[HiLighter] note render failed:', err));
+            this.renderMarkdownWhenVisible(card, renderedNote, note.note, note.sourcePath);
 
             // Add expand/collapse toggle if note exists
             const toggleWrap = noteArea.createDiv('hl-note-toggle-wrap');
