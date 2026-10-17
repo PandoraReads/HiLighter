@@ -19,7 +19,8 @@ import { DEFAULT_RESEARCH_PROMPTS, AI_MODEL_PRESETS } from './models';
 import type { AIModelConfig, ThemeId } from './models';
 import { HighlightView } from './highlight-view';
 import { HighlightManagerView, HIGHLIGHT_MANAGER_VIEW_TYPE } from './studio/studio-view';
-import { HIGHLIGHT_VIEW_TYPE } from './view-types';
+import { HIGHLIGHT_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE } from './view-types';
+import { MobileRecentHighlightsView } from './mobile-recent-view';
 import { showHighlightMenu, hideHighlightMenu } from './selection/selection-menu';
 import { registerClickNoteTriggers, openImageNoteCommand } from './selection/click-note';
 import { getColorDef, normalizeCustomColors } from './colors';
@@ -118,6 +119,7 @@ export default class HiLighterPlugin extends Plugin {
 		// 1. Register Views
 		this.registerView(HIGHLIGHT_VIEW_TYPE, (leaf) => new HighlightView(leaf, this));
 		this.registerView(HIGHLIGHT_MANAGER_VIEW_TYPE, (leaf) => new HighlightManagerView(leaf, this));
+		this.registerView(MOBILE_RECENT_VIEW_TYPE, (leaf) => new MobileRecentHighlightsView(leaf, this));
 
 		// Runtime CSS for user-defined custom highlight colors
 		injectCustomColorStyles(document, this.settings);
@@ -150,18 +152,21 @@ export default class HiLighterPlugin extends Plugin {
 	 */
 	private initializeFeatures() {
 		// 1. Ribbon Icon
-		this.addRibbonIcon('highlighter', t('ribbon.highlight'), () => this.activateView(HIGHLIGHT_VIEW_TYPE, 'right'));
+		this.addRibbonIcon('highlighter', t('ribbon.highlight'), () => this.openHighlightEntry());
 
 		// 2. Commands
 		this.addCommand({
 			id: 'open-highlight-view',
 			name: t('cmd.openHighlight'),
-			callback: () => this.activateView(HIGHLIGHT_VIEW_TYPE, 'right'),
+			callback: () => this.openHighlightEntry(),
 		});
 		this.addCommand({
 			id: 'open-highlight-manager',
 			name: t('cmd.manageHighlights'),
-			callback: () => this.activateView(HIGHLIGHT_MANAGER_VIEW_TYPE, 'main'),
+			callback: () => this.activateView(
+				Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_MANAGER_VIEW_TYPE,
+				'main',
+			),
 		});
 		this.addCommand({
 			id: 'cycle-theme',
@@ -196,10 +201,11 @@ export default class HiLighterPlugin extends Plugin {
 			this.initDesktopSupport();
 		}
 
-		// Auto-open highlight view on startup for tablets if possible
+		// Restore the tablet entry point. Mobile rendering is scoped to the active
+		// file, so opening the view at startup no longer triggers whole-vault work.
 		if (Platform.isTablet) {
 			this.app.workspace.onLayoutReady(() => {
-				this.activateView(HIGHLIGHT_VIEW_TYPE, 'right');
+				void this.openHighlightEntry();
 			});
 		}
 
@@ -228,7 +234,12 @@ export default class HiLighterPlugin extends Plugin {
 				syncImport: () => { void this.syncController?.importNow(); },
 				syncExport: () => { void this.syncController?.exportNow(); },
 				sync: () => { void this.syncController?.syncNow(); },
-				openStudio: () => { void this.activateView(HIGHLIGHT_MANAGER_VIEW_TYPE, 'main'); },
+				openStudio: () => {
+					void this.activateView(
+						Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_MANAGER_VIEW_TYPE,
+						'main',
+					);
+				},
 				openView: (view, side) => {
 					const type = view === 'manager' ? HIGHLIGHT_MANAGER_VIEW_TYPE : HIGHLIGHT_VIEW_TYPE;
 					void this.activateView(type, side === 'main' ? 'main' : 'right');
@@ -607,6 +618,13 @@ export default class HiLighterPlugin extends Plugin {
 		new EpubPickModal(this.app, epubs, (file) => {
 			void this.app.workspace.openLinkText(file.path, '', false);
 		}).open();
+	}
+
+	private openHighlightEntry(): Promise<void> {
+		return this.activateView(
+			Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_VIEW_TYPE,
+			Platform.isMobile ? 'main' : 'right',
+		);
 	}
 
 	async activateView(type: string, side: 'main' | 'right' = 'right') {		const { workspace } = this.app;

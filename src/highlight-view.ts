@@ -8,7 +8,7 @@ import { db } from './db';
 import type HiLighterPlugin from './main';
 import type { HighlightNote, ResearchPrompt } from './models';
 import { AIService, AIAction } from './ai-service';
-import { HIGHLIGHT_VIEW_TYPE, HIGHLIGHT_MANAGER_VIEW_TYPE } from './view-types';
+import { HIGHLIGHT_VIEW_TYPE, HIGHLIGHT_MANAGER_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE } from './view-types';
 import { t } from './i18n';
 import { getColors, getColorDef } from './colors';
 import { attachImageHandlers } from './image-paste';
@@ -82,6 +82,11 @@ export class HighlightView extends ItemView {
     private pendingDeleteIds: Set<string> = new Set();
     private markdownObserver: IntersectionObserver | null = null;
     private lazyMarkdownCallbacks = new WeakMap<HTMLElement, Array<() => void>>();
+    private pendingCardHighlights: HighlightNote[] = [];
+    private renderedCardCount = 0;
+    private cardBatchFrame: number | null = null;
+    private cardRenderGeneration = 0;
+    private readonly cardBatchSize = 12;
 
     constructor(leaf: WorkspaceLeaf, plugin: HiLighterPlugin) {
         super(leaf);
@@ -128,6 +133,15 @@ export class HighlightView extends ItemView {
     onClose() {
         this.markdownObserver?.disconnect();
         this.markdownObserver = null;
+        this.cardRenderGeneration += 1;
+        this.pendingCardHighlights = [];
+        (this as any)._lastCardSig = null;
+        if (this.cardBatchFrame !== null) {
+            cancelAnimationFrame(this.cardBatchFrame);
+            this.cardBatchFrame = null;
+        }
+        const container = this.contentEl.querySelector('.hl-highlight-container') as HTMLElement | null;
+        if (container) container.onscroll = null;
         if ((this as any)._renderTimer) {
             clearTimeout((this as any)._renderTimer);
             (this as any)._renderTimer = null;
@@ -156,10 +170,50 @@ export class HighlightView extends ItemView {
         }, { root, rootMargin: '120px 0px' });
     }
 
+    private scheduleNextCardBatch(container: HTMLElement) {
+        if (this.cardBatchFrame !== null || this.renderedCardCount >= this.pendingCardHighlights.length) return;
+
+        const generation = this.cardRenderGeneration;
+        this.cardBatchFrame = requestAnimationFrame(() => {
+            this.cardBatchFrame = null;
+            if (generation !== this.cardRenderGeneration || !container.isConnected) return;
+
+            const batchEnd = Math.min(
+                this.renderedCardCount + (Platform.isMobile ? 2 : this.cardBatchSize),
+                this.pendingCardHighlights.length,
+            );
+            for (let index = this.renderedCardCount; index < batchEnd; index += 1) {
+                this.renderCard(container, this.pendingCardHighlights[index]);
+            }
+            this.renderedCardCount = batchEnd;
+
+            // Keep roughly one viewport of cards ready ahead of the user's scroll.
+            // This bounds startup work while avoiding a pause at the end of each batch.
+            if (this.renderedCardCount < this.pendingCardHighlights.length && container.clientHeight > 0) {
+                const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+                if (distanceToBottom <= container.clientHeight * 1.5) {
+                    this.scheduleNextCardBatch(container);
+                }
+            }
+        });
+    }
+
+    private handleCardContainerScroll(container: HTMLElement) {
+        if (this.renderedCardCount >= this.pendingCardHighlights.length) return;
+        const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (distanceToBottom <= container.clientHeight * 1.5) {
+            this.scheduleNextCardBatch(container);
+        }
+    }
+
     private renderMarkdownWhenVisible(card: HTMLElement, target: HTMLElement, markdown: string, sourcePath: string) {
         const render = () => {
             if (!target.isConnected || target.dataset.hlMarkdownRendered === 'true') return;
             target.dataset.hlMarkdownRendered = 'true';
+            if (Platform.isMobile) {
+                target.setText(markdown);
+                return;
+            }
             void MarkdownRenderer.render(this.app, markdown, target, sourcePath, this)
                 .catch(err => console.error('[HiLighter] card markdown render failed:', err));
         };
@@ -201,7 +255,10 @@ export class HighlightView extends ItemView {
             applyAppearance(contentEl, this.plugin.settings);
 
             // Sync scope from settings (active = current file, all = entire vault)
-            this.currentFilter = this.plugin.settings.sidebarScope;
+            // Whole-vault mode materializes every record and builds a signature
+            // before card batching starts. Keep mobile rendering scoped to the
+            // active file to avoid a startup memory spike on phones and tablets.
+            this.currentFilter = Platform.isMobile ? 'active' : this.plugin.settings.sidebarScope;
             contentEl.setAttribute('data-hl-scope', this.currentFilter);
 
             // 1. Preserve Scroll Position
@@ -222,27 +279,30 @@ export class HighlightView extends ItemView {
             let highlights: HighlightNote[] = [];
             const activeFile = this.app.workspace.getActiveFile();
 
-            if (this.currentFilter === 'active' && activeFile) {
-                highlights = await db.getHighlightsByPath(activeFile.path);
+            if (this.currentFilter === 'active') {
+                if (activeFile) {
+                    highlights = await db.getHighlightsByPath(activeFile.path);
 
-                // --- Smart Re-Scan: Ensure lineIndex is accurate for sorting ---
-                const content = await this.app.vault.read(activeFile);
-                const lines = content.split('\n');
-                const idToLine = new Map<string, number>();
+                    if (!Platform.isMobile) {
+                        // Desktop can afford a full-file rescan to refresh line order.
+                        const content = await this.app.vault.read(activeFile);
+                        const lines = content.split('\n');
+                        const idToLine = new Map<string, number>();
 
-                lines.forEach((line, index) => {
-                    const matches = line.matchAll(/data-id="([^"]+)"/g);
-                    for (const match of matches) {
-                        idToLine.set(match[1], index);
+                        lines.forEach((line, index) => {
+                            const matches = line.matchAll(/data-id="([^"]+)"/g);
+                            for (const match of matches) {
+                                idToLine.set(match[1], index);
+                            }
+                        });
+
+                        highlights.forEach(h => {
+                            if (idToLine.has(h.id)) {
+                                h.lineIndex = idToLine.get(h.id);
+                            }
+                        });
                     }
-                });
-
-                // Update local copies with current line indices for sorting
-                highlights.forEach(h => {
-                    if (idToLine.has(h.id)) {
-                        h.lineIndex = idToLine.get(h.id);
-                    }
-                });
+                }
             } else {
                 highlights = await db.getAllHighlights();
             }
@@ -267,6 +327,14 @@ export class HighlightView extends ItemView {
             // Skip the expensive card rebuild when nothing affecting the cards has
             // changed since the last render. layout-change fires very often; without
             // this guard, many cards cause a visible empty→rebuild flicker every time.
+            let highlightsHash = 2166136261;
+            for (const h of highlights) {
+                const item = `${h.id}|${h.color}|${h.lineIndex ?? 0}|${(h.text || '').length}|${(h.note || '').length}|${(h.tags || []).join('+')}`;
+                for (let index = 0; index < item.length; index += 1) {
+                    highlightsHash = Math.imul(highlightsHash ^ item.charCodeAt(index), 16777619);
+                }
+            }
+
             const cardSig = [
                 this.currentFilter,
                 this.cardViewMode,
@@ -276,24 +344,31 @@ export class HighlightView extends ItemView {
                 [...this.expandedNotes].join(','),
                 this.autoOpenNoteId || '',
                 [...this.aiPreviews.entries()].map(([k, v]) => `${k}:${v.length}`).join('|'),
-                highlights.map(h => `${h.id}|${h.color}|${h.lineIndex ?? 0}|${(h.text || '').length}|${(h.note || '').length}|${(h.tags || []).join('+')}`).join('||'),
+                highlights.length,
+                (highlightsHash >>> 0).toString(36),
             ].join('##');
 
             if (cardSig !== (this as any)._lastCardSig) {
                 (this as any)._lastCardSig = cardSig;
 
+                this.cardRenderGeneration += 1;
+                if (this.cardBatchFrame !== null) {
+                    cancelAnimationFrame(this.cardBatchFrame);
+                    this.cardBatchFrame = null;
+                }
+
                 // Now that we have the data, safely clear the container
                 this.prepareMarkdownObserver(container);
                 container.empty();
 
-                if (highlights.length === 0) {
+                this.pendingCardHighlights = highlights.filter(h => !this.pendingDeleteIds.has(h.id));
+                this.renderedCardCount = 0;
+                container.onscroll = () => this.handleCardContainerScroll(container);
+
+                if (this.pendingCardHighlights.length === 0) {
                     this.renderEmpty(container);
                 } else {
-                    highlights.forEach(h => {
-                        if (!this.pendingDeleteIds.has(h.id)) {
-                            this.renderCard(container, h);
-                        }
-                    });
+                    this.scheduleNextCardBatch(container);
                 }
             }
 
@@ -626,14 +701,21 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
 
         // Toggle pair: Scope — current file (active) vs entire vault (all)
         const scopeActive = tabsRow.createDiv({
-            cls: `hl-sidebar-tab tab-scope ${this.plugin.settings.sidebarScope === 'active' ? 'is-active' : ''}`,
+            cls: `hl-sidebar-tab tab-scope ${this.currentFilter === 'active' ? 'is-active' : ''}`,
             text: t('toolbar.scope.active')
         });
         const scopeAll = tabsRow.createDiv({
-            cls: `hl-sidebar-tab tab-scope-all ${this.plugin.settings.sidebarScope === 'all' ? 'is-active' : ''}`,
+            cls: `hl-sidebar-tab tab-scope-all ${this.currentFilter === 'all' ? 'is-active' : ''}`,
             text: t('toolbar.scope.all')
         });
         const setScope = async (scope: 'active' | 'all') => {
+            if (Platform.isMobile && scope === 'all') {
+                const message = this.plugin.settings.language?.startsWith('zh')
+                    ? '手机和平板端暂时只显示当前文件的卡片。'
+                    : 'Mobile currently shows cards from the active file only.';
+                new Notice(message);
+                return;
+            }
             this.plugin.settings.sidebarScope = scope;
             await this.plugin.saveSettings();
             scopeActive.toggleClass('is-active', scope === 'active');
@@ -650,7 +732,10 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
         });
         studioTab.onclick = (e) => {
             e.stopPropagation();
-            this.plugin.activateView(HIGHLIGHT_MANAGER_VIEW_TYPE, 'main');
+            this.plugin.activateView(
+                Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_MANAGER_VIEW_TYPE,
+                'main',
+            );
         };
 
         // 2. Vintage Archive Unit (Index Card Style)
