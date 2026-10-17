@@ -131,6 +131,16 @@ const zh: Record<string, string> = {
 
 	// ── Sidebar View ──────────────────────────────────────
 	'view.highlightNotes': '高亮笔记',
+	'mobileRecent.title': '最近标注',
+	'mobileRecent.description': '选择文档，打开原文并查看其中的高亮卡片。',
+	'mobileRecent.empty': '还没有带高亮卡片的文档。',
+	'mobileRecent.loadMore': '加载更多文档',
+	'mobileRecent.loading': '正在查找文档…',
+	'mobileRecent.end': '已显示全部最近文档',
+	'mobileRecent.meta': '${count} 张卡片 · ${date}',
+	'mobileRecent.loadFailed': '最近标注文档加载失败',
+	'mobileRecent.sourceMissing': '原文已不存在或无法打开',
+	'mobileRecent.openFailed': '打开文档失败',
 	'view.loadError': '加载笔记出错: ',
 	'toolbar.expand': '展开',
 	'toolbar.collapse': '折叠',
@@ -586,6 +596,16 @@ const en: Record<string, string> = {
 
 	// ── Sidebar View ──────────────────────────────────────
 	'view.highlightNotes': 'Highlight Notes',
+	'mobileRecent.title': 'Recent Highlights',
+	'mobileRecent.description': 'Choose a document to open it with its highlight cards.',
+	'mobileRecent.empty': 'No documents with highlights yet.',
+	'mobileRecent.loadMore': 'Load more documents',
+	'mobileRecent.loading': 'Finding documents…',
+	'mobileRecent.end': 'All recent documents shown',
+	'mobileRecent.meta': '${count} cards · ${date}',
+	'mobileRecent.loadFailed': 'Could not load recent highlighted documents',
+	'mobileRecent.sourceMissing': 'The source document no longer exists or cannot be opened',
+	'mobileRecent.openFailed': 'Could not open the document',
 	'view.loadError': 'Error loading notes: ',
 	'toolbar.expand': 'Expand',
 	'toolbar.collapse': 'Collapse',

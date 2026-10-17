@@ -5668,3 +5668,93 @@ mark.hl-note-anchor,
     font-weight: 600;
     cursor: pointer;
 }
+.hl-mobile-recent-view {
+    overflow-y: auto;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+    color: var(--text-normal);
+    background: var(--background-primary);
+}
+
+.hl-mobile-recent-header {
+    margin: 0 0 16px;
+}
+
+.hl-mobile-recent-header h2 {
+    margin: 0 0 6px;
+    font-size: 1.25em;
+}
+
+.hl-mobile-recent-header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+.hl-mobile-recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hl-mobile-recent-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 72px;
+    padding: 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 12px;
+    background: var(--background-secondary);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.hl-mobile-recent-item:active {
+    background: var(--background-modifier-hover);
+}
+
+.hl-mobile-recent-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.hl-mobile-recent-name {
+    overflow: hidden;
+    color: var(--text-normal);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hl-mobile-recent-meta,
+.hl-mobile-recent-preview {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 0.82em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hl-mobile-recent-preview {
+    margin-top: 4px;
+    color: var(--text-faint);
+}
+
+.hl-mobile-recent-chevron {
+    flex: 0 0 auto;
+    color: var(--text-faint);
+    font-size: 1.5em;
+}
+
+.hl-mobile-recent-empty {
+    padding: 32px 16px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.hl-mobile-recent-more {
+    display: block;
+    width: 100%;
+    margin: 14px 0 0;
+    padding: 11px 14px;
+}
