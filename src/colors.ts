@@ -42,6 +42,31 @@ export interface ColorDef {
     isCustom: boolean;
 }
 
+/** Normalize persisted custom-color data before it reaches rendering code. */
+export function normalizeCustomColors(value: unknown): NonNullable<HiLighterSettings['customColors']> {
+    const entries = Array.isArray(value)
+        ? value
+        : value && typeof value === 'object'
+            ? ('id' in value && 'hex' in value
+                ? [value]
+                : Object.values(value as Record<string, unknown>))
+            : [];
+
+    return entries.filter((entry): entry is { id: string; name?: string; hex: string } => {
+        if (!entry || typeof entry !== 'object') return false;
+        const color = entry as Record<string, unknown>;
+        return typeof color.id === 'string'
+            && /^c_[0-9a-f]{8}$/i.test(color.id)
+            && typeof color.hex === 'string'
+            && /^#[0-9a-f]{6}$/i.test(color.hex)
+            && (color.name === undefined || typeof color.name === 'string');
+    }).map((color) => ({
+        id: color.id,
+        name: color.name || '',
+        hex: color.hex,
+    }));
+}
+
 /** All colors available for highlighting: presets first, then customs. */
 export function getColors(settings: HiLighterSettings): ColorDef[] {
     const presets: ColorDef[] = PRESET_COLOR_IDS.map(id => ({
@@ -50,7 +75,7 @@ export function getColors(settings: HiLighterSettings): ColorDef[] {
         hex: PRESET_UI_HEX[id]!,
         isCustom: false,
     }));
-    const customs: ColorDef[] = (settings.customColors || []).map(c => ({
+    const customs: ColorDef[] = normalizeCustomColors(settings.customColors).map(c => ({
         id: c.id,
         label: c.name || c.hex,
         hex: c.hex,

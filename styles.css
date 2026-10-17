@@ -286,9 +286,18 @@
     overflow: hidden;
     flex-shrink: 0;
     cursor: pointer;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 140px;
     /* CRITICAL: Prevent vertical squeezing */
     margin-bottom: 2px;
     /* Small separation for the index-card look */
+}
+
+/* Whole-vault sidebars can contain hundreds of cards. Avoid a separate blur
+   compositing surface for every card while keeping the translucent fill. */
+.hl-highlight-view[data-hl-scope="all"] .hl-highlight-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 /* Subtle 'attachment' shadow on the left edge */
