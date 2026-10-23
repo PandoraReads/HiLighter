@@ -78,6 +78,30 @@ export class HiLighterDatabase extends Dexie {
         return await this.highlightNotes.orderBy('createdAt').reverse().toArray();
     }
 
+    /** Recent sidebar page. The existing createdAt index supplies newest-first order. */
+    async getRecentHighlightsPage(
+        offset: number,
+        limit: number,
+        filters: { search?: string; color?: string } = {},
+    ): Promise<{ notes: HighlightNote[]; hasMore: boolean }> {
+        const safeOffset = Math.max(0, Math.floor(offset));
+        const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+        const search = (filters.search || '').trim().toLowerCase();
+        const color = filters.color || 'all';
+        let collection = this.highlightNotes.orderBy('createdAt').reverse();
+
+        if (search || color !== 'all') {
+            collection = collection.filter(note => {
+                if (color !== 'all' && note.color !== color) return false;
+                return !search || (note.text || '').toLowerCase().includes(search)
+                    || (note.note || '').toLowerCase().includes(search);
+            });
+        }
+
+        const page = await collection.offset(safeOffset).limit(safeLimit + 1).toArray();
+        return { notes: page.slice(0, safeLimit), hasMore: page.length > safeLimit };
+    }
+
     async countHighlights(): Promise<number> {
         return this.highlightNotes.count();
     }

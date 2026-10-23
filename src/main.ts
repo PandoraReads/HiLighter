@@ -22,7 +22,8 @@ import { HighlightManagerView, HIGHLIGHT_MANAGER_VIEW_TYPE } from './studio/stud
 import { HIGHLIGHT_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE } from './view-types';
 import { MobileRecentHighlightsView } from './mobile-recent-view';
 import { showHighlightMenu, hideHighlightMenu } from './selection/selection-menu';
-import { registerClickNoteTriggers, openImageNoteCommand } from './selection/click-note';
+import { openImageNoteCommand } from './selection/click-note';
+import { registerNoteHover } from './selection/note-hover';
 import { getColorDef, normalizeCustomColors } from './colors';
 import { injectCustomColorStyles } from './appearance';
 import { capturePdfContext } from './pdf/pdf-anchors';
@@ -189,8 +190,7 @@ export default class HiLighterPlugin extends Plugin {
 			callback: () => this.openEpubPicker(),
 		});
 
-		// Click-to-note triggers (double-click / Cmd+click on markdown words)
-		registerClickNoteTriggers(this);
+		registerNoteHover(this);
 
 		// PDF textLayer highlight overlay (best-effort, toggleable)
 		registerPdfOverlay(this);
@@ -467,10 +467,10 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** Applies a highlight from the selection menu (markdown / pdf / epub branches). */
-	async applyHighlight(text: string, context: any, color: string) {
+	async applyHighlight(text: string, context: any, color: string, note = '') {
 		// EPUB selections: DB-only anchor (CFI) + live annotation
 		if (context?.anchorType === 'epub' && context?.cfi) {
-			await this.applyEpubHighlight(text, context, color);
+			await this.applyEpubHighlight(text, context, color, note);
 			return;
 		}
 
@@ -479,7 +479,7 @@ export default class HiLighterPlugin extends Plugin {
 			? context.leaf.view
 			: null;
 		if (context?.pdfPage != null || pdfView) {
-			await this.applyPdfHighlight(text, context, color, pdfView || context?.leaf?.view);
+			await this.applyPdfHighlight(text, context, color, pdfView || context?.leaf?.view, note);
 			return;
 		}
 
@@ -496,8 +496,19 @@ export default class HiLighterPlugin extends Plugin {
 			return;
 		}
 
-		if (view.getMode && view.getMode() !== 'source') {
-			new Notice(t('notice.previewMode'));
+		if (view.getMode && view.getMode() === 'preview') {
+			const sourcePath = context?.sourcePath || this.app.workspace.getActiveFile()?.path || '';
+			if (!sourcePath) {
+				new Notice(t('notice.noEditor'));
+				return;
+			}
+			await db.addHighlightNote({
+				id: randomUUID(), text, color, note, sourcePath,
+				lineIndex: context?.lineIndex ?? 0, createdAt: Date.now(),
+				anchorType: 'note', contextQuote: context?.lineText || text,
+			});
+			this.refreshAllViews();
+			new Notice(t('notePopup.saved'));
 			return;
 		}
 
@@ -524,7 +535,7 @@ export default class HiLighterPlugin extends Plugin {
 				id,
 				text,
 				color,
-				note: '',
+				note,
 				sourcePath: finalPath,
 				lineIndex: context.lineIndex,
 				createdAt: Date.now(),
@@ -549,14 +560,14 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** EPUB highlight: DB-only CFI anchor + immediate annotation on the open book. */
-	private async applyEpubHighlight(text: string, context: any, color: string) {
+	private async applyEpubHighlight(text: string, context: any, color: string, note = '') {
 		try {
 			const colorDef = getColorDef(this.settings, color);
 			const entry: HighlightNote = {
 				id: randomUUID(),
 				text,
 				color,
-				note: '',
+				note,
 				sourcePath: context.sourcePath || '',
 				lineIndex: 0,
 				createdAt: Date.now(),
@@ -579,7 +590,7 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** PDF highlight: no file write; anchor = path + page + context quote. */
-	private async applyPdfHighlight(text: string, context: any, color: string, view: any) {
+	private async applyPdfHighlight(text: string, context: any, color: string, view: any, note = '') {
 		try {
 			const file = view?.file || this.app.workspace.getActiveFile();
 			if (!file) {
@@ -591,7 +602,7 @@ export default class HiLighterPlugin extends Plugin {
 				id: randomUUID(),
 				text,
 				color,
-				note: '',
+				note,
 				sourcePath: file.path,
 				lineIndex: context?.pdfPage ?? 0,
 				createdAt: Date.now(),

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HiLighter · 主题校样</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+/* Only the Obsidian host and preview frame are simulated here.
+   Every Studio component below uses the production stylesheet. */
+* { box-sizing: border-box; }
+body { margin: 0; background: #dedfdb; color: #303732; font: 14px "Avenir Next", "PingFang SC", sans-serif; }
+body.theme-light { --background-primary:#fff; --background-secondary:#f4f4f2; --background-primary-alt:#fafaf8; --background-modifier-border:#dbdeda; --text-normal:#282c29; --text-muted:#68716b; --text-faint:#7e857f; --interactive-accent:#526e61; --font-text:"Avenir Next","PingFang SC",sans-serif; --font-interface:var(--font-text); --radius-m:8px; --radius-s:5px; }
+body.theme-dark { --background-primary:#252826; --background-secondary:#1c201d; --background-primary-alt:#202521; --background-modifier-border:#424943; --text-normal:#e3e9e4; --text-muted:#a1ada4; --text-faint:#909b93; --interactive-accent:#91b59b; --font-text:"Avenir Next","PingFang SC",sans-serif; --font-interface:var(--font-text); --radius-m:8px; --radius-s:5px; }
+button, input, select { font: inherit; }
+button { cursor:pointer; }
+svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+.preview-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:16px 24px; background:#25312b; color:#e8ece8; }
+.preview-bar p { margin:0; font-size:12px; color:#becac1; }
+.preview-bar strong { color:#fff; font-weight:600; margin-right:12px; }
+.preview-controls { display:flex; align-items:center; gap:10px; font-size:11px; }
+.preview-controls select { border:1px solid #64736a; border-radius:5px; background:#35443b; color:#fff; padding:5px; }
+.preview-caption { display:flex; justify-content:space-between; gap:16px; max-width:1440px; margin:24px auto 12px; padding:0 16px; font-size:12px; }
+#preview-description { color:#5e6861; }
+.preview-frame { width:min(calc(100% - 32px), 1440px); height:740px; margin:0 auto 32px; border:1px solid #bcc4bd; border-radius:9px; overflow:hidden; box-shadow:0 12px 40px #25312b16; }
+.host-tab { height:34px; padding:9px 14px; background:var(--background-secondary); color:var(--text-muted); border-bottom:1px solid var(--background-modifier-border); font-size:11px; }
+.preview-frame > .hl-studio { height:calc(100% - 34px); }
+#preview-dialog { max-width:420px; border:1px solid #bec8bf; border-radius:10px; padding:24px; color:#303b32; background:#fafbf7; }
+#preview-dialog::backdrop { background:#16201b66; }
+#preview-dialog p { font-size:13px; line-height:1.8; }
+@media(max-width:650px) { .preview-caption{margin-top:14px;} .preview-frame{width:calc(100% - 16px);} }
+</style>
+</head>
+<body class="theme-light">
+<header class="preview-bar"><p><strong>HiLighter / 主题校样</strong>插件实际样式 · 演示内容</p><div class="preview-controls"><label>窗口宽度 <select id="preview-width"><option value="1440">1440px</option><option value="1120">1120px</option><option value="860">860px</option><option value="420">420px</option></select></label><label>Obsidian 外观 <select id="host-mode"><option value="light">浅色</option><option value="dark">深色</option></select></label></div></header>
+<div class="preview-caption"><span id="preview-name">Editorial / 编辑风</span><span id="preview-description">暖灰纸面、墨绿细节、衬线摘录</span></div>
+<div class="preview-frame" id="preview-frame"><div class="host-tab">HiLighter · 卡片集</div>
+<main class="hl-studio" data-hl-theme="editorial" data-hl-mode="light" data-hl-density="comfortable" id="studio"><div class="hl-studio-layout"><div class="hl-studio-content is-gallery-mode">
+<div class="hl-studio-topbar"><div class="hl-studio-topbar-identity"><span class="hl-studio-topbar-brand">HiLighter</span><span class="hl-studio-topbar-separator">/</span><span class="hl-studio-topbar-title">卡片集</span></div><div class="hl-studio-topbar-actions">
+<div class="hl-tool-wrap"><button class="hl-tool-btn hl-tool-review" id="review-toggle" aria-expanded="false"><svg viewBox="0 0 24 24"><rect x="7" y="5" width="13" height="16" rx="2"/><path d="M4 17V3h12M10 10h7m-7 4h5"/></svg><span class="hl-studio-review-label">闪卡复习</span><span class="hl-tool-badge">3</span></button></div>
+<button class="hl-tool-btn hl-tool-stats hl-studio-topbar-button" id="stats-toggle" aria-label="笔记数据统计"><svg viewBox="0 0 24 24"><path d="M4 20h17M7 16v-5m5 5V5m5 11V8"/></svg><span class="hl-tool-stats-label">笔记数据统计</span></button>
+<select class="hl-studio-theme-select" id="theme-select" aria-label="主题风格"><option value="editorial">Editorial 编辑风</option><option value="native">Native 原生</option><option value="paper">Paper 纸感</option><option value="ocean">Ocean 深海</option><option value="forest">Forest 林间</option><option value="galaxy">Galaxy 星河</option><option value="cyber">Cyber 赛博</option><option value="sunset">Sunset 日落</option><option value="rose">Rose 沙漠玫瑰</option></select>
+<button class="hl-tool-btn hl-studio-mode-toggle" id="mode-toggle"><svg viewBox="0 0 24 24"><path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10Z"/></svg><span class="hl-studio-mode-label">切换深色</span></button>
+</div></div>
+<div class="hl-studio-content-header"><div class="hl-studio-tools"><input class="hl-studio-header-search" id="search" placeholder="搜索摘录、笔记或标签" aria-label="搜索摘录、笔记或标签"><div class="hl-filter-dropdown-wrap"><button class="hl-group-trigger" id="group-toggle">文件分组</button></div><div class="hl-filter-dropdown-wrap"><button class="hl-sort-trigger" id="sort-toggle">最新优先</button></div><div class="hl-filter-dropdown-wrap"><button class="hl-filter-trigger" id="filter-toggle">筛选</button></div><button class="hl-icon-btn" id="collapse-toggle" aria-label="折叠分组"><svg viewBox="0 0 24 24"><path d="m8 7 4-4 4 4M8 17l4 4 4-4"/></svg></button></div><div class="hl-studio-toolbar-right"><div class="hl-studio-view-toggle"><button class="hl-view-btn is-active" id="gallery-toggle" aria-label="卡片视图"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button><button class="hl-view-btn" id="list-toggle" aria-label="列表视图"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h1m-1 6h1m-1 6h1"/></svg></button></div><button class="hl-tool-btn hl-tool-batch" id="batch-toggle" aria-label="批量选择"><svg viewBox="0 0 24 24"><path d="m3 6 2 2 3-4m3 2h10M3 13h5m3 0h10M3 19h5m3 0h10"/></svg></button></div></div>
+<div class="hl-studio-content-body" id="collection"></div>
+</div></div></main></div>
+<dialog id="preview-dialog"><h3 id="dialog-title"></h3><p id="dialog-text"></p><button id="dialog-close">关闭</button></dialog>
+<script src="studio-theme-preview.js"></script>
+</body></html>

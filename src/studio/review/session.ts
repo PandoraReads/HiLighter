@@ -11,6 +11,9 @@ import {
     buildSession,
     scheduleNote,
     requeueIfStillLearning,
+    promoteDueLearning,
+    STATE_LEARNING,
+    STATE_RELEARNING,
     emptyStats,
     type Grade,
 } from '../../fsrs';
@@ -48,6 +51,7 @@ export function startFsrsSession(view: HighlightManagerView, mode: 'due' | 'new'
         active: true,
         mode,
         queue,
+        waiting: [],
         total: queue.length,
         flipped: false,
         stats: emptyStats(),
@@ -60,6 +64,7 @@ export function exitSession(view: HighlightManagerView): void {
         active: false,
         mode: 'due',
         queue: [],
+        waiting: [],
         total: 0,
         flipped: false,
         stats: emptyStats(),
@@ -86,11 +91,14 @@ export async function rateCurrent(view: HighlightManagerView, grade: Grade): Pro
     try {
         const next = scheduleNote(current, grade, view.plugin.settings.fsrs);
         await db.updateHighlightNote(current.id, { fsrs: next });
-        current.fsrs = next;
-
         const updated: HighlightNote = { ...current, fsrs: next };
         const rest = s.queue.slice(1);
-        s.queue = requeueIfStillLearning(rest, updated);
+        const requeued = requeueIfStillLearning(rest, updated);
+        const stillLearning = next.state === STATE_LEARNING || next.state === STATE_RELEARNING;
+        const waiting = stillLearning && next.due > Date.now() ? [...s.waiting, updated] : s.waiting;
+        const promoted = promoteDueLearning(requeued, waiting);
+        s.queue = promoted.queue;
+        s.waiting = promoted.waiting;
         s.stats = {
             ...s.stats,
             reviewed: s.stats.reviewed + 1,

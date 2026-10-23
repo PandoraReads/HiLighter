@@ -4,17 +4,20 @@
 // Extracted from main.ts. Renders preset + custom color dots and
 // an inline "+" affordance to define a new custom color on the spot.
 
-import { Platform } from 'obsidian';
+import { App, Notice, Platform, setIcon } from 'obsidian';
 import type { HiLighterSettings } from '../models';
 import { getColors } from '../colors';
+import { openNotePopup } from '../note-popup';
+import { t } from '../i18n';
 
 /** What the menu needs from its hosting plugin. */
 export interface SelectionMenuHost {
+    app: App;
     settings: HiLighterSettings;
     highlightMenu: HTMLElement | null;
     lastSelection: string;
     lastContext: unknown;
-    applyHighlight(text: string, context: unknown, colorId: string): void | Promise<void>;
+    applyHighlight(text: string, context: unknown, colorId: string, note?: string): void | Promise<void>;
     saveSettings(): Promise<void>;
 }
 
@@ -59,6 +62,43 @@ export function showHighlightMenu(
         };
         dot.addEventListener('mousedown', applyAction);
         dot.addEventListener('touchstart', applyAction);
+    });
+
+    const noteAction = colors.createDiv('hl-h-note-action');
+    setIcon(noteAction, 'notebook-pen');
+    noteAction.setAttribute('role', 'button');
+    noteAction.setAttribute('tabindex', '0');
+    noteAction.setAttribute('aria-label', t('notePopup.title'));
+    noteAction.setAttribute('title', t('notePopup.title'));
+    const openNote = (event: Event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const sourcePath = (context as { sourcePath?: string } | null)?.sourcePath
+            || plugin.app.workspace.getActiveFile()?.path || '';
+        if (!sourcePath) {
+            new Notice(t('notePopup.needFile'));
+            return;
+        }
+        hideHighlightMenu(plugin);
+        openNotePopup({
+            app: plugin.app,
+            doc,
+            x,
+            y: y + 30,
+            word: selection,
+            sourcePath,
+            imageFolder: plugin.settings.noteImageFolder,
+            onSave: async result => {
+                if (result.isEmpty) return;
+                const defaultColor = getColors(plugin.settings)[0]?.id ?? 'yellow';
+                await plugin.applyHighlight(selection, context, defaultColor, result.note);
+            },
+        });
+    };
+    noteAction.addEventListener('mousedown', openNote);
+    noteAction.addEventListener('touchstart', openNote);
+    noteAction.addEventListener('keydown', event => {
+        if (event instanceof KeyboardEvent && (event.key === 'Enter' || event.key === ' ')) openNote(event);
     });
 
     // Dynamic anchor positioning: coordinates depend on the selection rect.

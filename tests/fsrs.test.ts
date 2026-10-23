@@ -10,6 +10,7 @@ import {
     newCount,
     buildSession,
     requeueIfStillLearning,
+    promoteDueLearning,
     nextDueAt,
     resetFsrs,
     STATE_LEARNING,
@@ -143,12 +144,24 @@ describe('buildSession', () => {
 });
 
 describe('requeueIfStillLearning', () => {
-    it('appends Learning cards back to the queue, drops Review ones', () => {
+    it('requeues learning cards only after their due time, and drops review cards', () => {
         const learning = makeNote({ id: 'L', fsrs: { due: 1, stability: 1, difficulty: 5, elapsedDays: 0, scheduledDays: 0, learningSteps: 1, reps: 1, lapses: 0, state: STATE_LEARNING, lastReview: 1 } });
         const review = makeNote({ id: 'R', fsrs: { due: 2, stability: 9, difficulty: 5, elapsedDays: 0, scheduledDays: 3, learningSteps: 2, reps: 5, lapses: 0, state: STATE_REVIEW, lastReview: 1 } });
         const queue = [review];
-        expect(requeueIfStillLearning(queue, learning).map(n => n.id)).toEqual(['R', 'L']);
-        expect(requeueIfStillLearning(queue, review).map(n => n.id)).toEqual(['R']);
+        expect(requeueIfStillLearning(queue, learning, new Date(2)).map(n => n.id)).toEqual(['R', 'L']);
+        expect(requeueIfStillLearning(queue, learning, new Date(0)).map(n => n.id)).toEqual(['R']);
+        expect(requeueIfStillLearning(queue, review, new Date(2)).map(n => n.id)).toEqual(['R']);
+    });
+
+    it('promotes only waiting cards whose scheduled time has arrived', () => {
+        const state = { due: 100, stability: 1, difficulty: 5, elapsedDays: 0,
+            scheduledDays: 0, learningSteps: 1, reps: 1, lapses: 0,
+            state: STATE_LEARNING, lastReview: 0 };
+        const ready = makeNote({ id: 'ready', fsrs: state });
+        const later = makeNote({ id: 'later', fsrs: { ...state, due: 200 } });
+        const result = promoteDueLearning([], [later, ready], new Date(150));
+        expect(result.queue.map(card => card.id)).toEqual(['ready']);
+        expect(result.waiting.map(card => card.id)).toEqual(['later']);
     });
 });
 

@@ -56,6 +56,17 @@ export function filterHighlights(notes: HighlightNote[], opts: FilterOptions): H
 /** Pinned cards float to the top, then the chosen sort applies. */
 export function sortHighlights(notes: HighlightNote[], sortBy: StudioSortBy): HighlightNote[] {
     const sorted = [...notes].sort((a, b) => {
+        if (sortBy === 'source_order') {
+            const sourceCompare = a.sourcePath.localeCompare(b.sourcePath, undefined, { numeric: true, sensitivity: 'base' });
+            if (sourceCompare !== 0) return sourceCompare;
+            // Markdown lineIndex and PDF page positions share this field. EPUB
+            // cards use CFI as a finer-grained fallback when lineIndex ties.
+            if (a.lineIndex !== b.lineIndex) return a.lineIndex - b.lineIndex;
+            const cfiCompare = (a.cfi || '').localeCompare(b.cfi || '', undefined, { numeric: true, sensitivity: 'base' });
+            if (cfiCompare !== 0) return cfiCompare;
+            return a.createdAt - b.createdAt;
+        }
+
         // Pinned cards always float to the top (most recently pinned first)
         const pa = (a.pinned || 0) > 0 ? 1 : 0;
         const pb = (b.pinned || 0) > 0 ? 1 : 0;

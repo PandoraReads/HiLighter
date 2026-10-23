@@ -20,7 +20,7 @@ export type CardDensity = 'comfortable' | 'cozy' | 'compact';
 /** Studio gallery column count */
 export type StudioColumns = 'auto' | 1 | 2 | 3 | 4;
 
-/** Sidebar scope: current file only, or entire vault */
+/** Sidebar scope: current file or paged recents (`all` is the persisted legacy ID). */
 export type SidebarScope = 'active' | 'all';
 
 /** Per-color semantic labels (empty string = no label shown) */
@@ -125,6 +125,9 @@ export interface HiLighterSettings {
     ribbonHighlightIcon: boolean;
     // Appearance
     theme: ThemeId;
+    studioColorMode?: 'auto' | 'light' | 'dark';
+    noteImageFolder?: string;
+    groupExportFolder?: string;
     cardDensity: CardDensity;
     accentColor: string;            // Custom accent hex; empty = theme default
     studioColumns: StudioColumns;
@@ -196,6 +199,9 @@ export const DEFAULT_SETTINGS: HiLighterSettings = {
     activeResearchPromptId: 'philosopher',
     ribbonHighlightIcon: true,
     theme: 'editorial',
+    studioColorMode: 'auto',
+    noteImageFolder: '',
+    groupExportFolder: 'HiLighter/Groups',
     cardDensity: 'comfortable',
     accentColor: '',
     studioColumns: 'auto',

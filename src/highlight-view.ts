@@ -87,6 +87,15 @@ export class HighlightView extends ItemView {
     private cardBatchFrame: number | null = null;
     private cardRenderGeneration = 0;
     private readonly cardBatchSize = 12;
+    private readonly recentPageSize = 50;
+    private recentHighlights: HighlightNote[] = [];
+    private recentQueryKey = '';
+    private recentDataSeq = -1;
+    private recentPageLoaded = false;
+    private recentHasMore = false;
+    private recentLoading = false;
+    private recentEpoch = 0;
+    private renderRequested = false;
 
     constructor(leaf: WorkspaceLeaf, plugin: HiLighterPlugin) {
         super(leaf);
@@ -135,6 +144,7 @@ export class HighlightView extends ItemView {
         this.markdownObserver = null;
         this.cardRenderGeneration += 1;
         this.pendingCardHighlights = [];
+        this.resetRecentPage();
         (this as any)._lastCardSig = null;
         if (this.cardBatchFrame !== null) {
             cancelAnimationFrame(this.cardBatchFrame);
@@ -194,15 +204,60 @@ export class HighlightView extends ItemView {
                 if (distanceToBottom <= container.clientHeight * 1.5) {
                     this.scheduleNextCardBatch(container);
                 }
+            } else if (this.currentFilter === 'all' && this.recentHasMore && container.clientHeight > 0) {
+                this.handleCardContainerScroll(container);
             }
         });
     }
 
     private handleCardContainerScroll(container: HTMLElement) {
-        if (this.renderedCardCount >= this.pendingCardHighlights.length) return;
         const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
         if (distanceToBottom <= container.clientHeight * 1.5) {
+            if (this.renderedCardCount < this.pendingCardHighlights.length) {
+                this.scheduleNextCardBatch(container);
+            } else if (this.currentFilter === 'all' && this.recentHasMore) {
+                void this.loadMoreRecent(container);
+            }
+        }
+    }
+
+    private resetRecentPage() {
+        this.recentEpoch += 1;
+        this.recentHighlights = [];
+        this.recentQueryKey = '';
+        this.recentDataSeq = -1;
+        this.recentPageLoaded = false;
+        this.recentHasMore = false;
+        this.recentLoading = false;
+    }
+
+    private async loadMoreRecent(container: HTMLElement) {
+        if (this.recentLoading || !this.recentHasMore || this.currentFilter !== 'all') return;
+        this.recentLoading = true;
+        const epoch = this.recentEpoch;
+        const offset = this.recentHighlights.length;
+        try {
+            const page = await db.getRecentHighlightsPage(offset, this.recentPageSize, {
+                search: this.searchQuery,
+                color: this.colorFilter,
+            });
+            if (epoch !== this.recentEpoch || this.currentFilter !== 'all' || !container.isConnected) return;
+            if (db.getChangeSeq() !== this.recentDataSeq) {
+                this.resetRecentPage();
+                this.render();
+                return;
+            }
+            this.recentHighlights = [...this.recentHighlights, ...page.notes];
+            this.recentHasMore = page.hasMore;
+            this.pendingCardHighlights = [
+                ...this.pendingCardHighlights,
+                ...page.notes.filter(note => !this.pendingDeleteIds.has(note.id)),
+            ];
             this.scheduleNextCardBatch(container);
+        } catch {
+            new Notice(t('recent.loadFailed'));
+        } finally {
+            if (epoch === this.recentEpoch) this.recentLoading = false;
         }
     }
 
@@ -243,7 +298,10 @@ export class HighlightView extends ItemView {
     }
 
     async render() {
-        if (this.isRenderingFlag) return;
+        if (this.isRenderingFlag) {
+            this.renderRequested = true;
+            return;
+        }
         this.isRenderingFlag = true;
         this.aiService.updateSettings(this.plugin.settings);
 
@@ -254,11 +312,9 @@ export class HighlightView extends ItemView {
             contentEl.addClass('hl-highlight-view');
             applyAppearance(contentEl, this.plugin.settings);
 
-            // Sync scope from settings (active = current file, all = entire vault)
-            // Whole-vault mode materializes every record and builds a signature
-            // before card batching starts. Keep mobile rendering scoped to the
-            // active file to avoid a startup memory spike on phones and tablets.
-            this.currentFilter = Platform.isMobile ? 'active' : this.plugin.settings.sidebarScope;
+            // The legacy "all" setting now denotes the recent, paged sidebar.
+            // Keep the stored value so existing users retain their selected tab.
+            this.currentFilter = this.plugin.settings.sidebarScope;
             contentEl.setAttribute('data-hl-scope', this.currentFilter);
 
             // 1. Preserve Scroll Position
@@ -280,6 +336,7 @@ export class HighlightView extends ItemView {
             const activeFile = this.app.workspace.getActiveFile();
 
             if (this.currentFilter === 'active') {
+                if (this.recentPageLoaded || this.recentLoading) this.resetRecentPage();
                 if (activeFile) {
                     highlights = await db.getHighlightsByPath(activeFile.path);
 
@@ -304,7 +361,30 @@ export class HighlightView extends ItemView {
                     }
                 }
             } else {
-                highlights = await db.getAllHighlights();
+                const queryKey = JSON.stringify([this.searchQuery.trim().toLowerCase(), this.colorFilter]);
+                const dataSeq = db.getChangeSeq();
+                if (this.recentQueryKey !== queryKey || this.recentDataSeq !== dataSeq) {
+                    this.resetRecentPage();
+                    this.recentQueryKey = queryKey;
+                    this.recentDataSeq = dataSeq;
+                }
+                if (!this.recentPageLoaded) {
+                    const epoch = this.recentEpoch;
+                    const page = await db.getRecentHighlightsPage(0, this.recentPageSize, {
+                        search: this.searchQuery,
+                        color: this.colorFilter,
+                    });
+                    if (epoch !== this.recentEpoch) return;
+                    if (db.getChangeSeq() !== this.recentDataSeq) {
+                        this.resetRecentPage();
+                        this.renderRequested = true;
+                        return;
+                    }
+                    this.recentHighlights = page.notes;
+                    this.recentHasMore = page.hasMore;
+                    this.recentPageLoaded = true;
+                }
+                highlights = this.recentHighlights;
             }
 
             // Apply filters
@@ -317,12 +397,15 @@ export class HighlightView extends ItemView {
                 return matchesSearch && matchesColor;
             });
 
-            // Sort by File (SourcePath) AND then by lineIndex (Original order in document)
-            highlights.sort((a, b) => {
-                const pathSort = a.sourcePath.localeCompare(b.sourcePath);
-                if (pathSort !== 0) return pathSort;
-                return (a.lineIndex ?? 0) - (b.lineIndex ?? 0);
-            });
+            // The current note follows its document order; recent keeps the
+            // createdAt-descending order supplied by the IndexedDB index.
+            if (this.currentFilter === 'active') {
+                highlights.sort((a, b) => {
+                    const pathSort = a.sourcePath.localeCompare(b.sourcePath);
+                    if (pathSort !== 0) return pathSort;
+                    return (a.lineIndex ?? 0) - (b.lineIndex ?? 0);
+                });
+            }
 
             // Skip the expensive card rebuild when nothing affecting the cards has
             // changed since the last render. layout-change fires very often; without
@@ -421,6 +504,10 @@ export class HighlightView extends ItemView {
             }
         } finally {
             this.isRenderingFlag = false;
+            if (this.renderRequested) {
+                this.renderRequested = false;
+                void this.render();
+            }
         }
     }
 
@@ -699,7 +786,7 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
             this.render();
         };
 
-        // Toggle pair: Scope — current file (active) vs entire vault (all)
+        // Toggle pair: current file vs recently added notes.
         const scopeActive = tabsRow.createDiv({
             cls: `hl-sidebar-tab tab-scope ${this.currentFilter === 'active' ? 'is-active' : ''}`,
             text: t('toolbar.scope.active')
@@ -709,13 +796,6 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
             text: t('toolbar.scope.all')
         });
         const setScope = async (scope: 'active' | 'all') => {
-            if (Platform.isMobile && scope === 'all') {
-                const message = this.plugin.settings.language?.startsWith('zh')
-                    ? '手机和平板端暂时只显示当前文件的卡片。'
-                    : 'Mobile currently shows cards from the active file only.';
-                new Notice(message);
-                return;
-            }
             this.plugin.settings.sidebarScope = scope;
             await this.plugin.saveSettings();
             scopeActive.toggleClass('is-active', scope === 'active');
@@ -863,7 +943,7 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
                 textarea.value = textarea.value ? `${textarea.value}\n\n${line}` : line;
                 autoResize();
             },
-        });
+        }, this.plugin.settings.noteImageFolder);
 
         // Prevent Obsidian's view-click handlers from stealing focus
         textarea.onclick = (e) => e.stopPropagation();
@@ -902,16 +982,19 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
 
             renderedNote.onclick = (e) => {
                 e.stopPropagation();
-                renderedNote.addClass('is-hidden');
+                if (noteArea.hasClass('is-editing')) return;
                 currentToggleWrap.addClass('is-hidden');
+                noteArea.addClass('is-editing');
+                renderedNote.removeClass('is-collapsed-note');
                 textarea.removeClass('is-hidden');
                 textarea.focus();
             };
 
             // Auto-open if flagged
             if (this.autoOpenNoteId === note.id) {
-                renderedNote.addClass('is-hidden');
                 currentToggleWrap.addClass('is-hidden');
+                noteArea.addClass('is-editing');
+                renderedNote.removeClass('is-collapsed-note');
                 textarea.removeClass('is-hidden');
                 this.autoOpenNoteId = null;
             }
@@ -965,7 +1048,8 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
         editBtn.onclick = (e) => {
             e.stopPropagation();
             noteArea.removeClass('is-hidden');
-            renderedNote.addClass('is-hidden');
+            noteArea.addClass('is-editing');
+            renderedNote.removeClass('is-collapsed-note');
             textarea.removeClass('is-hidden');
             // If toggleWrap exists, hide it
             const toggleWrap = noteArea.querySelector('.hl-note-toggle-wrap');

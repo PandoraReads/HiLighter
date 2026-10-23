@@ -10,6 +10,8 @@ import type { HighlightNote } from './models';
 import { t, setLang } from './i18n';
 import { newCustomColorId } from './colors';
 import { ConfirmModal } from './ui/confirm-modal';
+import { normalizeImageFolder } from './image-path';
+import { normalizeVaultFolder } from './vault-path';
 
 /** Rotating starter hexes for the "add custom color" button. */
 const DEFAULT_NEW_COLOR_HEXES = ['#b39ddb', '#f0a35e', '#64b5f6', '#81c784', '#e57373', '#4db6ac'];
@@ -304,39 +306,35 @@ export class HiLighterSettingTab extends PluginSettingTab {
 					});
 			});
 
-		// ── Click-to-note triggers ──────────────────────────────
 		new Setting(containerEl)
-			.setName(t('settings.notePopup.singleClick'))
-			.setDesc(t('settings.notePopup.singleClick.desc'))
-			.addToggle(tg => {
-				tg.setValue(this.plugin.settings.notePopup?.singleClick ?? true)
-					.onChange(async (v) => {
-						this.plugin.settings.notePopup = { ...this.plugin.settings.notePopup, singleClick: v };
+			.setName(t('settings.noteImageFolder'))
+			.setDesc(t('settings.noteImageFolder.desc'))
+			.addText(text => text
+				.setPlaceholder(t('settings.noteImageFolder.placeholder'))
+				.setValue(this.plugin.settings.noteImageFolder || '')
+				.onChange(async value => {
+					try {
+						this.plugin.settings.noteImageFolder = normalizeImageFolder(value);
 						await this.plugin.saveSettings();
-					});
-			});
+					} catch {
+						new Notice(t('settings.noteImageFolder.invalid'));
+					}
+				}));
 
 		new Setting(containerEl)
-			.setName(t('settings.notePopup.doubleClick'))
-			.setDesc(t('settings.notePopup.doubleClick.desc'))
-			.addToggle(tg => {
-				tg.setValue(this.plugin.settings.notePopup?.doubleClick ?? true)
-					.onChange(async (v) => {
-						this.plugin.settings.notePopup = { ...this.plugin.settings.notePopup, doubleClick: v };
+			.setName(t('settings.groupExportFolder'))
+			.setDesc(t('settings.groupExportFolder.desc'))
+			.addText(text => text
+				.setPlaceholder(t('settings.groupExportFolder.placeholder'))
+				.setValue(this.plugin.settings.groupExportFolder || '')
+				.onChange(async value => {
+					try {
+						this.plugin.settings.groupExportFolder = normalizeVaultFolder(value);
 						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t('settings.notePopup.modifierClick'))
-			.setDesc(t('settings.notePopup.modifierClick.desc'))
-			.addToggle(tg => {
-				tg.setValue(this.plugin.settings.notePopup?.modifierClick ?? true)
-					.onChange(async (v) => {
-						this.plugin.settings.notePopup = { ...this.plugin.settings.notePopup, modifierClick: v };
-						await this.plugin.saveSettings();
-					});
-			});
+					} catch {
+						new Notice(t('settings.groupExportFolder.invalid'));
+					}
+				}));
 
 		new Setting(containerEl)
 			.setName(t('settings.pdfOverlay'))

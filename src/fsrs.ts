@@ -141,11 +141,21 @@ export function buildSession(notes: HighlightNote[], opts: SessionOptions, now: 
 }
 
 /** Requeues a Learning card that becomes due again within the session. */
-export function requeueIfStillLearning(queue: HighlightNote[], note: HighlightNote): HighlightNote[] {
+export function requeueIfStillLearning(queue: HighlightNote[], note: HighlightNote, now: Date = new Date()): HighlightNote[] {
     if (note.fsrs == null) return queue;
     const learning = note.fsrs.state === STATE_LEARNING || note.fsrs.state === STATE_RELEARNING;
-    if (!learning) return queue;
-    return [...queue, note];   // appended at the end; due time arrives while session continues
+    if (!learning || note.fsrs.due > now.getTime()) return queue;
+    return [...queue, note];
+}
+
+export function promoteDueLearning(queue: HighlightNote[], waiting: HighlightNote[], now: Date = new Date()): {
+    queue: HighlightNote[]; waiting: HighlightNote[];
+} {
+    const ready = waiting.filter(note => note.fsrs != null && note.fsrs.due <= now.getTime());
+    return {
+        queue: [...queue, ...[...ready].sort((a, b) => a.fsrs!.due - b.fsrs!.due)],
+        waiting: waiting.filter(note => !ready.includes(note)),
+    };
 }
 
 export function emptyStats(): SessionStats {

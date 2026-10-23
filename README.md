@@ -96,4 +96,16 @@ If you enjoy this plugin, you can show your support through:
 
 ---
 
+## Changelog
+
+### v2.3.0 (2026-10-23)
+- **Card Studio**: Added source-order sorting as the default, responsive card layout, consistent excerpt height, direct editing in the enlarged card dialog, and Markdown export for individual cards or full groups to a configurable vault folder.
+- **Themes and cards**: Refined theme and light/dark styling; Ocean, Forest, Galaxy, Sunset, and Rose use color-dot accents instead of left color rails. Removed the “My Note” card label and refined color aliases, pin placement, and review status placement.
+- **Flashcard review**: Improved card dimensions and text scale, with clearer review flow and rating states.
+- **Highlight notes**: Added a note entry point to the selection toolbar, Cmd/Ctrl-click and double-click triggers, and note previews on highlight hover.
+- **Images and settings**: Fixed image rendering while editing notes; added paste/drop image support and a configurable image folder.
+- **Studio tools**: Added group export and a back-to-top control, and improved grouping/filter layout behavior.
+
+---
+
 *"Let highlighted notes become the catalyst for inspiration." — HiLighter*
