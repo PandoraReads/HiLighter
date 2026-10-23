@@ -16,6 +16,7 @@ import { randomUUID } from '../mocks/crypto';
 import { openNotePopup } from '../note-popup';
 import { refreshSidebarViews } from '../studio/actions';
 import { getPdfPageNumber } from '../pdf/pdf-anchors';
+import { hasNoteModifier } from './gesture';
 
 /** Longest word we will anchor (chars). */
 const MAX_WORD_LEN = 40;
@@ -40,7 +41,7 @@ export function registerClickNoteTriggers(plugin: HiLighterPlugin): void {
         const doc = win.document;
 
         plugin.registerDomEvent(doc, 'dblclick', (evt: MouseEvent) => {
-            if (!plugin.settings.notePopup?.doubleClick) return;
+            if (!plugin.settings.notePopup?.doubleClick || !hasNoteModifier(evt)) return;
             const target = elementTarget(evt);
             if (!target || !isMarkdownArea(target)) return;
             handleWordTrigger(plugin, evt, target, 'dblclick');
@@ -50,23 +51,19 @@ export function registerClickNoteTriggers(plugin: HiLighterPlugin): void {
             const target = elementTarget(evt);
             if (!target || !isMarkdownArea(target)) return;
 
-            if (evt.metaKey || evt.ctrlKey) {
+            if (hasNoteModifier(evt)) {
                 // Cmd/Ctrl+click a word (edit mode); must not fight link clicks
-                if (!plugin.settings.notePopup?.modifierClick) return;
+                if (!plugin.settings.notePopup?.modifierClick && !plugin.settings.notePopup?.singleClick) return;
                 if (target.closest('a')) return;
-                evt.preventDefault();
-                handleWordTrigger(plugin, evt, target, 'modifier');
+                if (target.closest('.markdown-reading-view, .markdown-preview-view')) {
+                    if (!plugin.settings.notePopup?.singleClick) return;
+                    handleWordTrigger(plugin, evt, target, 'reading-click');
+                } else if (plugin.settings.notePopup?.modifierClick) {
+                    evt.preventDefault();
+                    handleWordTrigger(plugin, evt, target, 'modifier');
+                }
                 return;
             }
-
-            // Plain single click: reading mode only. Edit mode keeps the cursor.
-            if (!plugin.settings.notePopup?.singleClick) return;
-            if (!target.closest('.markdown-reading-view, .markdown-preview-view')) return;
-            if (target.closest(READING_BLOCKING_SELECTOR)) return;
-            // A non-empty selection means the click ended a drag-select, not a word tap
-            const selText = doc.getSelection()?.toString().trim() ?? '';
-            if (selText) return;
-            handleWordTrigger(plugin, evt, target, 'reading-click');
         });
     };
 
@@ -111,6 +108,7 @@ function handleWordTrigger(plugin: HiLighterPlugin, evt: MouseEvent, target: HTM
             y: evt.clientY,
             word,
             sourcePath: pdfFile.path,
+            imageFolder: plugin.settings.noteImageFolder,
             onSave: (result) => savePdfWordNote(plugin, pdfFile, word, page, result.note),
         });
         return;
@@ -122,8 +120,9 @@ function handleWordTrigger(plugin: HiLighterPlugin, evt: MouseEvent, target: HTM
     const file = mdView.file;
 
     if (kind === 'reading-click') {
-        // Reading mode, plain click: extract the word under the pointer from the DOM
+        // Reading mode: extract the word under the modified click from the DOM
         if (mode !== 'preview') return;
+        if (selText) return;
         word = wordFromPoint(doc, evt.clientX, evt.clientY) ?? '';
         if (!word) return;
     } else if (kind === 'dblclick') {
@@ -155,6 +154,7 @@ function handleWordTrigger(plugin: HiLighterPlugin, evt: MouseEvent, target: HTM
         y: evt.clientY,
         word,
         sourcePath: file.path,
+        imageFolder: plugin.settings.noteImageFolder,
         onSave: (result) => saveWordNote(plugin, mdView, file, word, result.note, mode),
     });
 }
@@ -347,6 +347,7 @@ export function openImageNoteCommand(plugin: HiLighterPlugin): void {
         y: rect ? rect.top + 120 : 200,
         imageOnly: true,
         sourcePath: file.path,
+        imageFolder: plugin.settings.noteImageFolder,
         onSave: (result) => {
             void (async () => {
                 if (result.isEmpty) return;

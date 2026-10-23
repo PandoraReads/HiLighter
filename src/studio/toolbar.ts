@@ -1,13 +1,14 @@
 // ============================================================
 // HiLighter - Studio database-style top toolbar
 // ============================================================
-// Left cluster:  search | 分组 (group by) | 排序 (sort) | 筛选 (filter)
-// Right cluster: 视图 toggle (cards/list) | 复习 | 批量 | 统计
+// App bar: review | statistics | theme | light/dark mode
+// Toolbar: search | group | sort | filter | view | batch
 // The header is persistent across body re-renders (search keeps focus).
 
 import { setIcon } from 'obsidian';
 import { t } from '../i18n';
 import { getColors } from '../colors';
+import type { ThemeId } from '../models';
 import { dueCount, newCount } from '../fsrs';
 import { collectFilterItems, groupByLabel, deckGroups } from './grouping';
 import { toggleBatchMode } from './batch';
@@ -25,6 +26,61 @@ export function refreshCollapseButton(view: HighlightManagerView): void {
     const label = allCollapsed ? t('manager.toolbar.expandAll') : t('manager.toolbar.collapseAll');
     btn.setAttribute('aria-label', label);
     btn.title = label;
+}
+
+/** App-level actions modeled after the approved card-management sample. */
+export function buildStudioTopbar(view: HighlightManagerView, parent: HTMLElement): HTMLElement {
+    const bar = parent.createDiv('hl-studio-topbar');
+    const identity = bar.createDiv('hl-studio-topbar-identity');
+    identity.createSpan({ text: 'HiLighter', cls: 'hl-studio-topbar-brand' });
+    identity.createSpan({ text: '/', cls: 'hl-studio-topbar-separator' });
+    identity.createSpan({ text: t('manager.viewName'), cls: 'hl-studio-topbar-title' });
+
+    const actions = bar.createDiv('hl-studio-topbar-actions');
+    const reviewWrap = actions.createDiv('hl-tool-wrap');
+    view.reviewWrap = reviewWrap;
+    renderReviewControl(view, reviewWrap);
+
+    const statsLabel = t('manager.toolbar.statsEntry');
+    const statsBtn = actions.createEl('button', {
+        cls: `hl-tool-btn hl-tool-stats hl-studio-topbar-button ${view.statsOpen ? 'is-active' : ''}`,
+        attr: { 'aria-label': statsLabel, title: statsLabel },
+    });
+    setIcon(statsBtn, 'bar-chart-3');
+    statsBtn.createSpan({ text: statsLabel, cls: 'hl-tool-stats-label' });
+    statsBtn.onclick = () => {
+        view.statsOpen = !view.statsOpen;
+        view.render();
+    };
+
+    const themeSelect = actions.createEl('select', {
+        cls: 'hl-studio-theme-select',
+        attr: { 'aria-label': t('settings.appearance.theme'), title: t('settings.appearance.theme') },
+    });
+    const themes: ThemeId[] = ['editorial', 'native', 'paper', 'ocean', 'forest', 'galaxy', 'cyber', 'sunset', 'rose'];
+    themes.forEach(theme => themeSelect.createEl('option', { text: t(`settings.theme.${theme}`), value: theme }));
+    themeSelect.value = view.plugin.settings.theme;
+    themeSelect.onchange = () => {
+        view.plugin.settings.theme = themeSelect.value as ThemeId;
+        void view.plugin.saveSettings().then(() => view.plugin.refreshAllViews());
+    };
+
+    const currentMode = view.plugin.settings.studioColorMode || 'auto';
+    const isDark = currentMode === 'dark' || (currentMode === 'auto' && document.body.classList.contains('theme-dark'));
+    const nextMode = isDark ? 'light' : 'dark';
+    const modeLabel = t(nextMode === 'dark' ? 'manager.theme.switchDark' : 'manager.theme.switchLight');
+    const modeBtn = actions.createEl('button', {
+        cls: 'hl-tool-btn hl-studio-mode-toggle',
+        attr: { 'aria-label': modeLabel, title: modeLabel },
+    });
+    setIcon(modeBtn, nextMode === 'dark' ? 'moon' : 'sun');
+    modeBtn.createSpan({ text: modeLabel, cls: 'hl-studio-mode-label' });
+    modeBtn.onclick = () => {
+        view.plugin.settings.studioColorMode = nextMode;
+        void view.plugin.saveSettings().then(() => view.render());
+    };
+
+    return bar;
 }
 
 function renderCollapseControl(view: HighlightManagerView, parent: HTMLElement): void {
@@ -78,7 +134,7 @@ export function buildToolbar(view: HighlightManagerView, parent: HTMLElement): H
     // Collapse / expand all groups (one click, right of the filter button)
     renderCollapseControl(view, tools);
 
-    // ── Right cluster: view toggle + review + batch + stats (icon-only) ──
+    // ── Right cluster: view toggle + batch ──
     const right = header.createDiv('hl-studio-toolbar-right');
 
     // Segmented view toggle: 卡片 | 列表 (icons only)
@@ -102,11 +158,6 @@ export function buildToolbar(view: HighlightManagerView, parent: HTMLElement): H
         view.render();
     };
 
-    // Review tool: icon + due badge, click-to-expand menu
-    const reviewWrap = right.createDiv('hl-tool-wrap');
-    view.reviewWrap = reviewWrap;
-    renderReviewControl(view, reviewWrap);
-
     // Batch tool: icon + selected-count badge while selecting
     const batchBtn = right.createEl('button', {
         cls: `hl-tool-btn hl-tool-batch ${view.batchMode ? 'is-active' : ''}`,
@@ -120,18 +171,6 @@ export function buildToolbar(view: HighlightManagerView, parent: HTMLElement): H
         batchBtn.createSpan({ cls: 'hl-tool-badge', text: String(view.selectedNotes.size) });
     }
     batchBtn.onclick = () => toggleBatchMode(view);
-
-    // Stats tool: icon, expands the insights panel over the content body
-    const statsLabel = view.statsOpen ? t('manager.toolbar.statsClose') : t('manager.toolbar.statsOpen');
-    const statsBtn = right.createEl('button', {
-        cls: `hl-tool-btn hl-tool-stats ${view.statsOpen ? 'is-active' : ''}`,
-        attr: { 'aria-label': statsLabel, title: statsLabel }
-    });
-    setIcon(statsBtn, 'bar-chart-3');
-    statsBtn.onclick = () => {
-        view.statsOpen = !view.statsOpen;
-        view.render();
-    };
 
     return header;
 }
@@ -196,6 +235,7 @@ function renderGroupControl(view: HighlightManagerView, wrap: HTMLElement): void
 function renderSortControl(view: HighlightManagerView, wrap: HTMLElement): void {
     wrap.empty();
     const modes: Array<{ id: StudioSortBy; icon: string; label: string }> = [
+        { id: 'source_order', icon: 'list-ordered', label: t('manager.sort.source_order.label') },
         { id: 'time_desc', icon: 'clock', label: t('manager.sort.time_desc.label') },
         { id: 'time_asc', icon: 'clock', label: t('manager.sort.time_asc.label') },
         { id: 'az', icon: 'arrow-down-a-z', label: t('manager.sort.az.label') },
@@ -312,6 +352,7 @@ function renderReviewControl(view: HighlightManagerView, wrap: HTMLElement): voi
     if (due > 0) {
         btn.createSpan({ cls: 'hl-tool-badge', text: String(due), attr: { 'aria-label': t('fsrs.dueBadge') } });
     }
+    btn.createSpan({ text: t('manager.mode.review'), cls: 'hl-studio-review-label' });
     btn.onclick = (e) => {
         e.stopPropagation();
         if (inSession) {

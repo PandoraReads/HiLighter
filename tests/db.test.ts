@@ -45,6 +45,51 @@ describe('HiLighterDatabase upsert + merge', () => {
     });
 });
 
+describe('HiLighterDatabase recent sidebar pages', () => {
+    it('returns 50 newest cards first and continues from the next page', async () => {
+        const db = newDb();
+        const records = Array.from({ length: 123 }, (_, index) => note({
+            id: `recent-${index}`,
+            createdAt: index + 1,
+        }));
+        await db.highlightNotes.bulkPut(records);
+
+        const first = await db.getRecentHighlightsPage(0, 50);
+        const second = await db.getRecentHighlightsPage(50, 50);
+        const last = await db.getRecentHighlightsPage(100, 50);
+
+        expect(first.notes).toHaveLength(50);
+        expect(first.notes[0]?.id).toBe('recent-122');
+        expect(first.notes[49]?.id).toBe('recent-73');
+        expect(first.hasMore).toBe(true);
+        expect(second.notes[0]?.id).toBe('recent-72');
+        expect(second.hasMore).toBe(true);
+        expect(last.notes).toHaveLength(23);
+        expect(last.notes[0]?.id).toBe('recent-22');
+        expect(last.hasMore).toBe(false);
+        await db.delete();
+    });
+
+    it('applies search and color before paging without loading all matches', async () => {
+        const db = newDb();
+        await db.highlightNotes.bulkPut([
+            note({ id: 'old-match', createdAt: 1, text: 'Context', color: 'blue' }),
+            note({ id: 'other-color', createdAt: 2, note: 'context', color: 'yellow' }),
+            note({ id: 'new-match', createdAt: 3, note: 'CONTEXT', color: 'blue' }),
+            note({ id: 'newest', createdAt: 4, text: 'unrelated', color: 'blue' }),
+        ]);
+
+        const first = await db.getRecentHighlightsPage(0, 1, { search: 'context', color: 'blue' });
+        const second = await db.getRecentHighlightsPage(1, 1, { search: 'context', color: 'blue' });
+
+        expect(first.notes.map(item => item.id)).toEqual(['new-match']);
+        expect(first.hasMore).toBe(true);
+        expect(second.notes.map(item => item.id)).toEqual(['old-match']);
+        expect(second.hasMore).toBe(false);
+        await db.delete();
+    });
+});
+
 describe('HiLighterDatabase tombstones', () => {
     it('records a tombstone on delete and suppresses resurrection', async () => {
         const db = newDb();

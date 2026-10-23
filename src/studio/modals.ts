@@ -2,7 +2,7 @@
 // HiLighter - Studio modals (detail / note edit / batch tag / tag edit)
 // ============================================================
 
-import { Modal, Notice, setIcon, MarkdownRenderer, MarkdownView, App, Component } from 'obsidian';
+import { Modal, Notice, setIcon, MarkdownView, App, TFolder, normalizePath } from 'obsidian';
 import { db } from '../db';
 import type { HighlightNote } from '../models';
 import { t } from '../i18n';
@@ -13,6 +13,7 @@ import { ConfirmModal } from '../ui/confirm-modal';
 import { jumpToPdfNote } from '../pdf/pdf-anchors';
 import { jumpToEpubNote } from '../epub/epub-jump';
 import { locateHighlightMark } from '../locate';
+import { normalizeVaultFolder } from '../vault-path';
 
 export class BatchTagModal extends Modal {
     private onSubmit: (tag: string) => void | Promise<void>;
@@ -76,11 +77,15 @@ export class BatchTagModal extends Modal {
 export class HighlightDetailModal extends Modal {
     private note: HighlightNote;
     private onUpdate: () => void | Promise<void>;
+    private imageFolder: string;
+    private exportFolder: string;
 
-    constructor(app: App, note: HighlightNote, onUpdate: () => void) {
+    constructor(app: App, note: HighlightNote, onUpdate: () => void, imageFolder = '', exportFolder = '') {
         super(app);
         this.note = note;
         this.onUpdate = onUpdate;
+        this.imageFolder = imageFolder;
+        this.exportFolder = exportFolder;
     }
 
     onOpen() {
@@ -102,22 +107,50 @@ export class HighlightDetailModal extends Modal {
         const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
         meta.setText(`${dateStr} | ${filename}`);
 
-        // Magazine Style Body
+        // Open the enlarged card directly in its note editor.
         const body = container.createDiv('hl-detail-body');
-        if (this.note.note) {
-            const noteContainer = body.createDiv('hl-detail-note');
-            // Modal is not a Component; null keeps the render detached from a lifecycle owner.
-            const owner = null as unknown as Component;
-            void MarkdownRenderer.render(this.app, this.note.note, noteContainer, this.note.sourcePath, owner)
-                .catch(() => new Notice(t('modal.detail.renderFailed')));
-        } else {
-            body.createDiv({ cls: 'hl-detail-empty', text: t('modal.detail.empty') });
-        }
+        const textarea = body.createEl('textarea', {
+            cls: 'hl-detail-editor-input',
+            attr: { placeholder: t('modal.noteEdit.placeholder'), 'aria-label': t('manager.card.myNote') },
+        });
+        textarea.value = this.note.note || '';
+        attachImageHandlers(this.app, textarea, this.note.sourcePath, {
+            onImageSaved: (line) => {
+                const separator = textarea.value && !textarea.value.endsWith('\n') ? '\n\n' : '';
+                textarea.value = `${textarea.value}${separator}${line}`;
+            },
+        }, this.imageFolder);
+        const editorActions = body.createDiv('hl-detail-editor-actions');
+        const cancelEdit = editorActions.createEl('button', { cls: 'hl-studio-mini-btn', text: t('btn.cancel') });
+        cancelEdit.onclick = () => this.close();
+        const saveEdit = editorActions.createEl('button', { cls: 'hl-studio-mini-btn is-primary', text: t('btn.save') });
+        const saveNote = async () => {
+            if (saveEdit.disabled) return;
+            saveEdit.disabled = true;
+            try {
+                await db.updateHighlightNote(this.note.id, { note: textarea.value });
+                this.note.note = textarea.value;
+                await this.onUpdate();
+                new Notice(t('modal.detail.noteUpdated'));
+                this.close();
+            } catch {
+                saveEdit.disabled = false;
+                new Notice(t('notePopup.saveFailed'));
+            }
+        };
+        saveEdit.onclick = () => { void saveNote(); };
+        textarea.onkeydown = (event) => {
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                void saveNote();
+            }
+        };
+        window.setTimeout(() => textarea.isConnected && textarea.focus(), 0);
 
         // Footer
         const footer = container.createDiv('hl-detail-footer');
 
-        // Row 1: Actions (left: delete, right: edit/jump/xhs)
+        // Row 1: Actions (left: delete, right: jump/xhs)
         const footerRow1 = footer.createDiv('hl-detail-footer-row1');
 
         const deleteBtn = footerRow1.createEl('button', { cls: 'hl-studio-mini-btn hl-detail-delete-btn', attr: { 'aria-label': t('modal.detail.aria.delete') } });
@@ -130,19 +163,12 @@ export class HighlightDetailModal extends Modal {
 
         const actions = footerRow1.createDiv('hl-detail-actions');
 
-        const editBtn = actions.createEl('button', { cls: 'hl-studio-mini-btn', attr: { 'aria-label': t('modal.detail.aria.edit') } });
-        setIcon(editBtn, 'edit-3');
-        editBtn.onclick = () => {
-            new NoteEditModal(this.app, this.note, (newNote) => {
-                void (async () => {
-                    await db.updateHighlightNote(this.note.id, { note: newNote });
-                    this.note.note = newNote;
-                    await this.onUpdate();
-                    this.onOpen();
-                    new Notice(t('modal.detail.noteUpdated'));
-                })();
-            }).open();
-        };
+        const exportBtn = actions.createEl('button', {
+            cls: 'hl-studio-mini-btn',
+            attr: { 'aria-label': t('manager.card.exportToMarkdown'), title: t('manager.card.exportToMarkdown') },
+        });
+        setIcon(exportBtn, 'file-down');
+        exportBtn.onclick = () => { void this.exportAsMarkdown(textarea.value); };
 
         const xhsBtn = actions.createEl('button', { cls: 'hl-studio-mini-btn', attr: { 'aria-label': t('modal.detail.aria.xhs') } });
         setIcon(xhsBtn, 'image');
@@ -215,6 +241,61 @@ export class HighlightDetailModal extends Modal {
         await this.onUpdate();
     }
 
+    private async exportAsMarkdown(noteText: string): Promise<void> {
+        try {
+            const folder = normalizeVaultFolder(this.exportFolder);
+            if (folder) {
+                let current = '';
+                for (const segment of folder.split('/')) {
+                    current = current ? `${current}/${segment}` : segment;
+                    const existing = this.app.vault.getAbstractFileByPath(current);
+                    if (!existing) await this.app.vault.createFolder(current);
+                    else if (!(existing instanceof TFolder)) throw new Error(`A file already exists at ${current}`);
+                }
+            }
+
+            const excerptTitle = this.note.text.replace(/\s+/g, ' ').trim();
+            const safeTitle = excerptTitle.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').slice(0, 56).trim() || 'Highlight';
+            const baseName = `${new Date(this.note.createdAt).toISOString().slice(0, 10)} ${safeTitle}`;
+            const parent = folder ? `${folder}/` : '';
+            let path = normalizePath(`${parent}${baseName}.md`);
+            let suffix = 2;
+            while (this.app.vault.getAbstractFileByPath(path)) {
+                path = normalizePath(`${parent}${baseName} (${suffix}).md`);
+                suffix += 1;
+            }
+
+            const source = this.note.sourcePath
+                ? `- ${t('manager.group.export.source')}: [[${this.note.sourcePath.replace(/\|/g, '\\|')}]]`
+                : '';
+            const tags = this.note.tags?.length
+                ? `- ${t('manager.group.export.tags')}: ${this.note.tags.map(tag => `\`${tag}\``).join(', ')}`
+                : '';
+            const quotedText = this.note.text.split(/\r?\n/).map(line => `> ${line}`).join('\n');
+            const content = [
+                `# ${excerptTitle || t('manager.group.export.emptyNote')}`,
+                '',
+                `- ${t('manager.group.export.created')}: ${new Date(this.note.createdAt).toISOString().slice(0, 10)}`,
+                source,
+                tags,
+                '',
+                `## ${t('manager.card.originalText')}`,
+                '',
+                quotedText || '> ',
+                '',
+                `## ${t('manager.group.export.note')}`,
+                '',
+                noteText.trim() || `_${t('manager.group.export.emptyNote')}_`,
+                '',
+            ].filter((line, index, lines) => line !== '' || lines[index - 1] !== '').join('\n');
+            await this.app.vault.create(path, content);
+            new Notice(t('manager.card.exportedMarkdown', { path }));
+        } catch (error) {
+            console.error('Failed to export highlight as Markdown:', error);
+            new Notice(t('manager.card.exportMarkdownFailed'));
+        }
+    }
+
     private async handleJump() {
         if (this.note.sourcePath.toLowerCase().endsWith('.pdf')) {
             await jumpToPdfNote(this.app, this.note);
@@ -239,11 +320,13 @@ export class HighlightDetailModal extends Modal {
 export class NoteEditModal extends Modal {
     private note: HighlightNote;
     private onSubmit: (text: string) => void | Promise<void>;
+    private imageFolder: string;
 
-    constructor(app: App, note: HighlightNote, onSubmit: (text: string) => void) {
+    constructor(app: App, note: HighlightNote, onSubmit: (text: string) => void, imageFolder = '') {
         super(app);
         this.note = note;
         this.onSubmit = onSubmit;
+        this.imageFolder = imageFolder;
     }
 
     onOpen() {
@@ -266,7 +349,7 @@ export class NoteEditModal extends Modal {
             onImageSaved: (line) => {
                 textArea.value = textArea.value ? `${textArea.value}\n\n${line}` : line;
             },
-        });
+        }, this.imageFolder);
 
         const actions = container.createDiv('hl-glass-modal-actions');
 

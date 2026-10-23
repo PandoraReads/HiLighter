@@ -12,11 +12,8 @@ import type HiLighterPlugin from '../main';
 import type { HighlightNote } from '../models';
 import { t } from '../i18n';
 import { db } from '../db';
-import { randomUUID } from '../mocks/crypto';
 import { showHighlightMenu } from '../selection/selection-menu';
-import { openNotePopup } from '../note-popup';
 import { resolveHex } from '../colors';
-import { refreshSidebarViews } from '../studio/actions';
 import { applyAnnotations } from './epub-annotations';
 import { openEpubRegistry } from './registry';
 
@@ -28,7 +25,6 @@ export class EpubView extends ItemView {
     book: Book | null = null;
     rendition: Rendition | null = null;
 
-    private lastSelected: { cfi: string; text: string } | null = null;
     private chapterEl: HTMLElement | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: HiLighterPlugin) {
@@ -137,7 +133,6 @@ export class EpubView extends ItemView {
             try {
                 const text = contents.window.getSelection()?.toString().trim() ?? '';
                 if (!text || text.length > 2000) return;
-                this.lastSelected = { cfi: cfiRange, text };
 
                 // Translate iframe coords into the main window
                 const win = contents.window;
@@ -185,60 +180,6 @@ export class EpubView extends ItemView {
             void this.refreshChapterTitle();
         });
 
-        // Double-click a word → click-to-note popup (word/image notes, CFI-anchored)
-        rendition.on('rendered', (_section: unknown, contents: Contents) => {
-            try {
-                contents.document.addEventListener('dblclick', (evt: MouseEvent) => {
-                    void this.handleDblClick(evt, contents);
-                });
-            } catch {
-                // ignore
-            }
-        });
-    }
-
-    private async handleDblClick(evt: MouseEvent, contents: Contents): Promise<void> {
-        if (!this.file) return;
-        const sel = contents.window.getSelection();
-        const word = sel?.toString().trim() ?? '';
-        if (!word || word.length > 40 || /\s/.test(word)) return;
-        if (this.lastSelected && this.lastSelected.text === word) return;   // selection flow owns it
-
-        const host = (contents.content as unknown as HTMLElement | null)
-            ?? this.contentEl.querySelector('iframe');
-        const hostRect = host?.getBoundingClientRect();
-
-        openNotePopup({
-            app: this.plugin.app,
-            doc: document,
-            x: (hostRect?.left ?? 0) + evt.clientX,
-            y: (hostRect?.top ?? 0) + evt.clientY,
-            word,
-            sourcePath: this.file.path,
-            onSave: (result) => this.saveWordNote(word, result.note),
-        });
-    }
-
-    private async saveWordNote(word: string, note: string): Promise<void> {
-        if (!note || !this.file) return;
-        try {
-            const entry: HighlightNote = {
-                id: randomUUID(),
-                text: word,
-                color: 'yellow',
-                note,
-                sourcePath: this.file.path,
-                lineIndex: 0,
-                createdAt: Date.now(),
-                anchorType: 'epub',
-                contextQuote: word,
-            };
-            await db.addHighlightNote(entry);
-            refreshSidebarViews(this.plugin.app);
-            new Notice(t('notePopup.saved'));
-        } catch {
-            new Notice(t('notePopup.saveFailed'));
-        }
     }
 
     /** Immediately annotate a just-created epub highlight. */

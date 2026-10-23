@@ -29,6 +29,8 @@ export interface NotePopupOptions {
     /** Image-only mode: no textarea, images are the whole note. */
     imageOnly?: boolean;
     sourcePath: string;
+    /** Optional vault-relative folder; empty follows Obsidian's attachment settings. */
+    imageFolder?: string;
     onSave(result: NotePopupResult): void | Promise<void>;
 }
 
@@ -58,7 +60,7 @@ export function openNotePopup(opts: NotePopupOptions): void {
     closeBtn.setText('×');
     closeBtn.setAttribute('aria-label', t('btn.cancel'));
 
-    const images: string[] = [];
+    let images: string[] = [];
 
     const body = pop.createDiv('hl-note-popup-body');
 
@@ -69,8 +71,8 @@ export function openNotePopup(opts: NotePopupOptions): void {
             attr: { placeholder: t('notePopup.placeholder'), rows: 3 }
         });
         attachImageHandlers(app, textarea, opts.sourcePath, {
-            onImageSaved: (line) => { images.push(line); renderChips(); },
-        });
+            onImageSaved: (line) => { images = [...images, line]; renderChips(); },
+        }, opts.imageFolder);
     }
 
     // Image chip list (embeds collect here before save)
@@ -83,16 +85,17 @@ export function openNotePopup(opts: NotePopupOptions): void {
             const rm = chip.createSpan({ text: '×', cls: 'hl-img-chip-remove' });
             rm.setAttribute('aria-label', t('notePopup.removeImage'));
             rm.onclick = () => {
-                images.splice(idx, 1);
+                images = images.filter((_, imageIndex) => imageIndex !== idx);
                 renderChips();
             };
         });
     };
 
-    const dropHint = body.createDiv({ cls: 'hl-note-popup-dropzone', text: t('notePopup.dropHint') });
+    const dropHint = body.createEl('button', { cls: 'hl-note-popup-dropzone', text: t('notePopup.dropHint') });
+    dropHint.type = 'button';
     attachImageHandlers(app, dropHint, opts.sourcePath, {
-        onImageSaved: (line) => { images.push(line); renderChips(); },
-    });
+        onImageSaved: (line) => { images = [...images, line]; renderChips(); },
+    }, opts.imageFolder);
 
     // Image-only mode has no textarea, so paste events have no focused
     // receiver — capture them at the document level while the popup lives.
@@ -101,8 +104,9 @@ export function openNotePopup(opts: NotePopupOptions): void {
         if (files.length === 0) return;
         e.preventDefault();
         void (async () => {
-            const lines = await saveImageAttachments(app, files, opts.sourcePath);
-            lines.forEach(l => { images.push(l); renderChips(); });
+            const lines = await saveImageAttachments(app, files, opts.sourcePath, opts.imageFolder);
+            images = [...images, ...lines];
+            renderChips();
         })();
     };
     if (opts.imageOnly) {
@@ -111,9 +115,10 @@ export function openNotePopup(opts: NotePopupOptions): void {
 
     const actions = pop.createDiv('hl-note-popup-actions');
     const pickBtn = createImagePickButton(app, opts.sourcePath, {
-        onImageSaved: (line) => { images.push(line); renderChips(); },
-    }, t('notePopup.addImage'));
+        onImageSaved: (line) => { images = [...images, line]; renderChips(); },
+    }, t('notePopup.addImage'), opts.imageFolder);
     actions.appendChild(pickBtn);
+    dropHint.onclick = () => pickBtn.click();
 
     const cancelBtn = actions.createEl('button', { cls: 'hl-note-popup-cancel', text: t('btn.cancel') });
     const saveBtn = actions.createEl('button', { cls: 'hl-note-popup-save', text: t('notePopup.save') });

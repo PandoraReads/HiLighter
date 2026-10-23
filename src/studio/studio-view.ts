@@ -25,7 +25,7 @@ export class HighlightManagerView extends ItemView {
     searchQuery = '';
     groupBy: StudioGroupBy = 'file';
     selectedGroups: Set<string> = new Set();
-    sortBy: StudioSortBy = 'time_desc';
+    sortBy: StudioSortBy = 'source_order';
     viewMode: StudioViewMode = 'gallery';
     collapsedGroups: Set<string> = new Set();
     batchMode = false;
@@ -35,6 +35,7 @@ export class HighlightManagerView extends ItemView {
         active: false,
         mode: 'due',
         queue: [],
+        waiting: [],
         total: 0,
         flipped: false,
         stats: { reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 },
@@ -115,6 +116,7 @@ export class HighlightManagerView extends ItemView {
 
         // Apply theme / density / accent + gallery column count
         applyAppearance(container, this.plugin.settings);
+        container.setAttribute('data-hl-mode', this.plugin.settings.studioColorMode || 'auto');
         const cols = this.plugin.settings.studioColumns;
         if (cols !== 'auto') {
             container.setAttribute('data-hl-cols', String(cols));

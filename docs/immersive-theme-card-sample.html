@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiLighter · 沉浸主题卡片装饰样本</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; background: #e8e8e3; color: #25302b; font: 14px/1.5 "Avenir Next", "PingFang SC", sans-serif; }
+body.theme-dark { background: #151a18; color: #e4e9e5; }
+.sample-page { max-width: 1480px; margin: 0 auto; }
+.sample-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin:0 0 20px; }
+.sample-heading h1 { margin:0 0 5px; font-size:22px; font-weight:650; letter-spacing:-.03em; }
+.sample-heading p { margin:0; color:#66726a; font-size:13px; }
+.theme-dark .sample-heading p { color:#a3afa6; }
+.sample-toggle { flex:none; border:1px solid #bbc5bd; border-radius:8px; background:#f7f8f5; color:#26372e; padding:8px 12px; font:inherit; cursor:pointer; }
+.theme-dark .sample-toggle { border-color:#45534b; background:#252d28; color:#e4e9e5; }
+.sample-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,390px),1fr)); gap:14px; align-items:start; }
+.theme-sample { min-width:0; overflow:hidden; border:1px solid #b9c1bb; border-radius:13px; box-shadow:0 7px 24px #1e302012; }
+.theme-dark .theme-sample { border-color:#354039; box-shadow:0 8px 28px #0004; }
+.sample-title { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 16px 11px; background:#f8f9f6; color:#26372e; }
+.theme-dark .sample-title { background:#202722; color:#e5ebe6; }
+.sample-title strong { font-size:14px; }
+.sample-title span { color:#748078; font-size:11px; }
+.theme-dark .sample-title span { color:#9eaaa1; }
+.hl-studio.immersive-sample { min-height:0; padding:14px; background:var(--hl-ui-surface); }
+.immersive-sample .hl-studio-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.immersive-sample .hl-studio-card { width:auto; min-width:0; max-width:none; min-height:190px; height:190px; max-height:none; padding:12px; border-left:1px solid var(--hl-ui-soft-line)!important; }
+.immersive-sample .hl-studio-card-top { display:flex; align-items:center; gap:8px; padding:0; }
+.immersive-sample .hl-studio-card-kind { display:inline-flex; align-items:center; min-width:0; color:var(--hl-ui-muted); }
+.immersive-sample .hl-studio-card-kind.is-dot-only { flex:0 0 10px; width:10px; height:10px; }
+.immersive-sample .hl-studio-card-kind::before { content:""; display:inline-block; width:8px; height:8px; margin-right:7px; flex:none; border-radius:50%; background:var(--hl-card-mark); }
+.immersive-sample .hl-studio-card-kind.is-dot-only::before { width:9px; height:9px; margin:0; }
+.immersive-sample .hl-studio-card-status { margin-left:auto; }
+.immersive-sample .hl-studio-card .card-header { padding-top:11px; }
+.immersive-sample .hl-studio-card .highlight-text { font-size:15px; }
+.immersive-sample .hl-studio-card-note { margin-top:7px; }
+.immersive-sample .hl-studio-card-foot { margin-top:auto; padding-right:22px; }
+.immersive-sample .hl-studio-card-pin { bottom:8px; right:8px; top:auto; opacity:1; width:18px; height:18px; color:var(--hl-ui-muted); }
+/* Theme-specific light ornaments: same semantic color, different atmosphere. */
+.immersive-sample[data-hl-theme="ocean"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px color-mix(in srgb,var(--hl-card-mark) 18%,transparent),0 0 9px color-mix(in srgb,var(--hl-card-mark) 62%,transparent); }
+.immersive-sample[data-hl-theme="forest"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px color-mix(in srgb,var(--hl-card-mark) 16%,var(--hl-ui-card)); }
+.immersive-sample[data-hl-theme="galaxy"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px color-mix(in srgb,var(--hl-card-mark) 22%,transparent),0 0 12px color-mix(in srgb,var(--hl-card-mark) 70%,transparent); }
+.immersive-sample[data-hl-theme="sunset"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px color-mix(in srgb,var(--hl-card-mark) 18%,transparent),0 0 8px color-mix(in srgb,var(--hl-card-mark) 55%,transparent); }
+.immersive-sample[data-hl-theme="rose"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px color-mix(in srgb,var(--hl-card-mark) 13%,var(--hl-ui-card)),0 0 7px color-mix(in srgb,var(--hl-card-mark) 38%,transparent); }
+.theme-dark .immersive-sample[data-hl-theme="ocean"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px #7be0d033,0 0 12px color-mix(in srgb,var(--hl-card-mark) 80%,transparent); }
+.theme-dark .immersive-sample[data-hl-theme="forest"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px #b5cf8533; }
+.theme-dark .immersive-sample[data-hl-theme="galaxy"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px #c5a9ff44,0 0 13px color-mix(in srgb,var(--hl-card-mark) 85%,transparent); }
+.theme-dark .immersive-sample[data-hl-theme="sunset"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px #ffb27533,0 0 10px color-mix(in srgb,var(--hl-card-mark) 72%,transparent); }
+.theme-dark .immersive-sample[data-hl-theme="rose"] .hl-studio-card-kind::before { box-shadow:0 0 0 2px #e5a6a633,0 0 9px color-mix(in srgb,var(--hl-card-mark) 60%,transparent); }
+@media(max-width:520px) { body{padding:14px;} .sample-heading{align-items:flex-start;} .sample-heading h1{font-size:18px;} .sample-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body class="theme-light">
+<main class="sample-page">
+  <header class="sample-heading">
+    <div><h1>沉浸主题 · 卡片装饰样本</h1><p>左侧色条已移除；卡片左上角的点仍表示高亮颜色，别名存在时显示文字。</p></div>
+    <button class="sample-toggle" id="mode-toggle" type="button">切换深色模式</button>
+  </header>
+  <div class="sample-grid" id="samples"></div>
+</main>
+<script>
+const themes = [
+  { id: 'ocean', name: '深海 Ocean', desc: '冷色微光' },
+  { id: 'forest', name: '林间 Forest', desc: '苔色哑光' },
+  { id: 'galaxy', name: '星河 Galaxy', desc: '星云柔辉' },
+  { id: 'sunset', name: '日落 Sunset', desc: '暖色余晖' },
+  { id: 'rose', name: '玫瑰 Rose', desc: '灰玫瑰柔光' },
+];
+const cards = [
+  { color: 'yellow', mark: '#ffd700', alias: '重点', status: '待复习', text: 'The quiet details often reveal the larger pattern.', note: '留意 **reveal** 在这里表达“揭示、显露”。' },
+  { color: 'blue', mark: '#87ceeb', alias: '', status: '已掌握', text: 'A little progress each day adds up to remarkable results.', note: '固定搭配：**add up to** = 累积成；总计。' },
+];
+const cardHtml = (card, index) => `<article class="hl-studio-card border-${card.color}" style="--hl-card-mark:${card.mark}">
+  <div class="hl-studio-card-top"><span class="hl-studio-card-kind ${card.alias ? 'has-label' : 'is-dot-only'}">${card.alias}</span><span class="hl-studio-card-status ${index ? '' : 'is-due'}">${card.status}</span></div>
+  <div class="card-header"><div class="highlight-text">${card.text}</div></div>
+  <div class="hl-studio-card-note"><div class="hl-studio-card-note-text">${card.note}</div></div>
+  <div class="hl-studio-card-foot"><span class="hl-studio-card-source">The Art of Learning</span><span class="hl-studio-card-date">2026/10/23</span><span class="hl-studio-card-tag">阅读</span></div>
+  <span class="hl-studio-card-pin is-on" aria-label="已固定"><svg viewBox="0 0 24 24"><path d="m16 3 5 5-4 1-4 4v5l-2 2-2-7-7-2 2-2h5l4-4 1-4Z"/></svg></span>
+</article>`;
+const root = document.querySelector('#samples');
+root.innerHTML = themes.map(theme => `<section class="theme-sample"><header class="sample-title"><strong>${theme.name}</strong><span>${theme.desc}</span></header><div class="hl-studio immersive-sample" data-hl-theme="${theme.id}" data-hl-mode="light"><div class="hl-studio-grid">${cards.map(cardHtml).join('')}</div></div></section>`).join('');
+document.querySelector('#mode-toggle').addEventListener('click', (event) => {
+  const dark = document.body.classList.toggle('theme-dark');
+  document.body.classList.toggle('theme-light', !dark);
+  document.querySelectorAll('.immersive-sample').forEach((studio) => studio.dataset.hlMode = dark ? 'dark' : 'light');
+  event.currentTarget.textContent = dark ? '切换浅色模式' : '切换深色模式';
+});
+</script>
+</body>
+</html>

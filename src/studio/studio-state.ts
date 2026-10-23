@@ -8,7 +8,7 @@ import type { HighlightNote } from '../models';
 export type StudioGroupBy = 'file' | 'tag' | 'color' | 'date';
 
 /** Sort modes for the gallery / list body */
-export type StudioSortBy = 'time_desc' | 'time_asc' | 'az' | 'za';
+export type StudioSortBy = 'time_desc' | 'time_asc' | 'az' | 'za' | 'source_order';
 
 /** Content view modes (review is a transient session, not a mode) */
 export type StudioViewMode = 'gallery' | 'list';
@@ -33,6 +33,7 @@ export interface ReviewSession {
     active: boolean;
     mode: 'due' | 'new';
     queue: HighlightNote[];
+    waiting: HighlightNote[]; // learning cards scheduled later in this session
     total: number;          // initial queue size (for progress display)
     flipped: boolean;       // front (quote) vs back (note) of the current card
     stats: {
