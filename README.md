@@ -113,6 +113,12 @@ If you enjoy this plugin, you can show your support through:
 
 ## Changelog
 
+### v2.5.0 (2026-10-24)
+- **Precise PDF highlights**: Highlights now pin to their exact position in the PDF — same-page duplicates each stay in place, and marks survive page turns, restarts, and vault syncs (position anchors travel with the data file; text-match fallback when a renderer shift makes an anchor stale).
+- **Exact jump-to-sentence**: Clicking a PDF card now scrolls to the highlighted sentence and flashes it for ~1.2s, instead of only opening the page.
+- **Live sync with cards**: Deleting a card removes its highlight from the PDF immediately; recoloring a card updates the PDF mark instantly.
+- **Robust overlay**: Lazy-rendered pages are painted the moment they appear, and character-level wrapping lets several highlights share one line.
+
 ### v2.4.1 (2026-10-24)
 - **Plugin directory fix**: Reverted the manifest name to ASCII-only "HiLighter" (the community directory rejects non-ASCII names and hid the entry). The bilingual description is unchanged.
 

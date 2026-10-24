@@ -42,6 +42,21 @@ export interface CustomColor {
 export type AnchorType = 'markdown' | 'note' | 'pdf' | 'epub';
 
 /**
+ * Precise position of a PDF highlight inside the pdf.js textLayer:
+ * page + span index + character offsets, verified at paint time via
+ * `quote`. Layout may shift across renderer versions — paint falls
+ * back to text matching when verification fails.
+ */
+export interface PdfTextAnchor {
+    page: number;
+    startSpan: number;
+    startOffset: number;
+    endSpan: number;
+    endOffset: number;
+    quote: string;
+}
+
+/**
  * FSRS scheduling state stored on a highlight (plain numbers so it
  * survives Dexie + JSON sync; absent = brand-new card).
  * Mirrors ts-fsrs Card with Date ↔ epoch-ms conversion in src/fsrs.ts.
@@ -239,6 +254,7 @@ export interface HighlightNote {
     // v2 record additions (all optional → backward compatible)
     anchorType?: AnchorType;     // Absent = 'markdown'
     pdfPage?: number;            // PDF anchor page (1-based)
+    pdfAnchor?: PdfTextAnchor;   // Precise in-page position (span+offset)
     cfi?: string;                // EPUB CFI anchor
     contextQuote?: string;       // Surrounding text for DB-only anchors
     colorHex?: string;           // Hex snapshot, written when the color is custom

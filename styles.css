@@ -7003,3 +7003,13 @@ mark.hl-note-anchor,
 
 /* Sidebar back-to-top FAB (hidden until the list is scrolled down) */
 .hl-highlight-view .hl-fab--top.is-hidden { display: none; }
+
+/* PDF jump locate flash (pdf-overlay mark) */
+mark.hl-pdf-flash {
+    animation: hl-pdf-flash 1.3s ease-out 1;
+}
+@keyframes hl-pdf-flash {
+    0% { background-color: var(--hl-accent, #ffd700); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hl-accent, #ffd700) 45%, transparent); }
+    60% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--hl-accent, #ffd700) 20%, transparent); }
+    100% { box-shadow: 0 0 0 3px transparent; }
+}

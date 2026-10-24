@@ -78,6 +78,7 @@ export async function changeNoteColor(
     await db.updateHighlightNote(note.id, changes);
     note.color = newColor;
     note.colorHex = changes.colorHex;
+    // PDF overlay picks this up via db.onChange (mark colors re-applied).
     return true;
 }
 

@@ -28,7 +28,7 @@ import { openImageNoteCommand } from './selection/click-note';
 import { registerNoteHover } from './selection/note-hover';
 import { getColorDef, normalizeCustomColors } from './colors';
 import { injectCustomColorStyles } from './appearance';
-import { capturePdfContext } from './pdf/pdf-anchors';
+import { capturePdfAnchorFromSelection, capturePdfContext } from './pdf/pdf-anchors';
 import { registerPdfOverlay } from './pdf/pdf-overlay';
 import { EpubView, EPUB_VIEW_TYPE } from './epub/epub-view';
 import { openEpubRegistry } from './epub/registry';
@@ -620,6 +620,7 @@ export default class HiLighterPlugin extends Plugin {
 				createdAt: Date.now(),
 				anchorType: 'pdf',
 				pdfPage: context?.pdfPage ?? undefined,
+				...(context?.pdfAnchor ? { pdfAnchor: context.pdfAnchor } : {}),
 				contextQuote: context?.contextQuote || '',
 				...(colorDef?.isCustom ? { colorHex: colorDef.hex } : {}),
 			};
@@ -699,6 +700,14 @@ export default class HiLighterPlugin extends Plugin {
 				lineText = pdfCtx.contextQuote;
 				(context as any).pdfPage = pdfCtx.pdfPage;
 				(context as any).contextQuote = pdfCtx.contextQuote;
+				// Precise in-page anchor from the live selection (span+offset)
+				const selDoc = (target as HTMLElement | null)?.ownerDocument ?? document;
+				const precise = capturePdfAnchorFromSelection(selDoc.getSelection(), view);
+				if (precise) {
+					(context as any).pdfPage = precise.page;
+					(context as any).pdfAnchor = precise.anchor;
+					(context as any).contextQuote = precise.contextQuote || (context as any).contextQuote;
+				}
 			} else if (isMarkdown && mode === 'source') {
 				// SOURCE MODE (Source / Live Preview)
 				const editor = (view as any).editor;
