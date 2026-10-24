@@ -1,7 +1,7 @@
 {
   "name": "hilighter",
-  "version": "2.3.0",
-  "description": "A powerful highlight note management tool with multiple colors, AI assistance, and smart review features.",
+  "version": "2.4.0",
+  "description": "Highlight notes, card collection, mind maps, AI-assisted notes and spaced review. 高亮笔记卡片集 · 思维导图 · AI 笔记 · 间隔复习。",
   "main": "main.js",
   "type": "module",
   "scripts": {
@@ -38,5 +38,8 @@
   "overrides": {
     "@xmldom/xmldom": "^0.8.12",
     "moment": "^2.30.1"
+  },
+  "dependencies": {
+    "simple-mind-map": "0.14.0-fix.3"
   }
 }

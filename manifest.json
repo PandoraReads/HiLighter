@@ -1,9 +1,9 @@
 {
 	"id": "hilighter",
-	"name": "HiLighter",
-	"version": "2.3.0",
+	"name": "HiLighter 高亮笔记",
+	"version": "2.4.0",
 	"minAppVersion": "1.7.2",
-	"description": "A powerful highlight note manager with multi-color annotations, AI-assisted notes, and smart review.",
+	"description": "Highlight notes, card collection, mind maps, AI-assisted notes and spaced review. 高亮笔记卡片集 · 思维导图 · AI 笔记 · 间隔复习。",
 	"author": "PandoraReads",
 	"authorUrl": "https://github.com/PandoraReads",
 	"isDesktopOnly": false
