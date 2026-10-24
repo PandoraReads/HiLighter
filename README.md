@@ -98,6 +98,16 @@ If you enjoy this plugin, you can show your support through:
 
 ## Changelog
 
+### v2.4.0 (2026-10-24)
+- **Mind maps (new)**: A "Mind Map" entry in the card studio imports all highlights from a file as a mind map — grouped by document headings, color, tag, or flat — with Xmind-style editing: drag to re-parent, Tab/Enter/Delete shortcuts, collapse/expand, undo/redo, and associative lines between topics.
+- **Mind map structures & themes**: Balanced/right/left logic layouts plus org chart, horizontal/vertical timelines, fishbone, and catalog structures; six style themes (line shapes, widths, rainbow branch lines, node shapes) and eight color palettes (background/line/border schemes with per-level fading borders, plus a colorful card-colored option).
+- **Mind map integration**: Highlight cards stay linked to their nodes (edits re-sync, deleted cards are flagged), nodes can jump back to the source text, and maps auto-save with debounced persistence.
+- **Mind map import/export**: Import `.xmind` files (modern and legacy formats, first sheet); export to PNG, `.xmind`, a Markdown outline, or an Obsidian `.canvas` board.
+- **Markdown notes**: Gallery cards and the enlarged card dialog now render note Markdown (with a write/preview toggle in the dialog).
+- **UI languages**: Added Japanese, Korean, French, German, Spanish, Portuguese, and Russian (partial translations with English fallback), plus a "Follow Obsidian language" option.
+- **UI polish**: Unified studio topbar typography and heights, palette icon on the theme selector, transparent scrollbars in the sidebar and studio, and a back-to-top button in the sidebar highlight list.
+- **Data**: Mind map documents persist in IndexedDB (schema v5, additive — no migration needed).
+
 ### v2.3.0 (2026-10-23)
 - **Card Studio**: Added source-order sorting as the default, responsive card layout, consistent excerpt height, direct editing in the enlarged card dialog, and Markdown export for individual cards or full groups to a configurable vault folder.
 - **Themes and cards**: Refined theme and light/dark styling; Ocean, Forest, Galaxy, Sunset, and Rose use color-dot accents instead of left color rails. Removed the “My Note” card label and refined color aliases, pin placement, and review status placement.
