@@ -32,5 +32,7 @@ export default tseslint.config(
 		"main.js",
 		// Plain CJS build-time shims (not part of the TS project)
 		"src/mocks/*.cjs",
+		// Ambient module shim for the untyped simple-mind-map dependency
+		"src/mindmap/simple-mind-map.d.ts",
 	]),
 );

@@ -3,7 +3,7 @@
 // ============================================================
 
 import Dexie, { type Table } from 'dexie';
-import type { FsrsState, HighlightNote, SyncTombstone } from './models';
+import type { FsrsState, HighlightNote, MindMapDoc, SyncTombstone } from './models';
 import {
     planMerge,
     dedupeById,
@@ -14,6 +14,7 @@ import {
 export class HiLighterDatabase extends Dexie {
     highlightNotes!: Table<HighlightNote, string>;
     syncTombstones!: Table<SyncTombstone, string>;
+    mindmaps!: Table<MindMapDoc, string>;
 
     private changeSeq = 0;
     private changeListeners = new Set<() => void>();
@@ -24,7 +25,8 @@ export class HiLighterDatabase extends Dexie {
         // v3: fsrs.due nested index for due-card queries. Records without an
         // fsrs state simply sit outside the index (= new-card semantics).
         // v4: syncTombstones tracks deleted ids so deletes survive auto-import.
-        // Both additive only: no upgrade function needed; old rows load unchanged.
+        // v5: mindmaps table for saved mind map documents (additive only).
+        // All additive: no upgrade function needed; old rows load unchanged.
         this.version(2).stores({
             highlightNotes: 'id, sourcePath, createdAt',
         });
@@ -34,6 +36,11 @@ export class HiLighterDatabase extends Dexie {
         this.version(4).stores({
             highlightNotes: 'id, sourcePath, createdAt, fsrs.due',
             syncTombstones: 'id, deletedAt',
+        });
+        this.version(5).stores({
+            highlightNotes: 'id, sourcePath, createdAt, fsrs.due',
+            syncTombstones: 'id, deletedAt',
+            mindmaps: 'id, sourcePath, updatedAt',
         });
     }
 
@@ -190,6 +197,29 @@ export class HiLighterDatabase extends Dexie {
             }
             return { added: plan.added, updated: plan.updated, skipped: plan.skipped };
         });
+    }
+
+    // ── Mind Map documents ────────────────────────────────────
+    // Mind map saves are view-local writes; they don't touch the highlight
+    // change counter (no sidebar refresh needed) but notify anyway so the
+    // mind map view's doc list stays in sync across open leaves.
+
+    async listMindMaps(): Promise<MindMapDoc[]> {
+        return this.mindmaps.orderBy('updatedAt').reverse().toArray();
+    }
+
+    async getMindMap(id: string): Promise<MindMapDoc | undefined> {
+        return this.mindmaps.get(id);
+    }
+
+    async putMindMap(doc: MindMapDoc): Promise<void> {
+        await this.mindmaps.put(doc);
+        this.notify();
+    }
+
+    async deleteMindMap(id: string): Promise<void> {
+        await this.mindmaps.delete(id);
+        this.notify();
     }
 
     // ──── Tombstones ──────────────────────────────────────────

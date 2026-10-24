@@ -11,7 +11,8 @@ import {
 	App,
 	TextComponent,
 	Modal,
-	FuzzySuggestModal
+	FuzzySuggestModal,
+	moment
 } from 'obsidian';
 import { HiLighterSettingTab, DEFAULT_SETTINGS } from './settings';
 import type { HiLighterSettings } from './models';
@@ -19,8 +20,9 @@ import { DEFAULT_RESEARCH_PROMPTS, AI_MODEL_PRESETS } from './models';
 import type { AIModelConfig, ThemeId } from './models';
 import { HighlightView } from './highlight-view';
 import { HighlightManagerView, HIGHLIGHT_MANAGER_VIEW_TYPE } from './studio/studio-view';
-import { HIGHLIGHT_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE } from './view-types';
+import { HIGHLIGHT_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE, MINDMAP_VIEW_TYPE } from './view-types';
 import { MobileRecentHighlightsView } from './mobile-recent-view';
+import { HighlightMindMapView } from './mindmap/view';
 import { showHighlightMenu, hideHighlightMenu } from './selection/selection-menu';
 import { openImageNoteCommand } from './selection/click-note';
 import { registerNoteHover } from './selection/note-hover';
@@ -33,7 +35,7 @@ import { openEpubRegistry } from './epub/registry';
 import { db, initDb } from './db';
 import type { HighlightNote } from './models';
 import { randomUUID } from './mocks/crypto';
-import { setLang, t } from './i18n';
+import { setLang, resolveAutoLanguage, t } from './i18n';
 import { initSync, type SyncController } from './sync/controller';
 import { createSyncHost } from './sync/obsidian-host';
 import { handleProtocolOp } from './protocol';
@@ -53,7 +55,7 @@ export default class HiLighterPlugin extends Plugin {
 		initDb(this.app.vault.adapter.basePath || this.app.vault.getRoot().path);
 
 		await this.loadSettings();
-		setLang(this.settings.language);
+		setLang(this.settings.language === 'auto' ? resolveAutoLanguage(moment.locale()) : this.settings.language);
 
 		// Normalize settings blocks that may predate newer fields
 		this.settings.notePopup = { doubleClick: true, modifierClick: true, singleClick: true, ...this.settings.notePopup };
@@ -121,6 +123,7 @@ export default class HiLighterPlugin extends Plugin {
 		this.registerView(HIGHLIGHT_VIEW_TYPE, (leaf) => new HighlightView(leaf, this));
 		this.registerView(HIGHLIGHT_MANAGER_VIEW_TYPE, (leaf) => new HighlightManagerView(leaf, this));
 		this.registerView(MOBILE_RECENT_VIEW_TYPE, (leaf) => new MobileRecentHighlightsView(leaf, this));
+		this.registerView(MINDMAP_VIEW_TYPE, (leaf) => new HighlightMindMapView(leaf, this));
 
 		// Runtime CSS for user-defined custom highlight colors
 		injectCustomColorStyles(document, this.settings);
@@ -168,6 +171,15 @@ export default class HiLighterPlugin extends Plugin {
 				Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_MANAGER_VIEW_TYPE,
 				'main',
 			),
+		});
+		this.addCommand({
+			id: 'open-mindmap',
+			name: t('mindmap.viewName'),
+			checkCallback: (checking: boolean) => {
+				if (Platform.isMobile) return false;
+				if (!checking) void this.activateView(MINDMAP_VIEW_TYPE, 'main');
+				return true;
+			},
 		});
 		this.addCommand({
 			id: 'cycle-theme',

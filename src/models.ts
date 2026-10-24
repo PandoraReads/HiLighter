@@ -139,7 +139,7 @@ export interface HiLighterSettings {
     pdfOverlay: boolean;            // best-effort PDF textLayer highlight overlay
     epubProgress: Record<string, string>;   // epub path -> last-read CFI
     // Internationalization
-    language: 'zh' | 'en';
+    language: string;              // UI language id or 'auto' (follow Obsidian)
     translationTargetLang: string;
     // Desktop Shortcut
     useShortcut: boolean;            // When true, menu shows only after pressing the shortcut; when false, it shows on selection
@@ -249,4 +249,22 @@ export interface HighlightNote {
 export interface SyncTombstone {
     id: string;
     deletedAt: number;
+}
+
+/** How a mind map's initial hierarchy was generated from highlight cards */
+export type MindMapBuildMode = 'headings' | 'color' | 'tag' | 'flat';
+
+/**
+ * A saved mind map document (IndexedDB `mindmaps` table). The tree is the
+ * simple-mind-map serialized node tree; highlight cards stay linked through
+ * each node's `data.highlightId` so card edits re-sync into the map.
+ */
+export interface MindMapDoc {
+    id: string;                 // UUID v4
+    title: string;
+    sourcePath?: string;        // Source file the highlights came from (blank maps have none)
+    tree: unknown;              // simple-mind-map node tree
+    buildMode: MindMapBuildMode;
+    createdAt: number;          // Unix ms
+    updatedAt: number;          // Unix ms
 }

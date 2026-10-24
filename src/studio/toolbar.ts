@@ -10,6 +10,7 @@ import { t } from '../i18n';
 import { getColors } from '../colors';
 import type { ThemeId } from '../models';
 import { dueCount, newCount } from '../fsrs';
+import { MINDMAP_VIEW_TYPE } from '../view-types';
 import { collectFilterItems, groupByLabel, deckGroups } from './grouping';
 import { toggleBatchMode } from './batch';
 import { startFsrsSession } from './review/session';
@@ -41,6 +42,17 @@ export function buildStudioTopbar(view: HighlightManagerView, parent: HTMLElemen
     view.reviewWrap = reviewWrap;
     renderReviewControl(view, reviewWrap);
 
+    const mindMapLabel = t('mindmap.viewName');
+    const mindMapBtn = actions.createEl('button', {
+        cls: 'hl-tool-btn hl-studio-topbar-button',
+        attr: { 'aria-label': mindMapLabel, title: mindMapLabel },
+    });
+    setIcon(mindMapBtn, 'git-fork');
+    mindMapBtn.createSpan({ text: mindMapLabel, cls: 'hl-tool-stats-label' });
+    mindMapBtn.onclick = () => {
+        void view.plugin.activateView(MINDMAP_VIEW_TYPE, 'main');
+    };
+
     const statsLabel = t('manager.toolbar.statsEntry');
     const statsBtn = actions.createEl('button', {
         cls: `hl-tool-btn hl-tool-stats hl-studio-topbar-button ${view.statsOpen ? 'is-active' : ''}`,
@@ -53,7 +65,10 @@ export function buildStudioTopbar(view: HighlightManagerView, parent: HTMLElemen
         view.render();
     };
 
-    const themeSelect = actions.createEl('select', {
+    const themeWrap = actions.createDiv('hl-studio-theme-wrap');
+    const themeIcon = themeWrap.createDiv('hl-studio-theme-icon');
+    setIcon(themeIcon, 'palette');
+    const themeSelect = themeWrap.createEl('select', {
         cls: 'hl-studio-theme-select',
         attr: { 'aria-label': t('settings.appearance.theme'), title: t('settings.appearance.theme') },
     });
