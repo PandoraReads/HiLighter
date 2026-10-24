@@ -7013,3 +7013,14 @@ mark.hl-pdf-flash {
     60% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--hl-accent, #ffd700) 20%, transparent); }
     100% { box-shadow: 0 0 0 3px transparent; }
 }
+
+/* PDF selection-rect highlights (renderer-independent overlay) */
+.hl-pdf-rect {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 2px;
+    mix-blend-mode: multiply;
+    opacity: .45;
+    z-index: 2;
+}
+.hl-pdf-rect.hl-pdf-flash { animation: hl-pdf-flash 1.3s ease-out 1; opacity: .85; }

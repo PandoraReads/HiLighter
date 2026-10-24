@@ -29,6 +29,7 @@ import { registerNoteHover } from './selection/note-hover';
 import { getColorDef, normalizeCustomColors } from './colors';
 import { injectCustomColorStyles } from './appearance';
 import { capturePdfAnchorFromSelection, capturePdfContext } from './pdf/pdf-anchors';
+import type { PdfRect, PdfTextAnchor } from './models';
 import { registerPdfOverlay } from './pdf/pdf-overlay';
 import { EpubView, EPUB_VIEW_TYPE } from './epub/epub-view';
 import { openEpubRegistry } from './epub/registry';
@@ -616,12 +617,13 @@ export default class HiLighterPlugin extends Plugin {
 				color,
 				note,
 				sourcePath: file.path,
-				lineIndex: context?.pdfPage ?? 0,
+				lineIndex: context?.pdfPage ?? context?.lineIndex ?? 0,
 				createdAt: Date.now(),
 				anchorType: 'pdf',
-				pdfPage: context?.pdfPage ?? undefined,
+				pdfPage: context?.pdfPage ?? context?.lineIndex ?? undefined,
 				...(context?.pdfAnchor ? { pdfAnchor: context.pdfAnchor } : {}),
-				contextQuote: context?.contextQuote || '',
+				...(context?.pdfRects && context.pdfRects.length > 0 ? { pdfRects: context.pdfRects } : {}),
+				contextQuote: context?.lineText || '',
 				...(colorDef?.isCustom ? { colorHex: colorDef.hex } : {}),
 			};
 			await db.addHighlightNote(entry);
@@ -668,10 +670,13 @@ export default class HiLighterPlugin extends Plugin {
 		workspace.revealLeaf(leaf);
 	}
 
-	private async captureContext(selection: string, target?: HTMLElement, leaf?: WorkspaceLeaf): Promise<{ lineText: string, sourcePath: string, lineIndex: number }> {
+	private async captureContext(selection: string, target?: HTMLElement, leaf?: WorkspaceLeaf): Promise<{ lineText: string, sourcePath: string, lineIndex: number, pdfPage?: number, pdfAnchor?: PdfTextAnchor, pdfRects?: PdfRect[] }> {
 		let lineText = '';
 		let sourcePath = '';
 		let lineIndex = 0;
+		let pdfPage: number | undefined = undefined;
+		let pdfAnchor: PdfTextAnchor | undefined = undefined;
+		let pdfRects: PdfRect[] | undefined = undefined;
 		try {
 			// 1. Identify valid leaf and view
 			let activeLeaf = leaf;
@@ -698,15 +703,15 @@ export default class HiLighterPlugin extends Plugin {
 				const pdfCtx = capturePdfContext(target ?? null, view, selection);
 				lineIndex = pdfCtx.pdfPage ?? 0;
 				lineText = pdfCtx.contextQuote;
-				(context as any).pdfPage = pdfCtx.pdfPage;
-				(context as any).contextQuote = pdfCtx.contextQuote;
+				pdfPage = pdfCtx.pdfPage ?? undefined;
 				// Precise in-page anchor from the live selection (span+offset)
 				const selDoc = (target as HTMLElement | null)?.ownerDocument ?? document;
 				const precise = capturePdfAnchorFromSelection(selDoc.getSelection(), view);
 				if (precise) {
-					(context as any).pdfPage = precise.page;
-					(context as any).pdfAnchor = precise.anchor;
-					(context as any).contextQuote = precise.contextQuote || (context as any).contextQuote;
+					pdfPage = precise.page;
+					pdfAnchor = precise.anchor;
+					pdfRects = precise.rects;
+					lineText = precise.contextQuote || lineText;
 				}
 			} else if (isMarkdown && mode === 'source') {
 				// SOURCE MODE (Source / Live Preview)
@@ -773,7 +778,7 @@ export default class HiLighterPlugin extends Plugin {
 
 		lineText = (lineText || '').trim();
 		if (lineText.length > 8000) lineText = lineText.slice(0, 8000);
-		return { lineText, sourcePath, lineIndex };
+		return { lineText, sourcePath, lineIndex, pdfPage, pdfAnchor, pdfRects };
 	}
 
 	async loadSettings() {

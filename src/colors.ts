@@ -200,6 +200,7 @@ export function generateCustomColorCss(settings: HiLighterSettings): string {
             `.hl-h-color-dot.${c.id} { background: ${c.hex}; }`,
             `.hl-color-dot.dot-${c.id} { background: ${c.hex}; }`,
             `.hl-list-row.color-${c.id} .hl-list-dot { background: ${c.hex}; }`,
+            `.hl-highlight-card.border-${c.id} { border-left-color: ${c.hex}; }`,
             `.hl-studio-card.border-${c.id} { border-left-color: ${c.hex}; }`,
         );
     });

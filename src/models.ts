@@ -56,6 +56,14 @@ export interface PdfTextAnchor {
     quote: string;
 }
 
+/** Selection geometry on a PDF page, normalized to the page box (0-1). */
+export interface PdfRect {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
 /**
  * FSRS scheduling state stored on a highlight (plain numbers so it
  * survives Dexie + JSON sync; absent = brand-new card).
@@ -255,6 +263,7 @@ export interface HighlightNote {
     anchorType?: AnchorType;     // Absent = 'markdown'
     pdfPage?: number;            // PDF anchor page (1-based)
     pdfAnchor?: PdfTextAnchor;   // Precise in-page position (span+offset)
+    pdfRects?: PdfRect[];        // Selection geometry (page-normalized), renderer-independent
     cfi?: string;                // EPUB CFI anchor
     contextQuote?: string;       // Surrounding text for DB-only anchors
     colorHex?: string;           // Hex snapshot, written when the color is custom

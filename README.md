@@ -30,6 +30,14 @@
 
 ![screenshot2](screenshots/card-studio.png)
 
+### 📄 PDF Annotation (New in 2.5)
+*   **Highlight inside PDFs**: Select text in any PDF and pick a color — a translucent highlighter mark appears on the page and a note card is created instantly, with your notes, tags, flashcard review and mind maps working exactly like markdown highlights.
+*   **Persistent marks**: Every highlight is anchored to page geometry, so marks survive page turns, closing and reopening the file, zooming, and vault syncs across devices.
+*   **Two-way sync with cards**: Delete a card and its PDF mark disappears immediately; recolor a card and the mark updates instantly.
+*   **Jump to the exact sentence**: Click a card to scroll straight to the highlighted sentence in the PDF, with a brief locate flash.
+
+![pdf](screenshots/pdf-highlight.png)
+
 ### 🧠 Mind Maps (New in 2.4)
 *   **One-Click Generation**: Import all highlights from any file as a mind map — grouped by document headings, highlight color, tag, or flat order.
 *   **Xmind-Style Editing**: Drag topics to re-parent or reorder, Tab/Enter/Delete shortcuts, double-click inline editing, collapse/expand branches, undo/redo, and associative lines between any two topics.
@@ -113,11 +121,11 @@ If you enjoy this plugin, you can show your support through:
 
 ## Changelog
 
-### v2.5.0 (2026-10-24)
-- **Precise PDF highlights**: Highlights now pin to their exact position in the PDF — same-page duplicates each stay in place, and marks survive page turns, restarts, and vault syncs (position anchors travel with the data file; text-match fallback when a renderer shift makes an anchor stale).
-- **Exact jump-to-sentence**: Clicking a PDF card now scrolls to the highlighted sentence and flashes it for ~1.2s, instead of only opening the page.
-- **Live sync with cards**: Deleting a card removes its highlight from the PDF immediately; recoloring a card updates the PDF mark instantly.
-- **Robust overlay**: Lazy-rendered pages are painted the moment they appear, and character-level wrapping lets several highlights share one line.
+### v2.5.0 (2026-10-25)
+- **PDF highlighting**: Select text in any PDF, pick a color, and a translucent mark appears on the page while a note card is created. Marks are anchored to page-relative selection geometry, so they survive page turns, reopens, zooming, and vault syncs — independent of the PDF renderer's internals.
+- **Jump to the exact sentence**: Clicking a PDF card scrolls to the highlighted sentence and flashes it for ~1.2s (previously page-level only).
+- **Two-way sync**: Deleting a card removes its PDF mark immediately; recoloring a card updates the mark instantly.
+- **Fixes**: Repaired a long-standing crash in PDF highlight capture (page anchors were never saved), an overlay repaint feedback loop, and custom highlight colors not tinting sidebar card stripes.
 
 ### v2.4.1 (2026-10-24)
 - **Plugin directory fix**: Reverted the manifest name to ASCII-only "HiLighter" (the community directory rejects non-ASCII names and hid the entry). The bilingual description is unchanged.

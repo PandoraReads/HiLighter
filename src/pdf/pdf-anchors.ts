@@ -6,7 +6,7 @@
 // opening the file, overlay skips on any mismatch.
 
 import { App, Notice, TFile, View } from 'obsidian';
-import type { HighlightNote, PdfTextAnchor } from '../models';
+import type { HighlightNote, PdfRect, PdfTextAnchor } from '../models';
 import { buildQuote, flattenSpans } from './anchor-math';
 import { t } from '../i18n';
 
@@ -166,10 +166,34 @@ function offsetInSpan(container: Node, offset: number, span: Element): number {
  * view. Returns null when the selection is not inside a rendered textLayer
  * (capture then falls back to the page+quote anchor).
  */
+/** Selection geometry normalized against the page element (zoom-proof). */
+function captureRects(range: Range, pageEl: Element): PdfRect[] {
+    try {
+        const pageRect = pageEl.getBoundingClientRect();
+        if (pageRect.width <= 0 || pageRect.height <= 0) return [];
+        const rects: PdfRect[] = [];
+        const clientRects = range.getClientRects();
+        for (let i = 0; i < clientRects.length && rects.length < 60; i++) {
+            const r = clientRects[i]!;
+            if (r.width <= 0 || r.height <= 0) continue;
+            const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+            const x = clamp01((r.left - pageRect.left) / pageRect.width);
+            const y = clamp01((r.top - pageRect.top) / pageRect.height);
+            const w = clamp01(r.width / pageRect.width);
+            const h = clamp01(r.height / pageRect.height);
+            if (w <= 0 || h <= 0) continue;
+            rects.push({ x, y, w, h });
+        }
+        return rects;
+    } catch {
+        return [];
+    }
+}
+
 export function capturePdfAnchorFromSelection(
     sel: Selection | null,
     view: View,
-): { page: number; anchor: PdfTextAnchor; contextQuote: string } | null {
+): { page: number; anchor: PdfTextAnchor; contextQuote: string; rects: PdfRect[] } | null {
     try {
         if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
         const range = sel.getRangeAt(0);
@@ -226,7 +250,7 @@ export function capturePdfAnchorFromSelection(
         const contextQuote = flat.slice(ctxStart, absStart + anchor.quote.length + 100)
             .replace(/\s+/g, ' ').trim().slice(0, 300);
 
-        return { page: pageNo, anchor, contextQuote };
+        return { page: pageNo, anchor, contextQuote, rects: captureRects(range, page) };
     } catch {
         return null;
     }
@@ -234,7 +258,7 @@ export function capturePdfAnchorFromSelection(
 
 /** First rendered highlight mark for a note on the given page element. */
 function findMarkOnPage(pageEl: Element, noteId: string): HTMLElement | null {
-    return pageEl.querySelector<HTMLElement>(`mark[data-id="${CSS.escape(noteId)}"]`);
+    return pageEl.querySelector<HTMLElement>(`[data-id="${CSS.escape(noteId)}"][data-hl-overlay], mark[data-id="${CSS.escape(noteId)}"]`);
 }
 
 /** True when a note's source is a PDF file. */
