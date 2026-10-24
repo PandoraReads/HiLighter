@@ -14,6 +14,7 @@ import { jumpToPdfNote } from '../pdf/pdf-anchors';
 import { jumpToEpubNote } from '../epub/epub-jump';
 import { locateHighlightMark } from '../locate';
 import { normalizeVaultFolder } from '../vault-path';
+import { renderMarkdownPreview, DetachedComponent } from './markdown';
 
 export class BatchTagModal extends Modal {
     private onSubmit: (tag: string) => void | Promise<void>;
@@ -79,6 +80,8 @@ export class HighlightDetailModal extends Modal {
     private onUpdate: () => void | Promise<void>;
     private imageFolder: string;
     private exportFolder: string;
+    private previewComponent: DetachedComponent | null = null;
+    private previewMode = false;
 
     constructor(app: App, note: HighlightNote, onUpdate: () => void, imageFolder = '', exportFolder = '') {
         super(app);
@@ -92,6 +95,8 @@ export class HighlightDetailModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         this.modalEl.addClass('hl-detail-modal');
+        this.previewComponent = new DetachedComponent();
+        this.previewComponent.load();
 
         const container = contentEl.createDiv('hl-detail-container');
 
@@ -109,11 +114,40 @@ export class HighlightDetailModal extends Modal {
 
         // Open the enlarged card directly in its note editor.
         const body = container.createDiv('hl-detail-body');
+
+        // Write / preview toggle above the editor.
+        const modeTabs = body.createDiv('hl-detail-mode-tabs');
+        const writeTab = modeTabs.createEl('button', { cls: 'hl-detail-mode-tab is-active', text: t('modal.detail.tabWrite') });
+        const previewTab = modeTabs.createEl('button', { cls: 'hl-detail-mode-tab', text: t('modal.detail.tabPreview') });
+
         const textarea = body.createEl('textarea', {
             cls: 'hl-detail-editor-input',
             attr: { placeholder: t('modal.noteEdit.placeholder'), 'aria-label': t('manager.card.myNote') },
         });
         textarea.value = this.note.note || '';
+
+        const previewEl = body.createDiv('hl-detail-markdown-preview');
+        previewEl.hide();
+        const renderPreview = () => {
+            void renderMarkdownPreview(this.app, textarea.value, previewEl, this.note.sourcePath, this.previewComponent!)
+                .catch(err => console.error('[HiLighter] preview render failed', err));
+        };
+        const setMode = (preview: boolean) => {
+            this.previewMode = preview;
+            writeTab.toggleClass('is-active', !preview);
+            previewTab.toggleClass('is-active', preview);
+            textarea.toggleClass('is-hidden', preview);
+            if (preview) {
+                previewEl.show();
+                renderPreview();
+            } else {
+                previewEl.hide();
+                window.setTimeout(() => textarea.isConnected && textarea.focus(), 0);
+            }
+        };
+        writeTab.onclick = () => setMode(false);
+        previewTab.onclick = () => setMode(true);
+
         attachImageHandlers(this.app, textarea, this.note.sourcePath, {
             onImageSaved: (line) => {
                 const separator = textarea.value && !textarea.value.endsWith('\n') ? '\n\n' : '';
@@ -314,6 +348,8 @@ export class HighlightDetailModal extends Modal {
 
     onClose() {
         this.contentEl.empty();
+        this.previewComponent?.unload();
+        this.previewComponent = null;
     }
 }
 

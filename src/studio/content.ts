@@ -2,7 +2,7 @@
 // HiLighter - Studio gallery / list content body
 // ============================================================
 
-import { setIcon, Notice, TFile, TFolder, normalizePath } from 'obsidian';
+import { setIcon, Notice, TFolder, normalizePath } from 'obsidian';
 import type { HighlightNote } from '../models';
 import { t } from '../i18n';
 import { getColors } from '../colors';
@@ -16,6 +16,7 @@ import { handleBatchDelete, handleBatchTag } from './batch';
 import { togglePin, refreshSidebarViews, changeNoteColor } from './actions';
 import { HighlightDetailModal } from './modals';
 import { extractNotePreview, noteReviewStatus } from './card-presentation';
+import { renderMarkdownPreview } from './markdown';
 import type { HighlightManagerView } from './studio-view';
 import { normalizeVaultFolder } from '../vault-path';
 
@@ -317,22 +318,23 @@ function renderStudioCard(view: HighlightManagerView, parent: HTMLElement, note:
     const header = card.createDiv('card-header');
     header.createDiv({ cls: 'highlight-text', text: note.text });
 
+    // Note preview: real markdown rendering (wikilinks, bold, images...),
+    // clipped to the card like the old plain-text preview was.
     const preview = extractNotePreview(note.note || '');
     const noteBlock = card.createDiv('hl-studio-card-note');
-    noteBlock.createDiv({
-        cls: `hl-studio-card-note-text ${preview.text ? '' : 'is-empty'}`,
-        text: preview.text || t('manager.card.emptyNote'),
-    });
+    const noteText = noteBlock.createDiv('hl-studio-card-note-text');
+    if ((note.note || '').trim()) {
+        // Links inside the preview should open the link, not the card editor.
+        noteText.addEventListener('click', (e) => {
+            if ((e.target as HTMLElement).closest('a, .internal-link')) e.stopPropagation();
+        });
+        void renderMarkdownPreview(view.app, note.note, noteText, note.sourcePath, view)
+            .catch(err => console.error('[HiLighter] card note render failed', err));
+    } else {
+        noteText.addClass('is-empty');
+        noteText.setText(t('manager.card.emptyNote'));
+    }
     if (preview.images.length > 0) {
-        const imagePath = preview.images[0]!;
-        const file = view.app.metadataCache.getFirstLinkpathDest(imagePath, note.sourcePath);
-        if (file instanceof TFile) {
-            const thumb = noteBlock.createEl('img', {
-                cls: 'hl-studio-card-thumbnail',
-                attr: { src: view.app.vault.getResourcePath(file), alt: '' },
-            });
-            thumb.loading = 'lazy';
-        }
         noteBlock.createDiv({ cls: 'hl-studio-card-image-count', text: t('manager.card.imageCount', { count: preview.images.length }) });
     }
 
