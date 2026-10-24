@@ -91,6 +91,7 @@ export class HighlightView extends ItemView {
     private recentHighlights: HighlightNote[] = [];
     private recentQueryKey = '';
     private recentDataSeq = -1;
+    private backToTopBtn: HTMLElement | null = null;
     private recentPageLoaded = false;
     private recentHasMore = false;
     private recentLoading = false;
@@ -211,6 +212,7 @@ export class HighlightView extends ItemView {
     }
 
     private handleCardContainerScroll(container: HTMLElement) {
+        this.backToTopBtn?.toggleClass('is-hidden', container.scrollTop < 300);
         const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
         if (distanceToBottom <= container.clientHeight * 1.5) {
             if (this.renderedCardCount < this.pendingCardHighlights.length) {
@@ -466,6 +468,16 @@ export class HighlightView extends ItemView {
                 fabStack = contentEl.createDiv('hl-fab-stack');
             }
             fabStack.empty();
+
+            // Back-to-top: shown after the list has scrolled down a bit.
+            const topBtn = fabStack.createEl('button', {
+                cls: 'hl-fab hl-fab--top is-hidden',
+                attr: { title: t('sidebar.backToTop'), 'aria-label': t('sidebar.backToTop') },
+            });
+            setIcon(topBtn, 'arrow-up');
+            topBtn.onclick = () => container.scrollTo({ top: 0, behavior: 'smooth' });
+            this.backToTopBtn = topBtn;
+            topBtn.toggleClass('is-hidden', container.scrollTop < 300);
 
             if (this.currentFilter === 'active' && activeFile) {
                 const btn = fabStack.createEl('button', {
