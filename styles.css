@@ -6506,3 +6506,500 @@ mark.hl-note-anchor,
 .hl-studio[data-hl-theme="rose"][data-hl-mode="dark"] .hl-studio-card-kind::before {
     box-shadow: 0 0 0 2px rgba(229, 166, 166, .2), 0 0 9px color-mix(in srgb, var(--hl-card-mark) 60%, transparent);
 }
+
+/* ============================================================
+   Mind Map view (hl-mindmap)
+   ============================================================ */
+.hl-mindmap {
+    --mm-bg: #f3f1ea;
+    --mm-surface: #fffcf7;
+    --mm-ink: #272b28;
+    --mm-muted: #646d65;
+    --mm-line: #d8d8cc;
+    --mm-soft-line: #e8e7dc;
+    --mm-radius: 9px;
+    --mm-shadow: 0 1px 2px rgba(43, 48, 40, .05), 0 6px 18px rgba(43, 48, 40, .06);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
+    background: var(--mm-bg);
+    color: var(--mm-ink);
+    container: hl-mindmap / inline-size;
+}
+.theme-dark .hl-mindmap:not([data-hl-mode="light"]),
+.hl-mindmap[data-hl-mode="dark"] {
+    --mm-bg: #171d1a;
+    --mm-surface: #252c27;
+    --mm-ink: #f0f0e8;
+    --mm-muted: #a5afa5;
+    --mm-line: #48564b;
+    --mm-soft-line: #3d493f;
+}
+
+/* ── Topbar ── */
+.hl-mindmap-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px clamp(14px, 2.4vw, 26px);
+    background: var(--mm-surface);
+    border-bottom: 1px solid var(--mm-line);
+    z-index: 20;
+}
+.hl-mindmap-identity {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 0;
+}
+.hl-mindmap-brand { font-weight: 700; font-size: 1.02em; letter-spacing: .01em; }
+.hl-mindmap-separator { color: var(--mm-muted); }
+.hl-mindmap-title { color: var(--mm-muted); font-size: .92em; }
+.hl-mindmap-doc-title {
+    margin-left: 6px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--hl-accent, #557a69) 12%, transparent);
+    color: var(--hl-accent, #557a69);
+    font-size: .84em;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+.hl-mindmap-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.hl-mindmap .hl-mindmap-btn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--mm-line);
+    border-radius: var(--mm-radius);
+    background: var(--mm-surface);
+    color: var(--mm-ink);
+    cursor: pointer;
+    transition: color .14s ease, border-color .14s ease, background .14s ease;
+}
+.hl-mindmap .hl-mindmap-btn:hover,
+.hl-mindmap .hl-mindmap-btn.is-active {
+    border-color: var(--hl-accent, #557a69);
+    color: var(--hl-accent, #557a69);
+}
+.hl-mindmap .hl-mindmap-btn:disabled { opacity: .35; cursor: default; }
+.hl-mindmap .hl-mindmap-btn:disabled:hover { border-color: var(--mm-line); color: var(--mm-ink); }
+.hl-mindmap .hl-mindmap-btn svg { width: 16px; height: 16px; }
+.hl-mindmap-structure-select {
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--mm-line);
+    border-radius: var(--mm-radius);
+    background: var(--mm-surface);
+    color: var(--mm-ink);
+    font-size: .85em;
+}
+
+/* ── Export menu ── */
+.hl-mindmap-export-wrap { position: relative; }
+.hl-mindmap-export-menu {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    min-width: 240px;
+    padding: 6px;
+    border: 1px solid var(--mm-line);
+    border-radius: var(--mm-radius);
+    background: var(--mm-surface);
+    box-shadow: var(--mm-shadow);
+    z-index: 60;
+}
+.hl-mindmap-export-item {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: .87em;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.hl-mindmap-export-item:hover { background: color-mix(in srgb, var(--hl-accent, #557a69) 10%, transparent); color: var(--hl-accent, #557a69); }
+
+/* ── Body layout ── */
+.hl-mindmap-layout {
+    position: relative;
+    display: flex;
+    flex: 1 1 0%;
+    min-height: 0;
+}
+.hl-mindmap-canvas {
+    position: relative;
+    flex: 1 1 0%;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+.hl-mindmap-canvas > .smm-container,
+.hl-mindmap-canvas svg { display: block; }
+
+/* ── Sidebar (doc list) ── */
+.hl-mindmap-sidebar {
+    width: 0;
+    overflow: hidden;
+    border-right: 1px solid transparent;
+    background: var(--mm-surface);
+    transition: width .18s ease;
+    flex-shrink: 0;
+}
+.hl-mindmap-sidebar.is-open {
+    width: 250px;
+    border-right-color: var(--mm-line);
+}
+.hl-mindmap-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 8px;
+    font-size: .8em;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--mm-muted);
+}
+.hl-mindmap-sidebar-header .hl-mindmap-btn { width: 26px; height: 26px; }
+.hl-mindmap-doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 8px 14px;
+    overflow-y: auto;
+}
+.hl-mindmap-doc-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .12s ease;
+}
+.hl-mindmap-doc-row:hover { background: color-mix(in srgb, var(--mm-ink) 5%, transparent); }
+.hl-mindmap-doc-row.is-active {
+    background: color-mix(in srgb, var(--hl-accent, #557a69) 12%, transparent);
+}
+.hl-mindmap-doc-info { flex: 1; min-width: 0; }
+.hl-mindmap-doc-name {
+    font-size: .88em;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.hl-mindmap-doc-meta { font-size: .74em; color: var(--mm-muted); margin-top: 2px; }
+.hl-mindmap-doc-delete {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    color: var(--mm-muted);
+    opacity: 0;
+    transition: opacity .12s ease, color .12s ease;
+}
+.hl-mindmap-doc-row:hover .hl-mindmap-doc-delete { opacity: 1; }
+.hl-mindmap-doc-delete:hover { color: #d05656; background: rgba(208, 86, 86, .1); }
+.hl-mindmap-doc-delete svg { width: 13px; height: 13px; }
+.hl-mindmap-doc-empty { padding: 16px 12px; font-size: .82em; color: var(--mm-muted); text-align: center; }
+
+/* ── Empty state ── */
+.hl-mindmap-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 30px;
+}
+.hl-mindmap-empty-icon { color: var(--hl-accent, #557a69); opacity: .8; }
+.hl-mindmap-empty-icon svg { width: 44px; height: 44px; }
+.hl-mindmap-empty-title { font-size: 1.15em; font-weight: 700; }
+.hl-mindmap-empty-hint { font-size: .88em; color: var(--mm-muted); max-width: 380px; }
+.hl-mindmap-empty-actions { display: flex; gap: 10px; margin-top: 8px; }
+.hl-mindmap-empty-actions button {
+    padding: 8px 18px;
+    border-radius: var(--mm-radius);
+    border: 1px solid var(--mm-line);
+    background: var(--mm-surface);
+    color: var(--mm-ink);
+    cursor: pointer;
+}
+.hl-mindmap-empty-actions button.mod-cta {
+    background: var(--hl-accent, #557a69);
+    border-color: var(--hl-accent, #557a69);
+    color: #fff;
+}
+.hl-mindmap-empty-actions button:hover { filter: brightness(1.05); }
+
+/* ── Selected-node panel ── */
+.hl-mindmap-panel {
+    position: absolute;
+    left: 14px;
+    bottom: 14px;
+    z-index: 40;
+    max-width: min(380px, 46%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+.hl-mindmap-panel-actions { display: flex; gap: 6px; pointer-events: auto; }
+.hl-mindmap-panel-btn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--mm-line);
+    border-radius: var(--mm-radius);
+    background: var(--mm-surface);
+    color: var(--mm-ink);
+    cursor: pointer;
+    box-shadow: var(--mm-shadow);
+    transition: color .14s ease, border-color .14s ease;
+}
+.hl-mindmap-panel-btn:hover { color: var(--hl-accent, #557a69); border-color: var(--hl-accent, #557a69); }
+.hl-mindmap-panel-btn svg { width: 15px; height: 15px; }
+.hl-mindmap-panel-detail {
+    pointer-events: auto;
+    padding: 12px 14px;
+    border: 1px solid var(--mm-line);
+    border-radius: var(--mm-radius);
+    background: var(--mm-surface);
+    box-shadow: var(--mm-shadow);
+    max-height: 220px;
+    overflow-y: auto;
+}
+.hl-mindmap-panel-quote {
+    font-size: .86em;
+    line-height: 1.5;
+    padding-left: 10px;
+    border-left: 3px solid var(--hl-accent, #557a69);
+}
+.hl-mindmap-panel-note {
+    margin-top: 8px;
+    font-size: .8em;
+    color: var(--mm-muted);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+.hl-mindmap-panel-lost {
+    margin-bottom: 8px;
+    font-size: .78em;
+    color: #d08656;
+}
+.hl-mindmap-panel-hint { font-size: .76em; color: var(--mm-muted); font-style: italic; }
+
+/* ── Import-mode modal ── */
+.hl-mindmap-mode-modal .hl-mindmap-mode-title { margin-bottom: 14px; font-weight: 650; }
+.hl-mindmap-mode-row {
+    padding: 11px 13px;
+    border: 1px solid var(--mm-line, var(--background-modifier-border));
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color .13s ease, background .13s ease;
+}
+.hl-mindmap-mode-row:hover {
+    border-color: var(--hl-accent, var(--interactive-accent));
+    background: color-mix(in srgb, var(--hl-accent, var(--interactive-accent)) 7%, transparent);
+}
+.hl-mindmap-mode-label { font-weight: 650; font-size: .95em; }
+.hl-mindmap-mode-desc { margin-top: 3px; font-size: .8em; color: var(--text-muted); }
+
+/* Mobile: the mind map view is desktop-only, but keep it usable if opened. */
+@media (max-width: 700px) {
+    .hl-mindmap-sidebar.is-open { width: 200px; }
+    .hl-mindmap-panel { max-width: 70%; }
+    .hl-mindmap-doc-title { display: none; }
+}
+
+/* ============================================================
+   Transparent scrollbars: studio (card collection) and the
+   sidebar highlight list scroll invisibly but stay scrollable.
+   ============================================================ */
+.hl-studio,
+.hl-highlight-view {
+    scrollbar-width: none;              /* Firefox */
+    -ms-overflow-style: none;           /* legacy Edge */
+}
+.hl-studio::-webkit-scrollbar,
+.hl-highlight-view::-webkit-scrollbar {
+    display: none;                      /* Chromium/Safari (Obsidian renderer) */
+    width: 0;
+    height: 0;
+}
+/* Inner scroll surfaces of both views (detail cards, dropdowns, lists) */
+.hl-studio *,
+.hl-highlight-view * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+.hl-studio *::-webkit-scrollbar,
+.hl-highlight-view *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent;
+}
+.hl-studio *::-webkit-scrollbar-thumb,
+.hl-highlight-view *::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+    transition: background .15s ease;
+}
+.hl-studio *:hover::-webkit-scrollbar-thumb,
+.hl-highlight-view *:hover::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+/* ============================================================
+   Markdown note previews (studio cards + detail modal)
+   ============================================================ */
+/* Compact base for rendered note markdown */
+.hl-md-preview { font-size: inherit; line-height: 1.5; overflow-wrap: anywhere; }
+.hl-md-preview > :first-child { margin-top: 0; }
+.hl-md-preview > :last-child { margin-bottom: 0; }
+.hl-md-preview p { margin: 0 0 .45em; }
+.hl-md-preview h1, .hl-md-preview h2, .hl-md-preview h3,
+.hl-md-preview h4, .hl-md-preview h5, .hl-md-preview h6 {
+    margin: .5em 0 .3em;
+    font-size: 1em;
+    font-weight: 650;
+}
+.hl-md-preview ul, .hl-md-preview ol { margin: .2em 0 .45em; padding-inline-start: 1.3em; }
+.hl-md-preview li { margin: .1em 0; }
+.hl-md-preview blockquote { margin: .3em 0; padding: .1em .7em; border-left: 3px solid var(--hl-accent, var(--interactive-accent)); }
+.hl-md-preview code { font-size: .92em; padding: .05em .3em; border-radius: 4px; background: color-mix(in srgb, currentColor 8%, transparent); }
+.hl-md-preview pre { margin: .3em 0; padding: .5em .7em; border-radius: 7px; font-size: .92em; overflow-x: auto; }
+.hl-md-preview pre code { background: transparent; padding: 0; }
+.hl-md-preview hr { margin: .5em 0; border: none; border-top: 1px solid var(--background-modifier-border); }
+.hl-md-preview img { max-width: 100%; max-height: 90px; border-radius: 6px; object-fit: cover; object-position: top; }
+.hl-md-preview table { margin: .3em 0; font-size: .95em; border-collapse: collapse; }
+.hl-md-preview th, .hl-md-preview td { padding: .2em .5em; border: 1px solid var(--background-modifier-border); }
+
+/* Studio gallery card preview: keep the 3-line clip of the old text */
+.hl-studio .hl-studio-card-note-text.hl-md-preview {
+    display: block;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    max-height: calc(1.5em * 3 + 4px);
+}
+.hl-studio .hl-studio-card-note-text.is-empty { color: var(--hl-ui-muted, var(--text-faint)); font-style: italic; }
+
+/* Detail modal: write/preview tabs + preview pane */
+.hl-detail-mode-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.hl-detail-mode-tab {
+    padding: 4px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 99px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: .82em;
+    cursor: pointer;
+    transition: color .13s ease, border-color .13s ease, background .13s ease;
+}
+.hl-detail-mode-tab:hover { color: var(--text-normal); }
+.hl-detail-mode-tab.is-active {
+    color: var(--hl-accent, var(--interactive-accent));
+    border-color: var(--hl-accent, var(--interactive-accent));
+    background: color-mix(in srgb, var(--hl-accent, var(--interactive-accent)) 8%, transparent);
+}
+.hl-detail-markdown-preview {
+    min-height: 140px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 9px;
+    background: var(--background-primary);
+    font-size: .9em;
+}
+.is-hidden { display: none !important; }
+
+/* Theme select with a leading icon (studio topbar) */
+.hl-studio .hl-studio-theme-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+.hl-studio .hl-studio-theme-icon {
+    position: absolute;
+    left: 9px;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    color: var(--hl-ui-muted);
+}
+.hl-studio .hl-studio-theme-icon svg { width: 14px; height: 14px; }
+.hl-studio .hl-studio-theme-wrap .hl-studio-theme-select { padding-left: 29px; }
+
+/* ============================================================
+   Unified topbar controls: same height, font, weight, icons
+   (review / mind map / stats / theme select / dark-mode toggle)
+   ============================================================ */
+.hl-studio-topbar .hl-tool-btn,
+.hl-studio-topbar .hl-tool-review,
+.hl-studio-topbar .hl-studio-mode-toggle,
+.hl-studio-topbar .hl-studio-theme-select {
+    box-sizing: border-box;
+    height: 34px;
+    min-height: 34px;
+    padding: 0 11px;
+    gap: 7px;
+    font-family: var(--font-interface);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1;
+}
+/* Labels inherit the control's typography — no double em-scaling */
+.hl-studio-topbar .hl-studio-review-label,
+.hl-studio-topbar .hl-tool-stats-label,
+.hl-studio-topbar .hl-studio-mode-label {
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: 1;
+    margin: 0;
+}
+/* Same icon size across all controls */
+.hl-studio-topbar .hl-tool-btn svg,
+.hl-studio-topbar .hl-tool-review svg,
+.hl-studio-topbar .hl-studio-mode-toggle svg,
+.hl-studio-topbar .hl-studio-theme-icon svg {
+    width: 15px;
+    height: 15px;
+}
+
+.hl-mindmap-panel-shape-select {
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--mm-line, var(--background-modifier-border));
+    border-radius: 6px;
+    background: var(--mm-surface, var(--background-primary));
+    color: var(--mm-ink, var(--text-normal));
+    font-size: .8em;
+    cursor: pointer;
+}
+
+/* Sidebar back-to-top FAB (hidden until the list is scrolled down) */
+.hl-highlight-view .hl-fab--top.is-hidden { display: none; }
