@@ -27,9 +27,23 @@
     *   **Locate Original Text**: Click a card to instantly jump to the highlighted position in the source note for quick context recovery.
     *   **Classification Tags**: Add tags to each card for organized categorization, with support for batch tag operations.
     *   **Batch Deletion**: Enter batch mode to multi-select cards and delete them in one click for efficient cleanup.
-    *   **Review Mode**: Shuffle cards randomly for review and consolidation, with an archive option for mastered content.
 
-![screenshot2](screenshots/screenshot2.png)
+![screenshot2](screenshots/card-studio.png)
+
+### 🧠 Mind Maps (New in 2.4)
+*   **One-Click Generation**: Import all highlights from any file as a mind map — grouped by document headings, highlight color, tag, or flat order.
+*   **Xmind-Style Editing**: Drag topics to re-parent or reorder, Tab/Enter/Delete shortcuts, double-click inline editing, collapse/expand branches, undo/redo, and associative lines between any two topics.
+*   **9 Structures**: Balanced mind map, logic diagram (right/left), organization chart, horizontal/vertical timelines, fishbone, and catalog organization — switchable at any time.
+*   **6 Style Themes × 8 Color Palettes**: Line shapes and widths (curves, straight, rainbow branch lines) combined with full color schemes (background, node fill/border with per-level fading borders, plus a colorful card-colored option).
+*   **Summaries & Notes**: Box topics with summary nodes, attach your notes to any topic, and jump straight back to the source highlight.
+*   **Import & Export**: Open `.xmind` files directly; export to PNG, `.xmind` (re-openable in Xmind), a Markdown outline, or an Obsidian `.canvas` board.
+
+![mindmap](screenshots/mindmap.png)
+
+### ⚡ Flashcard Review (FSRS)
+*   **Spaced Repetition**: Built-in FSRS scheduling turns highlight cards into flashcards with a due queue and per-card review status.
+*   **Focused Review Session**: Flip cards with Space, rate recall 1–4 (Again/Hard/Good/Easy), skip or archive — all keyboard-driven.
+*   **Review Insights**: Due/new counts on the studio toolbar, plus review statistics in the stats dashboard.
 
 ---
 
@@ -91,6 +105,7 @@ Developers are welcome to contribute to improving this project!
 If you enjoy this plugin, you can show your support through:
 
 *   **Follow Official Account**: 潘多拉的数字花园 (Pandora's Digital Garden)
+*   **Bilibili**: Follow 潘多拉的数字花园 on Bilibili for video walkthroughs
 *   **Multi-Platform Support**: Also available on Weibo, Xiaohongshu (Little Red Book), and Knowledge Planet under the same name
 *   **Contact & Feedback**: Feel free to add VX: **PandoraReads**
 
