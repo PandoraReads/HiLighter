@@ -2,12 +2,14 @@
 // HiLighter - Settings Tab
 // ============================================================
 
-import { App, PluginSettingTab, Setting, Platform, Notice, Modal } from 'obsidian';
+import { App, PluginSettingTab, Setting, Platform, Notice, Modal,
+	moment
+} from 'obsidian';
 import type HiLighterPlugin from './main';
 import { DEFAULT_SETTINGS, type HiLighterSettings, type ResearchPrompt, type AIModelConfig, type ThemeId, type CardDensity, type StudioColumns, AI_MODEL_PRESETS } from './models';
 import { db } from './db';
 import type { HighlightNote } from './models';
-import { t, setLang } from './i18n';
+import { t, setLang, resolveAutoLanguage, SUPPORTED_LANGUAGES } from './i18n';
 import { newCustomColorId } from './colors';
 import { ConfirmModal } from './ui/confirm-modal';
 import { normalizeImageFolder } from './image-path';
@@ -42,12 +44,14 @@ export class HiLighterSettingTab extends PluginSettingTab {
 			.setName(t('settings.language'))
 			.setDesc(t('settings.language.desc'))
 			.addDropdown(drop => {
-				drop.addOption('zh', '中文')
-					.addOption('en', 'English')
-					.setValue(this.plugin.settings.language)
+				drop.addOption('auto', t('settings.language.auto'));
+				for (const lang of SUPPORTED_LANGUAGES) {
+					drop.addOption(lang.id, lang.label);
+				}
+				drop.setValue(this.plugin.settings.language)
 					.onChange(async (v) => {
-						this.plugin.settings.language = v as 'zh' | 'en';
-						setLang(v as 'zh' | 'en');
+						this.plugin.settings.language = v;
+						setLang(v === 'auto' ? resolveAutoLanguage(moment.locale()) : v);
 						await this.plugin.saveSettings();
 						this.display();
 						this.plugin.refreshAllViews();

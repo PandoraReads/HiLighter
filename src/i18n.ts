@@ -1,20 +1,64 @@
 // ============================================================
 // HiLighter - Internationalization (i18n)
 // ============================================================
+// zh and en are complete dictionaries. Additional languages live in
+// i18n-extra.ts as PARTIAL dictionaries over the English keys: a key
+// missing there falls back to English, which falls back to the key.
+// 'auto' is resolved by the caller from Obsidian's UI locale via
+// resolveAutoLanguage().
 
-let _lang: 'zh' | 'en' = 'zh';
+import { PARTIAL_LANGUAGES } from './i18n-extra';
 
-export function setLang(lang: 'zh' | 'en'): void {
-	_lang = lang;
+/** UI languages: full (zh/en) plus partial translations, native labels. */
+export const SUPPORTED_LANGUAGES: Array<{ id: string; label: string }> = [
+	{ id: 'zh', label: '简体中文' },
+	{ id: 'en', label: 'English' },
+	{ id: 'ja', label: '日本語' },
+	{ id: 'ko', label: '한국어' },
+	{ id: 'fr', label: 'Français' },
+	{ id: 'de', label: 'Deutsch' },
+	{ id: 'es', label: 'Español' },
+	{ id: 'pt', label: 'Português' },
+	{ id: 'ru', label: 'Русский' },
+];
+
+/** Maps an Obsidian UI locale (e.g. 'pt-BR', 'zh-TW') to a supported language. */
+export function resolveAutoLanguage(locale: string): string {
+	const lower = (locale || 'en').toLowerCase();
+	if (lower.startsWith('zh')) return 'zh';
+	if (lower.startsWith('en')) return 'en';
+	const base = lower.split('-')[0]!;
+	if (SUPPORTED_LANGUAGES.some(l => l.id === base)) return base;
+	return 'en';
 }
 
-export function getLang(): 'zh' | 'en' {
+const mergedCache = new Map<string, Record<string, string>>();
+
+/** A language's effective dictionary: full for zh/en, English-backed for partials. */
+function dictFor(lang: string): Record<string, string> {
+	if (lang === 'zh' || lang === 'en') return lang === 'zh' ? zh : en;
+	let merged = mergedCache.get(lang);
+	if (!merged) {
+		merged = { ...en, ...(PARTIAL_LANGUAGES[lang] ?? {}) };
+		mergedCache.set(lang, merged);
+	}
+	return merged;
+}
+
+let _lang = 'zh';
+
+export function setLang(lang: string): void {
+	_lang = SUPPORTED_LANGUAGES.some(l => l.id === lang) ? lang : 'en';
+}
+
+export function getLang(): string {
 	return _lang;
 }
 
 const zh: Record<string, string> = {
 	// ── Settings ──────────────────────────────────────────
 	'settings.language': '界面语言',
+	'settings.language.auto': '跟随 Obsidian 语言',
 	'settings.language.desc': '选择插件界面使用的语言（切换后部分文本需重启插件生效）',
 	'settings.translationTarget': '翻译目标语言',
 	'settings.translationTarget.desc': 'AI 翻译功能将高亮文本翻译为此语言',
@@ -215,6 +259,7 @@ const zh: Record<string, string> = {
 	'cmd.toggleShortcut': '开启/关闭快捷键高亮',
 
 	// ── Main Notices ──────────────────────────────────────
+	'sidebar.backToTop': '回到顶部',
 	'notice.noEditor': '未发现编辑窗口，请确保光标在笔记中',
 	'notice.previewMode': '请在编辑模式下进行高亮（当前为预览模式）',
 
@@ -288,7 +333,7 @@ const zh: Record<string, string> = {
 	'manager.mode.addTag': '添加标签',
 	'manager.toolbar.groupBy': '分组',
 	'manager.toolbar.stats': '统计',
-	'manager.toolbar.statsEntry': '笔记数据统计',
+	'manager.toolbar.statsEntry': '数据统计',
 	'manager.scrollToTop': '回到顶部',
 	'manager.group.save': '保存“${group}”分组为 Markdown',
 	'manager.group.export.source': '来源',
@@ -457,6 +502,8 @@ const zh: Record<string, string> = {
 	'modal.detail.renderFailed': '笔记渲染失败',
 	'modal.detail.deleteConfirm': '确定要删除这张卡片吗？',
 	'modal.detail.deleted': '卡片已删除',
+	'modal.detail.tabWrite': '编辑',
+	'modal.detail.tabPreview': '预览',
 	'modal.detail.aria.delete': '删除卡片',
 	'modal.detail.aria.edit': '编辑',
 	'modal.detail.aria.xhs': '生成金句卡片',
@@ -521,11 +568,87 @@ const zh: Record<string, string> = {
 	'sync.auto.error': '自动同步出错：${message}',
 	'protocol.missingOp': '缺少操作参数（op）',
 	'protocol.unknownOp': '未知的 HiLighter 链接操作：${op}',
+
+	// ── Mind Map ──────────────────────────────────────────
+	'mindmap.viewName': '思维导图',
+	'mindmap.toolbar.import': '导入高亮生成导图',
+	'mindmap.toolbar.docs': '导图文档列表',
+	'mindmap.toolbar.structure': '导图结构',
+	'mindmap.toolbar.undo': '撤销',
+	'mindmap.toolbar.redo': '重做',
+	'mindmap.toolbar.fit': '适应画布',
+	'mindmap.toolbar.export': '导出',
+	'mindmap.structure.mindMap': '思维导图（平衡）',
+	'mindmap.structure.logicalRight': '逻辑图（向右）',
+	'mindmap.structure.logicalLeft': '逻辑图（向左）',
+	'mindmap.structure.organization': '组织结构图',
+	'mindmap.structure.timeline': '时间轴（横向）',
+	'mindmap.structure.verticalTimeline': '时间轴（纵向）',
+	'mindmap.structure.fishbone': '鱼骨图',
+	'mindmap.structure.catalog': '目录组织图',
+	'mindmap.toolbar.theme': '导图主题',
+	'mindmap.toolbar.palette': '配色方案',
+	'mindmap.palette.default': '配色：默认',
+	'mindmap.palette.ocean': '配色：海洋蓝',
+	'mindmap.palette.forest': '配色：森林绿',
+	'mindmap.palette.sunset': '配色：暮色橙',
+	'mindmap.palette.sakura': '配色：樱花粉',
+	'mindmap.palette.grape': '配色：紫罗兰',
+	'mindmap.palette.mono': '配色：水墨灰',
+	'mindmap.palette.colorful': '配色：彩色（保留卡片色边框）',
+	'mindmap.theme.classic': '经典（曲线圆角）',
+	'mindmap.theme.business': '商务（直线方角）',
+	'mindmap.theme.direct': '直连（贴边直线）',
+	'mindmap.theme.outline': '极简（无框线）',
+	'mindmap.theme.capsule': '胶囊（椭圆彩色线）',
+	'mindmap.theme.sketch': '手绘（八角粗边）',
+	'mindmap.spacing.spread': '切换为紧凑间距',
+	'mindmap.spacing.compact': '切换为发散间距',
+	'mindmap.export.png': '导出为 PNG 图片',
+	'mindmap.export.xmind': '导出为 .xmind 文件（可在 Xmind 中打开）',
+	'mindmap.export.markdown': '导出为 Markdown 大纲',
+	'mindmap.export.canvas': '导出为 Obsidian 白板 (.canvas)',
+	'mindmap.mode.title': '导入「${file}」的 ${count} 条高亮，选择初始结构：',
+	'mindmap.mode.headings': '按文档标题层级',
+	'mindmap.mode.headingsDesc': '以标题为分支，高亮卡片归入所属章节（推荐，PDF/EPUB 自动回退为按颜色）',
+	'mindmap.mode.color': '按颜色分组',
+	'mindmap.mode.colorDesc': '一级分支为高亮颜色（含自定义颜色语义）',
+	'mindmap.mode.tag': '按标签分组',
+	'mindmap.mode.tagDesc': '一级分支为卡片标签，无标签卡片进入「未分类」',
+	'mindmap.mode.flat': '平铺一层',
+	'mindmap.mode.flatDesc': '所有卡片按行号顺序直接挂在文件名下',
+	'mindmap.mode.uncategorized': '未分类',
+	'mindmap.mode.intro': '引言',
+	'mindmap.empty.title': '还没有思维导图',
+	'mindmap.empty.hint': '选择一个含有高亮卡片的文件，一键生成可拖拽整理的思维导图',
+	'mindmap.doc.newBlank': '新建空白导图',
+	'mindmap.doc.untitled': '未命名导图',
+	'mindmap.docs.title': '导图文档',
+	'mindmap.docs.delete': '删除此导图',
+	'mindmap.docs.empty': '暂无已保存的导图',
+	'mindmap.import.placeholder': '选择含有高亮的文件…',
+	'mindmap.panel.addChild': '添加子主题（Tab）',
+	'mindmap.panel.addSibling': '添加同级主题（Enter）',
+	'mindmap.panel.remove': '删除主题（Delete）',
+	'mindmap.panel.link': '创建关联线',
+	'mindmap.panel.summary': '添加概要（对选中节点）',
+	'mindmap.panel.jump': '跳转到原文',
+	'mindmap.panel.lost': '⚠ 原卡片已被删除，此节点已与卡片失联',
+	'mindmap.panel.freeNode': '自由节点（未关联高亮卡片）',
+	'mindmap.notice.imported': '已导入 ${count} 条高亮并生成导图',
+	'mindmap.notice.noHighlights': '库中还没有任何高亮卡片',
+	'mindmap.notice.docDeleted': '导图已删除',
+	'mindmap.notice.exported': '已导出到：${path}',
+	'mindmap.notice.importFailed': '导入失败，详情请查看开发者控制台 (Ctrl+Shift+I)',
+	'mindmap.notice.xmindImported': '已导入 Xmind 文件：${file}',
+	'mindmap.notice.xmindImportFailed': 'Xmind 文件解析失败，请确认是有效的 .xmind 文件',
+	'mindmap.notice.initFailed': '导图画布初始化失败，请重试或查看开发者控制台',
 };
 
 const en: Record<string, string> = {
 	// ── Settings ──────────────────────────────────────────
 	'settings.language': 'Interface Language',
+	'settings.language.auto': 'Follow Obsidian language',
 	'settings.language.desc': 'Select the plugin interface language (some text may require plugin restart to take effect)',
 	'settings.translationTarget': 'Translation Target Language',
 	'settings.translationTarget.desc': 'AI translation will translate highlighted text into this language',
@@ -726,6 +849,7 @@ const en: Record<string, string> = {
 	'cmd.toggleShortcut': 'Toggle shortcut highlight',
 
 	// ── Main Notices ──────────────────────────────────────
+	'sidebar.backToTop': 'Back to top',
 	'notice.noEditor': 'No editor window found. Make sure the cursor is in a note.',
 	'notice.previewMode': 'Please highlight in edit mode (currently in preview mode)',
 
@@ -799,7 +923,7 @@ const en: Record<string, string> = {
 	'manager.mode.addTag': 'Add Tag',
 	'manager.toolbar.groupBy': 'Group by',
 	'manager.toolbar.stats': 'Stats',
-	'manager.toolbar.statsEntry': 'Note statistics',
+	'manager.toolbar.statsEntry': 'Statistics',
 	'manager.scrollToTop': 'Back to top',
 	'manager.group.save': 'Save “${group}” group as Markdown',
 	'manager.group.export.source': 'Source',
@@ -968,6 +1092,8 @@ const en: Record<string, string> = {
 	'modal.detail.renderFailed': 'Failed to render note',
 	'modal.detail.deleteConfirm': 'Are you sure you want to delete this card?',
 	'modal.detail.deleted': 'Card deleted',
+	'modal.detail.tabWrite': 'Write',
+	'modal.detail.tabPreview': 'Preview',
 	'modal.detail.aria.delete': 'Delete Card',
 	'modal.detail.aria.edit': 'Edit',
 	'modal.detail.aria.xhs': 'Generate Quote Card',
@@ -1032,11 +1158,86 @@ const en: Record<string, string> = {
 	'sync.auto.error': 'Auto-sync error: ${message}',
 	'protocol.missingOp': 'Missing op parameter',
 	'protocol.unknownOp': 'Unknown HiLighter link op: ${op}',
+
+	// ── Mind Map ──────────────────────────────────────────
+	'mindmap.viewName': 'Mind Map',
+	'mindmap.toolbar.import': 'Import highlights as a map',
+	'mindmap.toolbar.docs': 'Mind map documents',
+	'mindmap.toolbar.structure': 'Map structure',
+	'mindmap.toolbar.undo': 'Undo',
+	'mindmap.toolbar.redo': 'Redo',
+	'mindmap.toolbar.fit': 'Fit to screen',
+	'mindmap.toolbar.export': 'Export',
+	'mindmap.structure.mindMap': 'Mind map (balanced)',
+	'mindmap.structure.logicalRight': 'Logic diagram (right)',
+	'mindmap.structure.logicalLeft': 'Logic diagram (left)',
+	'mindmap.structure.organization': 'Organization chart',
+	'mindmap.structure.timeline': 'Timeline (horizontal)',
+	'mindmap.structure.verticalTimeline': 'Timeline (vertical)',
+	'mindmap.structure.fishbone': 'Fishbone diagram',
+	'mindmap.structure.catalog': 'Catalog organization',
+	'mindmap.toolbar.theme': 'Map theme',
+	'mindmap.toolbar.palette': 'Color palette',
+	'mindmap.palette.default': 'Palette: Default',
+	'mindmap.palette.ocean': 'Palette: Ocean blue',
+	'mindmap.palette.forest': 'Palette: Forest green',
+	'mindmap.palette.sunset': 'Palette: Sunset orange',
+	'mindmap.palette.sakura': 'Palette: Sakura pink',
+	'mindmap.palette.grape': 'Palette: Grape violet',
+	'mindmap.palette.mono': 'Palette: Ink gray',
+	'mindmap.palette.colorful': 'Palette: Colorful (card-colored borders)',
+	'mindmap.theme.classic': 'Classic (curves, rounded)',
+	'mindmap.theme.business': 'Business (straight, square)',
+	'mindmap.theme.direct': 'Direct (attached lines)',
+	'mindmap.theme.outline': 'Outline (borderless)',
+	'mindmap.theme.capsule': 'Capsule (ellipse, colored lines)',
+	'mindmap.theme.sketch': 'Sketch (octagonal, bold)',
+	'mindmap.spacing.spread': 'Switch to compact spacing',
+	'mindmap.spacing.compact': 'Switch to spread spacing',
+	'mindmap.export.png': 'Export as PNG image',
+	'mindmap.export.xmind': 'Export as .xmind file (opens in Xmind)',
+	'mindmap.export.markdown': 'Export as Markdown outline',
+	'mindmap.export.canvas': 'Export as Obsidian canvas (.canvas)',
+	'mindmap.mode.title': 'Import ${count} highlights from "${file}". Choose the initial structure:',
+	'mindmap.mode.headings': 'By document headings',
+	'mindmap.mode.headingsDesc': 'Headings become branches; cards filed under their section (recommended; PDF/EPUB falls back to color)',
+	'mindmap.mode.color': 'By color',
+	'mindmap.mode.colorDesc': 'First-level branches are highlight colors (including custom color labels)',
+	'mindmap.mode.tag': 'By tag',
+	'mindmap.mode.tagDesc': 'First-level branches are card tags; untagged cards go to "Uncategorized"',
+	'mindmap.mode.flat': 'Flat',
+	'mindmap.mode.flatDesc': 'All cards sit directly under the file name, ordered by line',
+	'mindmap.mode.uncategorized': 'Uncategorized',
+	'mindmap.mode.intro': 'Intro',
+	'mindmap.empty.title': 'No mind maps yet',
+	'mindmap.empty.hint': 'Pick a file with highlight cards to generate a draggable mind map',
+	'mindmap.doc.newBlank': 'New blank map',
+	'mindmap.doc.untitled': 'Untitled map',
+	'mindmap.docs.title': 'Documents',
+	'mindmap.docs.delete': 'Delete this map',
+	'mindmap.docs.empty': 'No saved maps yet',
+	'mindmap.import.placeholder': 'Pick a file with highlights…',
+	'mindmap.panel.addChild': 'Add child topic (Tab)',
+	'mindmap.panel.addSibling': 'Add sibling topic (Enter)',
+	'mindmap.panel.remove': 'Delete topic (Delete)',
+	'mindmap.panel.link': 'Create associative line',
+	'mindmap.panel.summary': 'Add summary (to selected nodes)',
+	'mindmap.panel.jump': 'Jump to source',
+	'mindmap.panel.lost': '⚠ The source card was deleted; this node is unlinked',
+	'mindmap.panel.freeNode': 'Free node (not linked to a highlight card)',
+	'mindmap.notice.imported': 'Imported ${count} highlights into a new map',
+	'mindmap.notice.noHighlights': 'No highlight cards in the vault yet',
+	'mindmap.notice.docDeleted': 'Mind map deleted',
+	'mindmap.notice.exported': 'Exported to: ${path}',
+	'mindmap.notice.importFailed': 'Import failed — see the developer console (Ctrl+Shift+I) for details',
+	'mindmap.notice.xmindImported': 'Xmind file imported: ${file}',
+	'mindmap.notice.xmindImportFailed': 'Failed to parse the Xmind file — please check it is a valid .xmind',
+	'mindmap.notice.initFailed': 'Mind map canvas failed to initialize. Please retry or check the developer console',
 };
 
 export function t(key: string, params?: Record<string, string | number>): string {
-	const dict = _lang === 'en' ? en : zh;
-	let text = dict[key];
+	let text = dictFor(_lang)[key];
+	if (!text) text = en[key];
 	if (!text) return key;
 	if (params) {
 		for (const [k, v] of Object.entries(params)) {
