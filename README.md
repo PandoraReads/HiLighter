@@ -98,6 +98,9 @@ If you enjoy this plugin, you can show your support through:
 
 ## Changelog
 
+### v2.4.1 (2026-10-24)
+- **Plugin directory fix**: Reverted the manifest name to ASCII-only "HiLighter" (the community directory rejects non-ASCII names and hid the entry). The bilingual description is unchanged.
+
 ### v2.4.0 (2026-10-24)
 - **Mind maps (new)**: A "Mind Map" entry in the card studio imports all highlights from a file as a mind map — grouped by document headings, color, tag, or flat — with Xmind-style editing: drag to re-parent, Tab/Enter/Delete shortcuts, collapse/expand, undo/redo, and associative lines between topics.
 - **Mind map structures & themes**: Balanced/right/left logic layouts plus org chart, horizontal/vertical timelines, fishbone, and catalog structures; six style themes (line shapes, widths, rainbow branch lines, node shapes) and eight color palettes (background/line/border schemes with per-level fading borders, plus a colorful card-colored option).

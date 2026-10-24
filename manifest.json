@@ -1,9 +1,9 @@
 {
 	"id": "hilighter",
-	"name": "HiLighter 高亮笔记",
-	"version": "2.4.0",
+	"name": "HiLighter",
+	"version": "2.4.1",
 	"minAppVersion": "1.7.2",
-	"description": "Highlight notes, card collection, mind maps, AI-assisted notes and spaced review. 高亮笔记卡片集 · 思维导图 · AI 笔记 · 间隔复习。",
+	"description": "Highlight notes, card collection, mind maps, AI-assisted notes and spaced review. \u9ad8\u4eae\u7b14\u8bb0\u5361\u7247\u96c6 \u00b7 \u601d\u7ef4\u5bfc\u56fe \u00b7 AI \u7b14\u8bb0 \u00b7 \u95f4\u9694\u590d\u4e60\u3002",
 	"author": "PandoraReads",
 	"authorUrl": "https://github.com/PandoraReads",
 	"isDesktopOnly": false
