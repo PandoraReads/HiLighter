@@ -1,5 +1,7 @@
 # HiLighter - Obsidian Highlight Note Management Tool
 
+**HiLighter - Obsidian 高亮笔记管理工具**
+
 [![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/pandorareads/hilighter/releases)
 [![Obsidian Version](https://img.shields.io/badge/Obsidian-v1.7.2%2B-purple)](https://obsidian.md)
 
