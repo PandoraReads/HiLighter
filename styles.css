@@ -2970,6 +2970,23 @@ mark.hl-h-green {
     gap: 8px;
 }
 
+/* "Fetch model list" button row inside the model-id field */
+.hl-model-fetch-row {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.hl-model-fetch-row button {
+    font-size: 0.85em;
+    padding: 4px 12px;
+    cursor: pointer;
+}
+
+.hl-model-fetch-row button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 /* Glass label */
 .hl-glass-label {
     font-size: 0.8em;

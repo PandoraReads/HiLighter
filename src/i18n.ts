@@ -172,6 +172,13 @@ const zh: Record<string, string> = {
 	'modal.modelEdit.urlRequired': '请输入 API 地址',
 	'modal.modelEdit.modelRequired': '请输入模型 ID',
 	'modal.modelEdit.keyRequired': '请输入 API Key',
+	'modal.modelEdit.fetchModels': '获取模型列表',
+	'modal.modelEdit.fetching': '正在获取…',
+	'modal.modelEdit.fetchOk': '已获取 ${count} 个可用模型，输入模型 ID 时会自动补全',
+	'modal.modelEdit.fetchEmpty': '服务商返回了空的模型列表，请手动填写模型 ID',
+	'modal.modelEdit.fetchFailed': '无法获取模型列表 (HTTP ${status})，请检查 API 地址和 Key',
+	'modal.modelEdit.fetchNeedUrlAndKey': '请先填写 API 地址和 API Key',
+	'modal.modelEdit.aliasCorrected': '已将 "${from}" 自动更正为 "${to}"',
 
 	// ── Sidebar View ──────────────────────────────────────
 	'view.highlightNotes': '高亮笔记',
@@ -528,6 +535,7 @@ const zh: Record<string, string> = {
 	'ai.error.noUrl': 'API URL 未配置，请在设置中填写',
 	'ai.error.noModel': '模型名称未配置，请在设置中填写',
 	'ai.error.apiError': 'API 返回错误 (${status}): ${text}',
+	'ai.error.modelNotAvailable': '模型 "${model}" 不在该 Key 的可用列表中。该 Key 可用的模型：${list}',
 	'ai.error.serviceFailed': 'AI 服务调用失败: ${message}',
 
 	// ── Brand ─────────────────────────────────────────────
@@ -762,6 +770,13 @@ const en: Record<string, string> = {
 	'modal.modelEdit.urlRequired': 'Please enter an API URL',
 	'modal.modelEdit.modelRequired': 'Please enter a model ID',
 	'modal.modelEdit.keyRequired': 'Please enter an API Key',
+	'modal.modelEdit.fetchModels': 'Fetch model list',
+	'modal.modelEdit.fetching': 'Fetching…',
+	'modal.modelEdit.fetchOk': 'Fetched ${count} available models - autocomplete enabled',
+	'modal.modelEdit.fetchEmpty': 'The provider returned an empty model list - enter the model ID manually',
+	'modal.modelEdit.fetchFailed': 'Could not fetch model list (HTTP ${status}). Check the API URL and key.',
+	'modal.modelEdit.fetchNeedUrlAndKey': 'Fill in the API URL and API key first',
+	'modal.modelEdit.aliasCorrected': 'Auto-corrected "${from}" to "${to}"',
 
 	// ── Sidebar View ──────────────────────────────────────
 	'view.highlightNotes': 'Highlight Notes',
@@ -1118,6 +1133,7 @@ const en: Record<string, string> = {
 	'ai.error.noUrl': 'API URL not configured. Please enter it in settings.',
 	'ai.error.noModel': 'Model name not configured. Please enter it in settings.',
 	'ai.error.apiError': 'API error (${status}): ${text}',
+	'ai.error.modelNotAvailable': 'Model "${model}" is not available for this key. Available models: ${list}',
 	'ai.error.serviceFailed': 'AI service call failed: ${message}',
 
 	// ── Brand ─────────────────────────────────────────────

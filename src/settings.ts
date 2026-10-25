@@ -14,6 +14,8 @@ import { newCustomColorId } from './colors';
 import { ConfirmModal } from './ui/confirm-modal';
 import { normalizeImageFolder } from './image-path';
 import { normalizeVaultFolder } from './vault-path';
+import { fetchAvailableModels } from './ai-service';
+import { resolveModelAlias } from './ai-endpoint';
 
 /** Rotating starter hexes for the "add custom color" button. */
 const DEFAULT_NEW_COLOR_HEXES = ['#b39ddb', '#f0a35e', '#64b5f6', '#81c784', '#e57373', '#4db6ac'];
@@ -830,18 +832,24 @@ class PromptEditModal extends Modal {
 }
 
 // ── Model Edit Modal ──────────────────────────────────────────
+interface ModelFormValues { name: string; baseUrl: string; model: string; apiKey: string }
+
 class ModelEditModal extends Modal {
 	private model: AIModelConfig | null;
-	private onSubmit: (result: { name: string; baseUrl: string; model: string; apiKey: string }) => void;
+	private prefill: Omit<ModelFormValues, 'apiKey'> | null;
+	private onSubmit: (result: ModelFormValues) => void;
 	private nameInput!: HTMLInputElement;
 	private baseUrlInput!: HTMLInputElement;
 	private modelInput!: HTMLInputElement;
 	private apiKeyInput!: HTMLInputElement;
+	private modelsDatalist: HTMLDataListElement | null = null;
+	private fetchBtn: HTMLButtonElement | null = null;
 
-	constructor(app: App, model: AIModelConfig | null, onSubmit: (result: { name: string; baseUrl: string; model: string; apiKey: string }) => void) {
+	constructor(app: App, model: AIModelConfig | null, onSubmit: (result: ModelFormValues) => void, prefill?: Omit<ModelFormValues, 'apiKey'>) {
 		super(app);
 		this.model = model;
 		this.onSubmit = onSubmit;
+		this.prefill = prefill || null;
 	}
 
 	onOpen() {
@@ -851,6 +859,9 @@ class ModelEditModal extends Modal {
 		this.modalEl.addClass('hl-glass-modal');
 
 		const container = contentEl.createDiv('hl-glass-modal-body');
+		const initial = this.model
+			? { name: this.model.name, baseUrl: this.model.baseUrl, model: this.model.model }
+			: this.prefill;
 
 		// Name
 		const nameWrap = container.createDiv('hl-glass-field');
@@ -860,7 +871,7 @@ class ModelEditModal extends Modal {
 			placeholder: t('modal.modelEdit.name.placeholder'),
 			cls: 'hl-glass-input'
 		});
-		this.nameInput.value = this.model?.name || '';
+		this.nameInput.value = initial?.name || '';
 
 		// Base URL
 		const urlWrap = container.createDiv('hl-glass-field');
@@ -870,7 +881,7 @@ class ModelEditModal extends Modal {
 			placeholder: t('modal.modelEdit.baseUrl.placeholder'),
 			cls: 'hl-glass-input'
 		});
-		this.baseUrlInput.value = this.model?.baseUrl || '';
+		this.baseUrlInput.value = initial?.baseUrl || '';
 
 		// Model ID
 		const modelWrap = container.createDiv('hl-glass-field');
@@ -878,9 +889,11 @@ class ModelEditModal extends Modal {
 		this.modelInput = modelWrap.createEl('input', {
 			type: 'text',
 			placeholder: t('modal.modelEdit.model.placeholder'),
-			cls: 'hl-glass-input'
+			cls: 'hl-glass-input',
+			attr: { list: 'hl-model-list' }
 		});
-		this.modelInput.value = this.model?.model || '';
+		this.modelInput.value = initial?.model || '';
+		this.modelsDatalist = modelWrap.createEl('datalist', { attr: { id: 'hl-model-list' } });
 
 		// API Key
 		const keyWrap = container.createDiv('hl-glass-field');
@@ -891,6 +904,14 @@ class ModelEditModal extends Modal {
 			cls: 'hl-glass-input'
 		});
 		this.apiKeyInput.value = this.model?.apiKey || '';
+
+		// Fetch model list button (needs both URL and key, so it lives below both fields)
+		const fetchRow = keyWrap.createDiv('hl-model-fetch-row');
+		this.fetchBtn = fetchRow.createEl('button', {
+			text: t('modal.modelEdit.fetchModels'),
+			cls: 'hl-glass-btn-cancel'
+		});
+		this.fetchBtn.onclick = () => { void this.handleFetchModels(); };
 
 		// Actions
 		const actions = container.createDiv('hl-glass-modal-actions');
@@ -916,16 +937,54 @@ class ModelEditModal extends Modal {
 		setTimeout(() => this.nameInput.focus(), 50);
 	}
 
+	/** Pull live model ids from the provider and offer them as autocomplete. */
+	private async handleFetchModels(): Promise<void> {
+		const baseUrl = this.baseUrlInput.value.trim();
+		const apiKey = this.apiKeyInput.value.trim();
+		if (!baseUrl || !apiKey) {
+			new Notice(t('modal.modelEdit.fetchNeedUrlAndKey'));
+			return;
+		}
+		if (this.fetchBtn) {
+			this.fetchBtn.disabled = true;
+			this.fetchBtn.setText(t('modal.modelEdit.fetching'));
+		}
+		try {
+			const ids = await fetchAvailableModels(baseUrl, apiKey);
+			if (ids.length === 0) {
+				new Notice(t('modal.modelEdit.fetchEmpty'));
+				return;
+			}
+			if (!this.modelsDatalist) return;
+			this.modelsDatalist.empty();
+			ids.forEach(id => this.modelsDatalist!.createEl('option', { value: id }));
+			new Notice(t('modal.modelEdit.fetchOk', { count: String(ids.length) }));
+		} catch (err: any) {
+			new Notice(err?.message || String(err));
+		} finally {
+			if (this.fetchBtn) {
+				this.fetchBtn.disabled = false;
+				this.fetchBtn.setText(t('modal.modelEdit.fetchModels'));
+			}
+		}
+	}
+
 	private handleSubmit() {
 		const name = this.nameInput.value.trim();
 		const baseUrl = this.baseUrlInput.value.trim();
-		const model = this.modelInput.value.trim();
-		const apiKey = this.apiKeyInput.value.trim();
 		if (!name) { new Notice(t('modal.modelEdit.nameRequired')); return; }
 		if (!baseUrl) { new Notice(t('modal.modelEdit.urlRequired')); return; }
-		if (!model) { new Notice(t('modal.modelEdit.modelRequired')); return; }
+
+		// Auto-correct well-known product names to real API model ids
+		const resolved = resolveModelAlias(this.modelInput.value);
+		if (!resolved.id) { new Notice(t('modal.modelEdit.modelRequired')); return; }
+		if (resolved.correctedFrom) {
+			new Notice(t('modal.modelEdit.aliasCorrected', { from: resolved.correctedFrom, to: resolved.id }));
+		}
+
+		const apiKey = this.apiKeyInput.value.trim();
 		if (!apiKey) { new Notice(t('modal.modelEdit.keyRequired')); return; }
-		this.onSubmit({ name, baseUrl, model, apiKey });
+		this.onSubmit({ name, baseUrl, model: resolved.id, apiKey });
 		this.close();
 	}
 
@@ -954,7 +1013,7 @@ class PresetAddModal extends Modal {
 		AI_MODEL_PRESETS.forEach(preset => {
 			const alreadyAdded = this.plugin.settings.aiModels.some(m => m.name === preset.name);
 			const setting = new Setting(container)
-				.setName(preset.name)
+				.setName(`${preset.name} · ${preset.label}`)
 				.setDesc(`${preset.model} · ${preset.baseUrl}`);
 
 			if (alreadyAdded) {
@@ -980,7 +1039,7 @@ class PresetAddModal extends Modal {
 							await this.plugin.saveSettings();
 							this.onDone();
 							this.close();
-						}).open();
+						}, { name: preset.name, baseUrl: preset.baseUrl, model: preset.model }).open();
 					}));
 			}
 		});

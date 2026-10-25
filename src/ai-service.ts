@@ -5,6 +5,56 @@
 import { requestUrl } from 'obsidian';
 import type { HiLighterSettings, AIModelConfig } from './models';
 import { t } from './i18n';
+import { deriveModelsUrl, resolveModelAlias } from './ai-endpoint';
+
+// ── Model list fetching (shared by settings UI and error enrichment) ──
+
+const MODEL_LIST_TTL_MS = 10 * 60 * 1000;
+const modelListCache = new Map<string, { ids: string[]; ts: number }>();
+
+/**
+ * Fetch the model ids available for an OpenAI-compatible key
+ * (GET {base}/models). Free request. Throws with a status-coded message
+ * when the endpoint cannot be read (bad URL, invalid key, etc.).
+ */
+export async function fetchAvailableModels(baseUrl: string, apiKey: string, cacheKey?: string): Promise<string[]> {
+    if (cacheKey) {
+        const hit = modelListCache.get(cacheKey);
+        if (hit && Date.now() - hit.ts < MODEL_LIST_TTL_MS) return hit.ids;
+    }
+    const url = deriveModelsUrl(baseUrl);
+    if (!url) {
+        throw new Error(t('ai.error.noUrl'));
+    }
+
+    let status = 0;
+    let json: any = null;
+    try {
+        const resp = await requestUrl({
+            url,
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        status = resp.status;
+        json = resp.json;
+    } catch (err: any) {
+        // Obsidian's requestUrl rejects with "Request failed, status NNN"
+        const m = /status (\d+)/.exec(err?.message || '');
+        throw new Error(t('modal.modelEdit.fetchFailed', { status: m?.[1] || '?' }));
+    }
+    if (status !== 200) {
+        throw new Error(t('modal.modelEdit.fetchFailed', { status }));
+    }
+
+    const ids: string[] = Array.isArray(json?.data)
+        ? json.data.map((d: any) => String(d?.id ?? '')).filter(Boolean).sort()
+        : [];
+    if (cacheKey) {
+        if (modelListCache.size > 50) modelListCache.clear();
+        modelListCache.set(cacheKey, { ids, ts: Date.now() });
+    }
+    return ids;
+}
 
 export type AIAction = 'translate' | 'annotate' | 'research';
 
@@ -177,8 +227,10 @@ ${fullText}`;
             throw new Error(t('ai.error.noModel'));
         }
 
+        const resolved = resolveModelAlias(model);
+
         const payload = {
-            model,
+            model: resolved.id,
             messages: [
                 { role: 'system', content: 'You are a helpful assistant specialized in text analysis, translation, and research.' },
                 { role: 'user', content: prompt }
@@ -204,7 +256,32 @@ ${fullText}`;
             return resp.json.choices[0].message.content.trim();
         } catch (err: any) {
             console.error('[HiLighter] API error', err);
-            throw new Error(t('ai.error.serviceFailed', { message: err.message }));
+            const message = await this.enrichError(url, apiKey, resolved.id, err);
+            throw new Error(t('ai.error.serviceFailed', { message }));
         }
+    }
+
+    /**
+     * Turn a bare "Request failed, status 400" into an actionable message:
+     * on a 400/404, ask the provider which models the key can actually use
+     * and tell the user when the configured model id is not among them.
+     */
+    private async enrichError(url: string, apiKey: string, modelId: string, err: any): Promise<string> {
+        const original = err?.message || String(err);
+        const m = /status (\d+)/.exec(original);
+        const status = Number(m?.[1]);
+        // 400 = bad request (unknown model on most providers); 404 = model_not_found (OpenAI et al.)
+        if (status !== 400 && status !== 404) {
+            return original;
+        }
+        try {
+            const ids = await fetchAvailableModels(url, apiKey, url);
+            if (ids.length > 0 && !ids.includes(modelId)) {
+                return t('ai.error.modelNotAvailable', { model: modelId, list: ids.slice(0, 8).join(', ') });
+            }
+        } catch {
+            // Provider has no readable /models endpoint - keep the original error
+        }
+        return original;
     }
 }
