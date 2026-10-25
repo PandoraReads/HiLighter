@@ -2961,6 +2961,10 @@ mark.hl-h-green {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    /* Long content (e.g. the preset list) must scroll instead of being
+       clipped by the modal's overflow:hidden rounded frame. */
+    overflow-y: auto;
+    max-height: 70vh;
 }
 
 /* Form field group */
