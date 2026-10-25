@@ -3,7 +3,7 @@
 // HiLighter - Highlight Notes Sidebar View
 // ============================================================
 
-import { ItemView, WorkspaceLeaf, Notice, setIcon, MarkdownView, TFile, TFolder, MarkdownRenderer, Modal, Platform, normalizePath } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, setIcon, MarkdownView, TFile, TFolder, MarkdownRenderer, Modal, Platform } from 'obsidian';
 import { db } from './db';
 import type HiLighterPlugin from './main';
 import type { HighlightNote, ResearchPrompt } from './models';
@@ -480,23 +480,6 @@ export class HighlightView extends ItemView {
             topBtn.toggleClass('is-hidden', container.scrollTop < 300);
 
             if (this.currentFilter === 'active' && activeFile) {
-                const btn = fabStack.createEl('button', {
-                    cls: 'hl-fab hl-fab--analysis',
-                    attr: { title: t('analysis.btn'), 'aria-label': t('analysis.btn') }
-                });
-                setIcon(btn, 'sparkles');
-
-                btn.onclick = () => {
-                    const prompts = this.plugin.settings.researchPrompts;
-                    if (prompts.length === 0) {
-                        new Notice(t('modal.promptSelect.noPrompts'));
-                        return;
-                    }
-                    new PromptSelectModal(this.app, prompts, (selected) => {
-                        this.handleFullTextAnalysis(activeFile, selected.id);
-                    }).open();
-                };
-
                 // Headings → Highlights: AI extracts section titles into highlight cards
                 const headingsBtn = fabStack.createEl('button', {
                     cls: 'hl-fab hl-fab--headings',
@@ -520,107 +503,6 @@ export class HighlightView extends ItemView {
                 this.renderRequested = false;
                 void this.render();
             }
-        }
-    }
-
-    private async handleFullTextAnalysis(activeFile: TFile, promptId?: string) {
-        const fabStack = this.contentEl.querySelector('.hl-fab-stack');
-        const btn = fabStack?.querySelector('.hl-fab--analysis') as HTMLButtonElement;
-        if (!btn) return;
-
-        btn.disabled = true;
-        setIcon(btn, 'loader');
-
-        try {
-            // 1. Read full file content
-            const fullContent = await this.app.vault.read(activeFile);
-            // Strip HTML mark tags for cleaner AI input
-            const cleanContent = fullContent.replace(/<mark[^>]*data-id="[^"]*"[^>]*>(.*?)<\/mark>/g, '$1');
-            // Strip YAML frontmatter for AI input
-            const contentForAI = cleanContent.replace(/^---\n[\s\S]*?\n---\n?/, '');
-
-            // 2. Collect highlights
-            const highlights = await db.getHighlightsByPath(activeFile.path);
-            const highlightTexts = highlights.map(h => h.text);
-
-            if (highlightTexts.length === 0) {
-                new Notice(t('notice.noHighlights'));
-                return;
-            }
-
-            new Notice(t('notice.analysisStart'));
-
-            // 3. Call AI with full text
-            const aiResult = await this.aiService.processFullText(contentForAI, highlightTexts, promptId);
-
-            // 4. Build new note content
-            const sourceBasename = activeFile.basename;
-            const sourcePath = activeFile.path;
-            const now = new Date();
-            const timestamp = now.toISOString().replace('T', ' ').substring(0, 19);
-
-            const activePrompt = promptId
-                ? this.plugin.settings.researchPrompts?.find(p => p.id === promptId)
-                : this.plugin.settings.researchPrompts?.find(p => p.id === this.plugin.settings.activeResearchPromptId);
-            const promptName = activePrompt?.name || '';
-
-            const newNoteContent = `---
-source: "[[${sourceBasename}]]"
-source_path: "${sourcePath}"
-type: ai-analysis
-created: ${timestamp}
-highlights_count: ${highlights.length}
-ai_provider: ${this.plugin.settings.aiProvider}
-prompt_name: ${promptName}
----
-
-# [[${sourceBasename}]] - AI 全文解析
-
-> 解析提示语：${promptName}
-
----
-
-${aiResult}
-
----
-
-## 高亮摘录
-
-${highlightTexts.map(h => `- ${h}`).join('\n')}
-
----
-
-原文链接：[[${sourceBasename}]]
-`;
-
-            // 5. Create new note in same directory
-            const parentDir = activeFile.parent?.path || '';
-            const newFileName = `${sourceBasename} - AI解析.md`;
-            const newPath = parentDir ? normalizePath(`${parentDir}/${newFileName}`) : normalizePath(newFileName);
-
-            const existingFile = this.app.vault.getAbstractFileByPath(newPath);
-            if (existingFile instanceof TFile) {
-                await this.app.vault.modify(existingFile, newNoteContent);
-            } else {
-                await this.app.vault.create(newPath, newNoteContent);
-            }
-
-            // 6. Update original note's frontmatter
-            await this.updateOriginalNoteFrontmatter(activeFile, newPath);
-
-            // 7. Open the new analysis note
-            const newFile = this.app.vault.getAbstractFileByPath(newPath);
-            if (newFile instanceof TFile) {
-                await this.app.workspace.getLeaf(false).openFile(newFile);
-            }
-
-            new Notice(t('notice.analysisComplete'));
-        } catch (err: any) {
-            console.error('[HiLighter] Full-text analysis error', err);
-            new Notice(t('notice.analysisError') + err.message);
-        } finally {
-            btn.disabled = false;
-            this.render();
         }
     }
 
@@ -735,36 +617,6 @@ ${highlightTexts.map(h => `- ${h}`).join('\n')}
      */
     private async changeHighlightColor(note: HighlightNote, newColor: string) {
         await changeNoteColor(this.app, this.plugin.settings, note, newColor);
-    }
-
-    private async updateOriginalNoteFrontmatter(file: TFile, analysisPath: string) {
-        try {
-            const content = await this.app.vault.read(file);
-            const analysisBasename = analysisPath.replace(/\.md$/, '').split('/').pop() || '';
-
-            if (content.startsWith('---')) {
-                const endOfFrontmatter = content.indexOf('---', 3);
-                if (endOfFrontmatter !== -1) {
-                    const frontmatter = content.substring(3, endOfFrontmatter);
-                    if (frontmatter.includes('ai-analysis:')) {
-                        const updated = frontmatter.replace(
-                            /ai-analysis:\s*".*"/,
-                            `ai-analysis: "[[${analysisBasename}]]"`
-                        );
-                        const newContent = `---${updated}---${content.substring(endOfFrontmatter + 3)}`;
-                        await this.app.vault.modify(file, newContent);
-                    } else {
-                        const newContent = `---${frontmatter}ai-analysis: "[[${analysisBasename}]]"\n---${content.substring(endOfFrontmatter + 3)}`;
-                        await this.app.vault.modify(file, newContent);
-                    }
-                }
-            } else {
-                const newContent = `---\nai-analysis: "[[${analysisBasename}]]"\n---\n${content}`;
-                await this.app.vault.modify(file, newContent);
-            }
-        } catch (err) {
-            console.error('[HiLighter] Failed to update original note frontmatter', err);
-        }
     }
 
     private renderToolbar(parent: HTMLElement): HTMLElement {

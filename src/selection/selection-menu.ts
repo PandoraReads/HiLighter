@@ -19,6 +19,8 @@ export interface SelectionMenuHost {
     lastContext: unknown;
     applyHighlight(text: string, context: unknown, colorId: string, note?: string): void | Promise<void>;
     saveSettings(): Promise<void>;
+    /** Short AI annotation of the selected text (used to prefill a note). */
+    annotateSelection(text: string): Promise<string>;
 }
 
 export function showHighlightMenu(
@@ -99,6 +101,46 @@ export function showHighlightMenu(
     noteAction.addEventListener('touchstart', openNote);
     noteAction.addEventListener('keydown', event => {
         if (event instanceof KeyboardEvent && (event.key === 'Enter' || event.key === ' ')) openNote(event);
+    });
+
+    // AI explain: opens the same note popup, but the note itself is generated
+    // by the AI (short annotation) and lands in the textarea for review.
+    const aiAction = colors.createDiv('hl-h-note-action hl-h-ai-action');
+    setIcon(aiAction, 'sparkles');
+    aiAction.setAttribute('role', 'button');
+    aiAction.setAttribute('tabindex', '0');
+    aiAction.setAttribute('aria-label', t('selectionMenu.aiExplain'));
+    aiAction.setAttribute('title', t('selectionMenu.aiExplain'));
+    const openAiNote = (event: Event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const sourcePath = (context as { sourcePath?: string } | null)?.sourcePath
+            || plugin.app.workspace.getActiveFile()?.path || '';
+        if (!sourcePath) {
+            new Notice(t('notePopup.needFile'));
+            return;
+        }
+        hideHighlightMenu(plugin);
+        openNotePopup({
+            app: plugin.app,
+            doc,
+            x,
+            y: y + 30,
+            word: selection,
+            sourcePath,
+            imageFolder: plugin.settings.noteImageFolder,
+            aiPending: plugin.annotateSelection(selection),
+            onSave: async result => {
+                if (result.isEmpty) return;
+                const defaultColor = getColors(plugin.settings)[0]?.id ?? 'yellow';
+                await plugin.applyHighlight(selection, context, defaultColor, result.note);
+            },
+        });
+    };
+    aiAction.addEventListener('mousedown', openAiNote);
+    aiAction.addEventListener('touchstart', openAiNote);
+    aiAction.addEventListener('keydown', event => {
+        if (event instanceof KeyboardEvent && (event.key === 'Enter' || event.key === ' ')) openAiNote(event);
     });
 
     // Dynamic anchor positioning: coordinates depend on the selection rect.

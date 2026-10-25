@@ -58,7 +58,7 @@ export async function fetchAvailableModels(baseUrl: string, apiKey: string, cach
     return ids;
 }
 
-export type AIAction = 'translate' | 'annotate' | 'research';
+export type AIAction = 'translate' | 'annotate' | 'research' | 'explain';
 
 const DEFAULT_RESEARCH_PROMPT = `你是一位充满智慧且言简意赅的哲学家朋友。请对以下文本进行深度解析，并按以下三层结构组织：
 
@@ -96,12 +96,6 @@ export class AIService {
     async processAction(text: string, action: AIAction, promptId?: string): Promise<string> {
         const model = this.getActiveModel();
         const prompt = this.getPrompt(text, action, promptId);
-        return await this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, prompt, model.temperature);
-    }
-
-    async processFullText(fullText: string, highlights: string[], promptId?: string): Promise<string> {
-        const model = this.getActiveModel();
-        const prompt = this.buildFullTextPrompt(fullText, highlights, promptId);
         return await this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, prompt, model.temperature);
     }
 
@@ -181,19 +175,6 @@ ${fullText}`;
             .slice(0, 60);
     }
 
-    private buildFullTextPrompt(fullText: string, highlights: string[], promptId?: string): string {
-        const activePrompt = promptId
-            ? this.settings.researchPrompts?.find(p => p.id === promptId)
-            : this.settings.researchPrompts?.find(p => p.id === this.settings.activeResearchPromptId);
-        const researchInstruction = activePrompt?.prompt || DEFAULT_RESEARCH_PROMPT;
-
-        const highlightsSection = highlights.length > 0
-            ? `\n\n## 用户高亮摘录\n以下是用户在阅读时标记的重点内容，请特别关注这些部分：\n${highlights.map(h => `- ${h}`).join('\n')}`
-            : '';
-
-        return `${researchInstruction}\n\n## 全文内容\n${fullText}${highlightsSection}\n\n**Requirement**: Return only the core results. Do NOT include any introductory phrases like "Sure", "As your assistant", "Here are the results", etc. Output only the most critical and important information.`;
-    }
-
     private getPrompt(text: string, action: AIAction, promptId?: string): string {
         const strictSuffix = '\n\n**Requirement**: Return only the core results. Do NOT include any introductory phrases like "Sure", "As your assistant", "Here are the results", etc. Output only the most critical and important information.';
         switch (action) {
@@ -205,6 +186,12 @@ ${fullText}`;
             }
             case 'annotate':
                 return `You are a linguistics expert and encyclopedia. Please provide in-depth annotations for rare words, difficulties, terminology, or special expressions in the following text. Explain their meanings, grammar, nuance distinctions, and background knowledge. "${text}"${strictSuffix}`;
+            case 'explain': {
+                const targetLang = this.settings.translationTargetLang || '中文';
+                return `你是一位语言与知识注释助手。请用${targetLang}为下面的文本写一条简短的读书注释：解释它的含义、关键难点或必要的背景，最多 4 句话。直接输出注释正文，不要引用原文，不要加标题、列表或任何前后缀。
+
+"${text}"`;
+            }
             case 'research': {
                 const activePrompt = promptId
                     ? this.settings.researchPrompts?.find(p => p.id === promptId)

@@ -31,6 +31,9 @@ export interface NotePopupOptions {
     sourcePath: string;
     /** Optional vault-relative folder; empty follows Obsidian's attachment settings. */
     imageFolder?: string;
+    /** AI note generation: while pending the textarea is read-only with a
+     *  "generating" placeholder; the resolved text is filled in for review. */
+    aiPending?: Promise<string>;
     onSave(result: NotePopupResult): void | Promise<void>;
 }
 
@@ -73,6 +76,27 @@ export function openNotePopup(opts: NotePopupOptions): void {
         attachImageHandlers(app, textarea, opts.sourcePath, {
             onImageSaved: (line) => { images = [...images, line]; renderChips(); },
         }, opts.imageFolder);
+
+        // AI-generated note: lock the field while the request runs, then fill it.
+        if (opts.aiPending) {
+            const ta = textarea;
+            ta.disabled = true;
+            ta.setAttribute('placeholder', t('notePopup.aiPending'));
+            const alive = () => ta.isConnected;
+            opts.aiPending.then(text => {
+                if (!alive()) return;
+                ta.value = text.trim();
+            }).catch((err: unknown) => {
+                if (!alive()) return;
+                const message = err instanceof Error ? err.message : String(err);
+                new Notice(t('notePopup.aiFailed', { message }));
+            }).finally(() => {
+                if (!alive()) return;
+                ta.disabled = false;
+                ta.setAttribute('placeholder', t('notePopup.placeholder'));
+                ta.focus();
+            });
+        }
     }
 
     // Image chip list (embeds collect here before save)

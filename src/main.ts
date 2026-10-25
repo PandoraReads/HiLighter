@@ -24,6 +24,7 @@ import { HIGHLIGHT_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE, MINDMAP_VIEW_TYPE } from 
 import { MobileRecentHighlightsView } from './mobile-recent-view';
 import { HighlightMindMapView } from './mindmap/view';
 import { showHighlightMenu, hideHighlightMenu } from './selection/selection-menu';
+import { AIService } from './ai-service';
 import { openImageNoteCommand } from './selection/click-note';
 import { registerNoteHover } from './selection/note-hover';
 import { getColorDef, normalizeCustomColors } from './colors';
@@ -473,6 +474,11 @@ export default class HiLighterPlugin extends Plugin {
 
 	private showHighlightMenu(selection: string, context: any, x: number, y: number, doc: Document) {
 		showHighlightMenu(this, selection, context, x, y, doc);
+	}
+
+	/** Short AI annotation of a selection; used to prefill the note popup. */
+	async annotateSelection(text: string): Promise<string> {
+		return new AIService(this.settings).processAction(text, 'explain');
 	}
 
 	private hideHighlightMenu() {

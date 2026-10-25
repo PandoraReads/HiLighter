@@ -242,15 +242,6 @@ const zh: Record<string, string> = {
 	'research.modal.title': '✨ AI 研究已完成',
 	'research.modal.body': '研究内容已生成，请在卡片下方预览区查看并决定是否加入笔记。',
 
-		// ── Full-text AI Analysis ─────────────────────────────
-		'analysis.btn': '全文AI解析',
-		'analysis.btn.loading': '解析中...',
-		'notice.analysisStart': '正在对全文进行 AI 解析，请稍候...',
-		'notice.analysisComplete': '全文解析完成，已生成解析笔记',
-		'notice.analysisError': '全文解析出错: ',
-		'notice.noActiveFile': '请先打开一个笔记文件',
-		'notice.noHighlights': '当前文档暂无高亮，无需解析',
-
 		// ── Headings → Highlights ─────────────────────────────
 		'analysis.headings.btn': '标题转高亮',
 		'notice.headingsStart': 'AI 正在提取章节标题，请稍候...',
@@ -440,6 +431,9 @@ const zh: Record<string, string> = {
 	'cmd.openEpub': '打开 EPUB 书籍',
 	'epub.noneFound': '库中没有找到 .epub 文件。请确认：设置 → 文件与链接 → 打开「检测所有文件扩展名」，然后把 epub 拖入库中。',
 	'notePopup.title': '快速笔记',
+	'selectionMenu.aiExplain': 'AI 解释',
+	'notePopup.aiPending': 'AI 正在生成注释…',
+	'notePopup.aiFailed': 'AI 生成注释失败: ${message}',
 	'notePopup.imageOnlyTitle': '图片笔记',
 	'notePopup.placeholder': '写点什么…支持粘贴/拖入图片',
 	'notePopup.dropHint': '点击选择图片，或拖入/粘贴图片',
@@ -844,15 +838,6 @@ const en: Record<string, string> = {
 	'research.modal.title': '✨ AI Research Complete',
 	'research.modal.body': 'Research content has been generated. Please check the preview below the card and decide whether to add it to your notes.',
 
-			// ── Full-text AI Analysis ─────────────────────────────
-		'analysis.btn': 'Full-text AI Analysis',
-		'analysis.btn.loading': 'Analyzing...',
-		'notice.analysisStart': 'Performing full-text AI analysis, please wait...',
-		'notice.analysisComplete': 'Analysis complete. A new note has been generated.',
-		'notice.analysisError': 'Full-text analysis error: ',
-		'notice.noActiveFile': 'Please open a note file first',
-		'notice.noHighlights': 'No highlights in this document, nothing to analyze',
-
 		// ── Headings → Highlights ─────────────────────────────
 		'analysis.headings.btn': 'Headings → Highlights',
 		'notice.headingsStart': 'AI is extracting section titles, please wait...',
@@ -1042,6 +1027,9 @@ const en: Record<string, string> = {
 	'cmd.openEpub': 'Open EPUB book',
 	'epub.noneFound': 'No .epub files found in the vault. Enable "Detect all file extensions" under Settings → Files & Links, then add the epub file.',
 	'notePopup.title': 'Quick note',
+	'selectionMenu.aiExplain': 'AI explain',
+	'notePopup.aiPending': 'AI is writing the annotation…',
+	'notePopup.aiFailed': 'AI annotation failed: ${message}',
 	'notePopup.imageOnlyTitle': 'Image note',
 	'notePopup.placeholder': 'Write something… paste or drop images',
 	'notePopup.dropHint': 'Click to choose an image, or drop/paste one here',

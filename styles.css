@@ -535,6 +535,9 @@
 .hl-h-note-action:hover { color: var(--hl-accent); transform: translateY(-1px); }
 .hl-h-note-action svg { width: 17px; height: 17px; }
 
+/* AI-explain action: same affordance as the note action, accent-tinted */
+.hl-h-ai-action { margin-left: 4px; }
+
 .hl-h-color-dot {
     width: 20px;
     height: 20px;
