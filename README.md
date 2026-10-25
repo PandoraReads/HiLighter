@@ -117,9 +117,23 @@ If you enjoy this plugin, you can show your support through:
 *   **Multi-Platform Support**: Also available on Weibo, Xiaohongshu (Little Red Book), and Knowledge Planet under the same name
 *   **Contact & Feedback**: Feel free to add VX: **PandoraReads**
 
+### ☕ Buy Me a Coffee
+
+If HiLighter saves you time, you can treat the developer to a coffee (scan with Alipay / WeChat):
+
+<p align="center">
+  <img src="screenshots/buy-me-a-coffee.png" alt="Buy Me a Coffee - Alipay / WeChat QR codes" width="640">
+</p>
+
 ---
 
 ## Changelog
+
+### v2.5.1 (2026-10-25)
+- **AI model setup**: Presets now prefill the whole form (only the API key is left to enter). A "Fetch model list" button pulls the live model IDs your key can actually use, and common product names (e.g. `deepseek-v3`) are auto-corrected to real API model IDs. On a 400/404, the error message now lists the models available to your key.
+- **Kimi fix**: New Kimi keys only serve `kimi-*` models (preset default is now `kimi-latest`), and k2.6+ only accepts temperature 1 — each model can now set its own temperature in the editor.
+- **AI explain**: The text-selection toolbar gains an "AI explain" button that writes a short annotation straight into the note box. The full-text AI analysis panel was removed.
+- **Fixes**: The preset picker is now scrollable, and the settings page keeps your scroll position after edits.
 
 ### v2.5.0 (2026-10-25)
 - **PDF highlighting**: Select text in any PDF, pick a color, and a translucent mark appears on the page while a note card is created. Marks are anchored to page-relative selection geometry, so they survive page turns, reopens, zooming, and vault syncs — independent of the PDF renderer's internals.
