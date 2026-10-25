@@ -958,7 +958,17 @@ class ModelEditModal extends Modal {
 			if (!this.modelsDatalist) return;
 			this.modelsDatalist.empty();
 			ids.forEach(id => this.modelsDatalist!.createEl('option', { value: id }));
-			new Notice(t('modal.modelEdit.fetchOk', { count: String(ids.length) }));
+
+			// The prefilled/preset model may not exist for this key's platform
+			// (e.g. new Kimi keys no longer serve moonshot-v1-*). Surface it and
+			// default to the first available model instead of failing at call time.
+			const current = this.modelInput.value.trim();
+			if (current && !ids.includes(current)) {
+				this.modelInput.value = ids[0]!;
+				new Notice(t('modal.modelEdit.fetchAutoCorrected', { from: current, to: ids[0]! }));
+			} else {
+				new Notice(t('modal.modelEdit.fetchOk', { count: String(ids.length) }));
+			}
 		} catch (err: any) {
 			new Notice(err?.message || String(err));
 		} finally {

@@ -35,8 +35,8 @@ const MODEL_ALIASES: Record<string, string> = {
     'deepseek-r1': 'deepseek-reasoner',
     // Kimi / Moonshot
     'kimi-k2': 'kimi-k2-0905-preview',
-    'kimi': 'moonshot-v1-8k',
-    'moonshot': 'moonshot-v1-8k',
+    'kimi': 'kimi-latest',
+    'moonshot': 'kimi-latest',
     // OpenAI
     'gpt-4': 'gpt-4o',
     'gpt4': 'gpt-4o',

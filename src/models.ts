@@ -119,7 +119,7 @@ export interface AIModelConfig {
 export const AI_MODEL_PRESETS: (Omit<AIModelConfig, 'id' | 'apiKey'> & { label: string })[] = [
     { name: 'DeepSeek', label: 'DeepSeek V3', baseUrl: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
     { name: 'Gemini', label: 'Gemini 3.5 Flash', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: 'gemini-3.5-flash' },
-    { name: 'Kimi', label: 'Kimi K2 / Moonshot', baseUrl: 'https://api.moonshot.cn/v1/chat/completions', model: 'moonshot-v1-8k' },
+    { name: 'Kimi', label: 'Kimi 最新', baseUrl: 'https://api.moonshot.cn/v1/chat/completions', model: 'kimi-latest' },
     { name: 'Qwen', label: 'Qwen Turbo', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-turbo' },
     { name: 'Doubao', label: 'Doubao 1.5 Lite', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-1-5-lite-32k-250115' },
     { name: 'OpenAI', label: 'GPT-4o mini', baseUrl: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' },

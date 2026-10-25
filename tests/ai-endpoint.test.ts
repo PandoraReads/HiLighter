@@ -55,6 +55,7 @@ describe('resolveModelAlias', () => {
     it('is case-insensitive', () => {
         expect(resolveModelAlias('DeepSeek-V3').id).toBe('deepseek-chat');
         expect(resolveModelAlias('GPT-4').id).toBe('gpt-4o');
+        expect(resolveModelAlias('Kimi').id).toBe('kimi-latest');
     });
 
     it('reports the original input when a correction is applied', () => {
