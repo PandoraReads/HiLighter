@@ -856,7 +856,7 @@ class PromptEditModal extends Modal {
 }
 
 // ── Model Edit Modal ──────────────────────────────────────────
-interface ModelFormValues { name: string; baseUrl: string; model: string; apiKey: string }
+interface ModelFormValues { name: string; baseUrl: string; model: string; apiKey: string; temperature?: number }
 
 class ModelEditModal extends Modal {
 	private model: AIModelConfig | null;
@@ -866,6 +866,7 @@ class ModelEditModal extends Modal {
 	private baseUrlInput!: HTMLInputElement;
 	private modelInput!: HTMLInputElement;
 	private apiKeyInput!: HTMLInputElement;
+	private tempInput!: HTMLInputElement;
 	private modelsDatalist: HTMLDataListElement | null = null;
 	private fetchBtn: HTMLButtonElement | null = null;
 
@@ -928,6 +929,19 @@ class ModelEditModal extends Modal {
 			cls: 'hl-glass-input'
 		});
 		this.apiKeyInput.value = this.model?.apiKey || '';
+
+		// Sampling temperature (optional; some models restrict it, e.g. Kimi K2/K3 only allow 1)
+		const tempWrap = container.createDiv('hl-glass-field');
+		tempWrap.createEl('label', { text: t('modal.modelEdit.temperature'), cls: 'hl-glass-label' });
+		tempWrap.createEl('div', { text: t('modal.modelEdit.temperature.desc'), cls: 'hl-settings-hint' });
+		this.tempInput = tempWrap.createEl('input', {
+			type: 'text',
+			placeholder: '0.7',
+			cls: 'hl-glass-input'
+		});
+		this.tempInput.value = this.model?.temperature != null
+			? String(this.model.temperature)
+			: (this.prefill?.temperature != null ? String(this.prefill.temperature) : '');
 
 		// Fetch model list button (needs both URL and key, so it lives below both fields)
 		const fetchRow = keyWrap.createDiv('hl-model-fetch-row');
@@ -1018,7 +1032,19 @@ class ModelEditModal extends Modal {
 
 		const apiKey = this.apiKeyInput.value.trim();
 		if (!apiKey) { new Notice(t('modal.modelEdit.keyRequired')); return; }
-		this.onSubmit({ name, baseUrl, model: resolved.id, apiKey });
+
+		// Optional sampling temperature - empty means "plugin default"
+		let temperature: number | undefined;
+		const tempRaw = this.tempInput.value.trim();
+		if (tempRaw) {
+			const parsed = Number(tempRaw);
+			if (!Number.isFinite(parsed) || parsed < 0 || parsed > 2) {
+				new Notice(t('modal.modelEdit.temperatureInvalid'));
+				return;
+			}
+			temperature = parsed;
+		}
+		this.onSubmit({ name, baseUrl, model: resolved.id, apiKey, temperature });
 		this.close();
 	}
 
@@ -1065,6 +1091,7 @@ class PresetAddModal extends Modal {
 								baseUrl: result.baseUrl,
 								model: result.model,
 								apiKey: result.apiKey,
+								temperature: result.temperature,
 							};
 							this.plugin.settings.aiModels.push(newModel);
 							if (!this.plugin.settings.activeModelId) {
@@ -1073,7 +1100,7 @@ class PresetAddModal extends Modal {
 							await this.plugin.saveSettings();
 							this.onDone();
 							this.close();
-						}, { name: preset.name, baseUrl: preset.baseUrl, model: preset.model }).open();
+						}, { name: preset.name, baseUrl: preset.baseUrl, model: preset.model, temperature: preset.temperature }).open();
 					}));
 			}
 		});

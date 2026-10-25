@@ -48,7 +48,7 @@ describe('fetchAvailableModels', () => {
     });
 });
 
-function serviceWithModel(model: string, baseUrl = 'https://api.example.com/v1/chat/completions'): AIService {
+function serviceWithModel(model: string, baseUrl = 'https://api.example.com/v1/chat/completions', temperature?: number): AIService {
     const settings: HiLighterSettings = {
         ...DEFAULT_SETTINGS,
         aiModels: [{
@@ -57,6 +57,7 @@ function serviceWithModel(model: string, baseUrl = 'https://api.example.com/v1/c
             baseUrl,
             model,
             apiKey: 'sk-x',
+            temperature,
         }],
         activeModelId: 'm1',
     };
@@ -72,6 +73,23 @@ function mockChatFailModelsOk(status: number, modelIds: string[]): void {
         return Promise.resolve({ status: 200, json: { data: modelIds.map(id => ({ id })) } });
     });
 }
+
+describe('queryOpenAICompat temperature', () => {
+    it('sends the per-model temperature when set and defaults to 0.7', async () => {
+        requestUrlMock.mockResolvedValue({
+            status: 200,
+            json: { choices: [{ message: { content: 'ok' } }] },
+        });
+
+        await serviceWithModel('m', 'https://t1.example.com/v1/chat/completions', 1).processAction('hi', 'translate');
+        const body1 = JSON.parse(requestUrlMock.mock.calls[0]![0]!.body);
+        expect(body1.temperature).toBe(1);
+
+        await serviceWithModel('m', 'https://t2.example.com/v1/chat/completions').processAction('hi', 'translate');
+        const body2 = JSON.parse(requestUrlMock.mock.calls[1]![0]!.body);
+        expect(body2.temperature).toBe(0.7);
+    });
+});
 
 describe('queryOpenAICompat error enrichment', () => {
     it('on 400 with an unknown model, reports the models the key can use', async () => {

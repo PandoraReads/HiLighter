@@ -7,6 +7,8 @@ import type { HiLighterSettings, AIModelConfig } from './models';
 import { t } from './i18n';
 import { deriveModelsUrl, resolveModelAlias } from './ai-endpoint';
 
+const DEFAULT_TEMPERATURE = 0.7;
+
 // ── Model list fetching (shared by settings UI and error enrichment) ──
 
 const MODEL_LIST_TTL_MS = 10 * 60 * 1000;
@@ -94,13 +96,13 @@ export class AIService {
     async processAction(text: string, action: AIAction, promptId?: string): Promise<string> {
         const model = this.getActiveModel();
         const prompt = this.getPrompt(text, action, promptId);
-        return await this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, prompt);
+        return await this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, prompt, model.temperature);
     }
 
     async processFullText(fullText: string, highlights: string[], promptId?: string): Promise<string> {
         const model = this.getActiveModel();
         const prompt = this.buildFullTextPrompt(fullText, highlights, promptId);
-        return await this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, prompt);
+        return await this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, prompt, model.temperature);
     }
 
     /**
@@ -110,7 +112,7 @@ export class AIService {
     async extractSectionTitles(fullText: string): Promise<string[]> {
         const model = this.getActiveModel();
         const prompt = this.buildHeadingsPrompt(fullText);
-        const raw = await this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, prompt);
+        const raw = await this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, prompt, model.temperature);
         return this.parseTitleList(raw);
     }
 
@@ -219,7 +221,7 @@ ${fullText}`;
      * Unified OpenAI-compatible API caller
      * Works with DeepSeek, Gemini (OpenAI mode), Kimi, Qwen, Doubao, OpenAI, Ollama, etc.
      */
-    private async queryOpenAICompat(url: string, model: string, apiKey: string, prompt: string): Promise<string> {
+    private async queryOpenAICompat(url: string, model: string, apiKey: string, prompt: string, temperature?: number): Promise<string> {
         if (!url) {
             throw new Error(t('ai.error.noUrl'));
         }
@@ -235,7 +237,7 @@ ${fullText}`;
                 { role: 'system', content: 'You are a helpful assistant specialized in text analysis, translation, and research.' },
                 { role: 'user', content: prompt }
             ],
-            temperature: 0.7
+            temperature: temperature ?? DEFAULT_TEMPERATURE
         };
 
         try {
