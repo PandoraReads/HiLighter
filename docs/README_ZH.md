@@ -5,7 +5,7 @@
 
 **HiLighter** 是一款专注于高亮笔记管理的 Obsidian 插件。它将高亮内容转化为可管理的笔记卡片，支持多种颜色标注、AI辅助分析和智能搜索功能，让你在阅读和中实现更高效的笔记管理和研究。
 
-**🌐 Languages / 语言**: [English](./README.md) | **简体中文** | [日本語](./README_JA.md) | [한국어](./README_KO.md) | [Français](./README_FR.md) | [Deutsch](./README_DE.md) | [Español](./README_ES.md) | [Português](./README_PT.md) | [Русский](./README_RU.md)
+**🌐 Languages / 语言**: [English](../README.md) | **简体中文** | [日本語](./README_JA.md) | [한국어](./README_KO.md) | [Français](./README_FR.md) | [Deutsch](./README_DE.md) | [Español](./README_ES.md) | [Português](./README_PT.md) | [Русский](./README_RU.md)
 
 ---
 

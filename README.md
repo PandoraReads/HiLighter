@@ -7,7 +7,7 @@
 
 **HiLighter** is an Obsidian plugin focused on highlight note management. It transforms highlighted content into manageable note cards with support for multiple color annotations, AI-powered analysis, and intelligent search features, making your note organization more efficient.
 
-**🌐 Languages / 语言**: **English** | [简体中文](./README_ZH.md) | [日本語](./README_JA.md) | [한국어](./README_KO.md) | [Français](./README_FR.md) | [Deutsch](./README_DE.md) | [Español](./README_ES.md) | [Português](./README_PT.md) | [Русский](./README_RU.md)
+**🌐 Languages / 语言**: **English** | [简体中文](./docs/README_ZH.md) | [日本語](./docs/README_JA.md) | [한국어](./docs/README_KO.md) | [Français](./docs/README_FR.md) | [Deutsch](./docs/README_DE.md) | [Español](./docs/README_ES.md) | [Português](./docs/README_PT.md) | [Русский](./docs/README_RU.md)
 
 ---
 
