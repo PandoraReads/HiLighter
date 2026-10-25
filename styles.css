@@ -5596,6 +5596,7 @@ mark.hl-note-anchor,
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;   /* anchors the toolbar dropdown menus */
 }
 
 .hl-epub-toolbar {
@@ -5633,6 +5634,114 @@ mark.hl-note-anchor,
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.hl-epub-chapter:hover {
+    color: var(--text-normal);
+}
+
+.hl-epub-page-chip {
+    font-size: 0.75em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    width: auto;
+    min-width: 28px;
+    padding: 0 8px;
+    gap: 4px;
+}
+
+.hl-epub-nav.is-disabled {
+    opacity: 0.35;
+    pointer-events: auto;
+}
+
+/* ── Toolbar dropdown menus (outline / page jump) ── */
+
+.hl-epub-menu {
+    position: absolute;
+    z-index: 20;
+    min-width: 200px;
+    max-width: 340px;
+    max-height: 60vh;
+    overflow: hidden auto;
+    padding: 6px;
+    border-radius: 10px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.hl-epub-menu-empty {
+    padding: 10px 12px;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    text-align: center;
+}
+
+.hl-epub-toc-item {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    line-height: 1.4;
+    color: var(--text-normal);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hl-epub-toc-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hl-epub-toc-item.is-active {
+    color: var(--hl-accent);
+    font-weight: 600;
+}
+
+.hl-epub-pages-info {
+    padding: 8px 10px 4px;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text-normal);
+    font-variant-numeric: tabular-nums;
+}
+
+.hl-epub-pages-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 10px;
+}
+
+.hl-epub-pages-row input[type="range"] {
+    flex: 1;
+    min-width: 100px;
+    accent-color: var(--hl-accent);
+}
+
+.hl-epub-pages-row input[type="number"] {
+    width: 64px;
+    padding: 3px 6px;
+    font-size: 0.85em;
+    font-variant-numeric: tabular-nums;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    color: var(--text-normal);
+}
+
+.hl-epub-pages-go {
+    padding: 4px 14px;
+    border-radius: 999px;
+    background: var(--hl-accent);
+    color: var(--text-on-accent, #fff);
+    font-size: 0.8em;
+    font-weight: 600;
+    cursor: pointer;
     white-space: nowrap;
 }
 

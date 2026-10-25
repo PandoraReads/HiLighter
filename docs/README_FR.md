@@ -132,6 +132,8 @@ Si HiLighter vous fait gagner du temps, vous pouvez offrir un café au développ
 ## Journal des modifications
 
 ### v2.5.2 (2026-10-26)
+- **Barre d'outils du lecteur EPUB** : menu déroulant du plan (sauter à n'importe quel chapitre), saut de page (numéros de page générés automatiquement avec curseur et saisie exacte, mis en cache par livre) et bouton « Reprendre la dernière position de lecture ». Les sauts via plan/page/carte n'écrasent jamais votre position enregistrée : la reprise pointe toujours là où vous vous êtes réellement arrêté.
+- **Ordre des cartes** : les cartes de surlignage de l'epub courant suivent désormais l'ordre de lecture du livre (position CFI) au lieu de l'ordre de création ; le tri par ordre source du studio utilise le même comparateur.
 - **Lecture et surlignage EPUB (corrigé)** : les fichiers EPUB du coffre s'ouvrent désormais dans le lecteur HiLighter — la vue restait vide car elle n'était pas enregistrée comme vue de fichier (FileView) et ne recevait jamais le fichier. Sélectionnez du texte pour surligner en quatre couleurs, cliquez sur une carte pour revenir à la phrase exacte avec un flash de localisation, et supprimer ou recolorer une carte se répercute instantanément sur la page. Un livre corrompu affiche désormais un message lisible avec un bouton de relance.
 
 ### v2.5.1 (2026-10-25)

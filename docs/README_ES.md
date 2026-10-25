@@ -132,6 +132,8 @@ Si HiLighter te ahorra tiempo, puedes invitar al desarrollador a un café (escan
 ## Registro de cambios
 
 ### v2.5.2 (2026-10-26)
+- **Barra del lector EPUB**: desplegable de esquema (salta a cualquier capítulo), salto de página (números de página autogenerados con deslizador y entrada exacta, en caché por libro) y botón «Volver a la última posición de lectura». Los saltos por esquema/página/tarjeta nunca sobrescriben tu posición guardada: reanudar siempre apunta a donde realmente lo dejaste.
+- **Orden de las tarjetas**: las tarjetas de resaltado del epub actual siguen ahora el orden de lectura del libro (posición CFI) en vez del orden de creación; la ordenación por orden de origen del estudio usa el mismo comparador.
 - **Lectura y resaltado de EPUB (corregido)**: los archivos EPUB de la bóveda ahora se abren en el lector de HiLighter — antes la vista quedaba en blanco porque no estaba registrada como vista de archivo (FileView) y nunca recibía el archivo. Selecciona texto para resaltar en cuatro colores, haz clic en una tarjeta para saltar a la frase exacta con un destello de localización, y eliminar o recolorear una tarjeta se refleja al instante en la página. Un libro dañado ahora muestra un error legible con botón de reintento.
 
 ### v2.5.1 (2026-10-25)

@@ -10,6 +10,7 @@ import type { HiLighterSettings } from '../models';
 import { t } from '../i18n';
 import { getColors } from '../colors';
 import type { ColorDef } from '../colors';
+import { compareEpubCfi } from '../epub/cfi-order';
 import type { FilterItem, NoteGroup, StudioGroupBy, StudioSortBy } from './studio-state';
 
 export function dayKey(d: Date): string {
@@ -62,8 +63,10 @@ export function sortHighlights(notes: HighlightNote[], sortBy: StudioSortBy): Hi
             // Markdown lineIndex and PDF page positions share this field. EPUB
             // cards use CFI as a finer-grained fallback when lineIndex ties.
             if (a.lineIndex !== b.lineIndex) return a.lineIndex - b.lineIndex;
-            const cfiCompare = (a.cfi || '').localeCompare(b.cfi || '', undefined, { numeric: true, sensitivity: 'base' });
-            if (cfiCompare !== 0) return cfiCompare;
+            if (a.cfi && b.cfi) {
+                const cfiSort = compareEpubCfi(a.cfi, b.cfi);
+                if (cfiSort !== 0) return cfiSort;
+            }
             return a.createdAt - b.createdAt;
         }
 

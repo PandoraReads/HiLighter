@@ -14,6 +14,7 @@ import { getColors, getColorDef } from './colors';
 import { attachImageHandlers } from './image-paste';
 import { jumpToPdfNote } from './pdf/pdf-anchors';
 import { jumpToEpubNote } from './epub/epub-jump';
+import { compareEpubCfi } from './epub/cfi-order';
 import { locateHighlightMark } from './locate';
 import { changeNoteColor } from './studio/actions';
 import { renderAddColorForm } from './color-add';
@@ -342,8 +343,10 @@ export class HighlightView extends ItemView {
                 if (activeFile) {
                     highlights = await db.getHighlightsByPath(activeFile.path);
 
-                    if (!Platform.isMobile) {
+                    if (!Platform.isMobile && activeFile.extension === 'md') {
                         // Desktop can afford a full-file rescan to refresh line order.
+                        // (Markdown only — other anchors have no in-file marks to find,
+                        // and reading a binary epub/pdf as text is pure waste.)
                         const content = await this.app.vault.read(activeFile);
                         const lines = content.split('\n');
                         const idToLine = new Map<string, number>();
@@ -405,6 +408,13 @@ export class HighlightView extends ItemView {
                 highlights.sort((a, b) => {
                     const pathSort = a.sourcePath.localeCompare(b.sourcePath);
                     if (pathSort !== 0) return pathSort;
+                    // EPUB cards have no line anchor — order them by their CFI
+                    // position so the list follows the book's reading order.
+                    if (a.anchorType === 'epub' && a.cfi && b.anchorType === 'epub' && b.cfi) {
+                        const cfiSort = compareEpubCfi(a.cfi, b.cfi);
+                        if (cfiSort !== 0) return cfiSort;
+                        return a.createdAt - b.createdAt;
+                    }
                     return (a.lineIndex ?? 0) - (b.lineIndex ?? 0);
                 });
             }

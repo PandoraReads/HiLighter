@@ -3,7 +3,7 @@
 // ============================================================
 
 import Dexie, { type Table } from 'dexie';
-import type { FsrsState, HighlightNote, MindMapDoc, SyncTombstone } from './models';
+import type { EpubLocations, FsrsState, HighlightNote, MindMapDoc, SyncTombstone } from './models';
 import {
     planMerge,
     dedupeById,
@@ -15,6 +15,7 @@ export class HiLighterDatabase extends Dexie {
     highlightNotes!: Table<HighlightNote, string>;
     syncTombstones!: Table<SyncTombstone, string>;
     mindmaps!: Table<MindMapDoc, string>;
+    epubLocations!: Table<EpubLocations, string>;
 
     private changeSeq = 0;
     private changeListeners = new Set<() => void>();
@@ -26,6 +27,7 @@ export class HiLighterDatabase extends Dexie {
         // fsrs state simply sit outside the index (= new-card semantics).
         // v4: syncTombstones tracks deleted ids so deletes survive auto-import.
         // v5: mindmaps table for saved mind map documents (additive only).
+        // v6: epubLocations caches generated epub page CFIs per book (additive).
         // All additive: no upgrade function needed; old rows load unchanged.
         this.version(2).stores({
             highlightNotes: 'id, sourcePath, createdAt',
@@ -41,6 +43,12 @@ export class HiLighterDatabase extends Dexie {
             highlightNotes: 'id, sourcePath, createdAt, fsrs.due',
             syncTombstones: 'id, deletedAt',
             mindmaps: 'id, sourcePath, updatedAt',
+        });
+        this.version(6).stores({
+            highlightNotes: 'id, sourcePath, createdAt, fsrs.due',
+            syncTombstones: 'id, deletedAt',
+            mindmaps: 'id, sourcePath, updatedAt',
+            epubLocations: 'path',
         });
     }
 
@@ -152,6 +160,15 @@ export class HiLighterDatabase extends Dexie {
             await this.syncTombstones.put({ id, deletedAt: Date.now() });
         });
         this.notify();
+    }
+
+    /** Cached epub page-location CFIs (no change notification: no UI depends on it). */
+    async getEpubLocations(path: string): Promise<EpubLocations | undefined> {
+        return this.epubLocations.get(path);
+    }
+
+    async saveEpubLocations(entry: EpubLocations): Promise<void> {
+        await this.epubLocations.put(entry);
     }
 
     async updateHighlightPaths(oldPath: string, newPath: string): Promise<void> {

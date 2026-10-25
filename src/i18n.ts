@@ -470,6 +470,14 @@ const zh: Record<string, string> = {
 	'epub.retry': '重试',
 	'epub.prev': '上一页',
 	'epub.next': '下一页',
+	'epub.toc': '大纲',
+	'epub.tocEmpty': '本书没有可用的大纲',
+	'epub.pageJump': '页码跳转',
+	'epub.pageOf': '第 ${x} / ${y} 页',
+	'epub.pageGenerating': '正在生成页码…',
+	'epub.go': '跳转',
+	'epub.resume': '回到上次阅读位置',
+	'epub.noSavedPosition': '还没有保存的阅读位置',
 	'epub.conflict': 'EPUB 文件已由其他插件接管，HiLighter 未注册 EPUB 阅读视图',
 
 	// ── Manager Content ───────────────────────────────────
@@ -1067,6 +1075,14 @@ const en: Record<string, string> = {
 	'epub.retry': 'Retry',
 	'epub.prev': 'Previous page',
 	'epub.next': 'Next page',
+	'epub.toc': 'Outline',
+	'epub.tocEmpty': 'This book has no outline',
+	'epub.pageJump': 'Jump to page',
+	'epub.pageOf': 'Page ${x} of ${y}',
+	'epub.pageGenerating': 'Generating page numbers…',
+	'epub.go': 'Go',
+	'epub.resume': 'Resume last reading position',
+	'epub.noSavedPosition': 'No saved reading position yet',
 	'epub.conflict': 'EPUB files are handled by another plugin; HiLighter did not register its reader',
 
 	// ── Manager Content ───────────────────────────────────

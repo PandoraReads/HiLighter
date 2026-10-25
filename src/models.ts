@@ -279,6 +279,13 @@ export interface SyncTombstone {
     deletedAt: number;
 }
 
+/** Generated epub page-location CFIs, cached per book (IndexedDB `epubLocations`). */
+export interface EpubLocations {
+    path: string;       // vault-relative epub path (primary key)
+    mtime: number;      // file mtime at generation; stale → regenerate
+    cfis: string[];     // ordered location CFIs from book.locations.generate()
+}
+
 /** How a mind map's initial hierarchy was generated from highlight cards */
 export type MindMapBuildMode = 'headings' | 'color' | 'tag' | 'flat';
 

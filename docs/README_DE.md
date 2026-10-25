@@ -132,6 +132,8 @@ Wenn dir HiLighter Zeit spart, kannst du den Entwickler auf einen Kaffee einlade
 ## Änderungsprotokoll
 
 ### v2.5.2 (2026-10-26)
+- **EPUB-Reader-Symbolleiste**: Gliederungs-Dropdown (zu jedem Kapitel springen), Seitensprung (automatisch erzeugte Seitennummern mit Slider und exakter Seiteneingabe, pro Buch gecacht) und ein Button „Zur letzten Leseposition". Gliederungs-/Seiten-/Kartensprünge überschreiben die gespeicherte Leseposition nie — die Wiederaufnahme zeigt immer dorthin, wo du wirklich aufgehört hast.
+- **Kartenreihenfolge**: Markierungskarten des aktuellen EPUB folgen jetzt der Lesereihenfolge des Buchs (CFI-Position) statt der Erstellungsreihenfolge; die Quellreihenfolge-Sortierung im Studio nutzt denselben Comparator.
 - **EPUB-Lesen & Markierungen (behoben)**: EPUB-Dateien im Vault öffnen sich jetzt im HiLighter-Reader — zuvor blieb die Ansicht leer, weil sie nicht als Dateiansicht (FileView) registriert war und die Datei nie erhielt. Text auswählen, in vier Farben markieren; ein Kartenklick springt zum exakten Satz mit Aufblink-Flash, und Löschen/Umfärben einer Karte spiegelt sich sofort auf der Buchseite. Ein defektes Buch zeigt jetzt eine lesbare Fehlermeldung mit Wiederholen-Button.
 
 ### v2.5.1 (2026-10-25)
