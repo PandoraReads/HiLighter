@@ -18,7 +18,7 @@ import ePubLib from 'epubjs';
 import type { Book, Rendition, Contents, NavItem } from 'epubjs';
 import { FileView, Notice, WorkspaceLeaf, setIcon, TFile } from 'obsidian';
 import type HiLighterPlugin from '../main';
-import type { HighlightNote } from '../models';
+import type { EpubBookmark, HighlightNote } from '../models';
 import { t } from '../i18n';
 import { db } from '../db';
 import { showHighlightMenu } from '../selection/selection-menu';
@@ -58,7 +58,7 @@ export class EpubView extends FileView {
     private errorEl: HTMLElement | null = null;
     private toolbarEl: HTMLElement | null = null;
     private pageChipEl: HTMLElement | null = null;
-    private resumeBtnEl: HTMLElement | null = null;
+    private modeBtnEl: HTMLElement | null = null;
     private menuEl: HTMLElement | null = null;
 
     /** Guards async open book work against a file switch / teardown. */
@@ -72,6 +72,10 @@ export class EpubView extends FileView {
     private locationsLoading = false;
     /** Explicit-jump progress suppression window (see PROGRESS_SUPPRESS_MS). */
     private suppressProgressUntil = 0;
+    /** Horizontal pages vs vertical scroll; re-creating the rendition on switch. */
+    private readingMode: 'page' | 'scroll' = 'page';
+    /** Last touch point for swipe paging (per section document). */
+    private swipeStart: { x: number; y: number } | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: HiLighterPlugin) {
         super(leaf);
@@ -147,10 +151,14 @@ export class EpubView extends FileView {
         this.pageChipEl.setAttribute('aria-label', t('epub.pageJump'));
         this.pageChipEl.onclick = () => this.toggleMenu(this.pageChipEl!, 'pages');
 
-        this.resumeBtnEl = bar.createDiv('hl-epub-nav');
-        setIcon(this.resumeBtnEl.createSpan(), 'history');
-        this.resumeBtnEl.setAttribute('aria-label', t('epub.resume'));
-        this.resumeBtnEl.onclick = () => void this.resumeLastPosition();
+        const bookmarkBtn = bar.createDiv('hl-epub-nav');
+        setIcon(bookmarkBtn.createSpan(), 'bookmark');
+        bookmarkBtn.setAttribute('aria-label', t('epub.bookmark'));
+        bookmarkBtn.onclick = () => this.toggleMenu(bookmarkBtn, 'bookmarks');
+
+        this.modeBtnEl = bar.createDiv('hl-epub-nav');
+        this.updateModeIcon();
+        this.modeBtnEl.onclick = () => void this.toggleReadingMode();
 
         const next = bar.createDiv('hl-epub-nav');
         setIcon(next.createSpan(), 'chevron-right');
@@ -158,9 +166,33 @@ export class EpubView extends FileView {
         next.onclick = () => void this.goNext();
     }
 
+    private updateModeIcon(): void {
+        if (!this.modeBtnEl) return;
+        this.modeBtnEl.empty();
+        const isPage = this.readingMode === 'page';
+        setIcon(this.modeBtnEl.createSpan(), isPage ? 'move-horizontal' : 'move-vertical');
+        this.modeBtnEl.setAttribute('aria-label',
+            isPage ? t('epub.modeScrollHint') : t('epub.modePageHint'));
+        this.modeBtnEl.setAttribute('title',
+            isPage ? t('epub.modeScrollHint') : t('epub.modePageHint'));
+    }
+
+    /** Switch page ⇄ scroll; the rendition is re-created at the same position. */
+    private async toggleReadingMode(): Promise<void> {
+        const file = this.file;
+        if (!file) return;
+        const currentCfi = this.currentCfi();
+        this.readingMode = this.readingMode === 'page' ? 'scroll' : 'page';
+        this.plugin.settings.epubReadingMode = this.readingMode;
+        void this.plugin.saveSettings();
+        this.updateModeIcon();
+        if (currentCfi) this.markExplicitJump();   // stay put when reopening
+        await this.openBook(file, currentCfi ?? undefined);
+    }
+
     // ── Dropdown menus ─────────────────────────────────────────
 
-    private toggleMenu(anchor: HTMLElement, kind: 'toc' | 'pages'): void {
+    private toggleMenu(anchor: HTMLElement, kind: 'toc' | 'pages' | 'bookmarks'): void {
         if (this.menuEl?.dataset.kind === kind) {
             this.closeMenu();
             return;
@@ -170,8 +202,9 @@ export class EpubView extends FileView {
         menu.dataset.kind = kind;
         this.menuEl = menu;
         if (kind === 'toc') void this.renderTocMenu(menu);
-        else void this.renderPagesMenu(menu);
-        this.positionMenu(menu, anchor, kind);
+        else if (kind === 'pages') void this.renderPagesMenu(menu);
+        else this.renderBookmarksMenu(menu);
+        this.positionMenu(menu, anchor, kind === 'pages' ? 'pages' : 'toc');
     }
 
     private closeMenu(): void {
@@ -386,23 +419,104 @@ export class EpubView extends FileView {
         } catch { /* unresolvable location — ignore */ }
     }
 
-    /** Explicit jump back to the saved reading position. */
-    private async resumeLastPosition(): Promise<void> {
-        const saved = this.file ? this.plugin.settings.epubProgress?.[this.file.path] : undefined;
-        if (!saved || !this.rendition) {
-            new Notice(t('epub.noSavedPosition'));
+    private markExplicitJump(): void {
+        this.suppressProgressUntil = Date.now() + PROGRESS_SUPPRESS_MS;
+    }
+
+    // ── Bookmarks ──────────────────────────────────────────────
+
+    private bookmarksFor(): EpubBookmark[] {
+        if (!this.file) return [];
+        return this.plugin.settings.epubBookmarks?.[this.file.path] ?? [];
+    }
+
+    private renderBookmarksMenu(menu: HTMLElement): void {
+        const addBtn = menu.createDiv('hl-epub-bm-add');
+        setIcon(addBtn.createSpan(), 'plus');
+        addBtn.createSpan().setText(t('epub.addBookmark'));
+        addBtn.onclick = () => {
+            void this.addBookmark().then(() => this.rerenderBookmarkMenu());
+        };
+
+        const marks = this.bookmarksFor();
+        if (marks.length === 0) {
+            menu.createDiv('hl-epub-menu-empty').setText(t('epub.noBookmarks'));
             return;
         }
+        const list = menu.createDiv('hl-epub-bm-list');
+        [...marks].sort((a, b) => b.createdAt - a.createdAt).forEach(bm => {
+            const row = list.createDiv('hl-epub-bm-item');
+            const label = row.createDiv('hl-epub-bm-label');
+            label.setText(bm.label || t('epub.bookmark'));
+            const del = row.createDiv('hl-epub-bm-del');
+            setIcon(del.createSpan(), 'x');
+            del.setAttribute('aria-label', t('epub.removeBookmark'));
+            del.onclick = (e) => {
+                e.stopPropagation();
+                void this.removeBookmark(bm).then(() => this.rerenderBookmarkMenu());
+            };
+            row.onclick = () => {
+                this.closeMenu();
+                void this.displayBookmark(bm);
+            };
+        });
+    }
+
+    /** Rebuilds the open bookmarks menu in place (after add/remove). */
+    private rerenderBookmarkMenu(): void {
+        if (!this.menuEl || this.menuEl.dataset.kind !== 'bookmarks') return;
+        const cls = this.menuEl.className;
+        const left = this.menuEl.style.left;
+        const top = this.menuEl.style.top;
+        this.menuEl.className = cls;
+        this.menuEl.style.left = left;
+        this.menuEl.style.top = top;
+        this.menuEl.empty();
+        this.renderBookmarksMenu(this.menuEl);
+    }
+
+    private async addBookmark(): Promise<void> {
+        const file = this.file;
+        const cfi = this.currentCfi();
+        if (!file || !cfi) return;
+        let label = this.chapterEl?.textContent?.trim() || file.basename;
+        if (this.locationCfis && this.locationCfis.length > 1) {
+            label = `${label} · ${this.currentLocationIndex() + 1}`;
+        }
+        const bm: EpubBookmark = { cfi, label, createdAt: Date.now() };
+        const all = { ...(this.plugin.settings.epubBookmarks ?? {}) };
+        all[file.path] = [...(all[file.path] ?? []), bm];
+        this.plugin.settings.epubBookmarks = all;
+        await this.plugin.saveSettings();
+        new Notice(t('notice.bookmarkAdded'));
+    }
+
+    private async removeBookmark(bm: EpubBookmark): Promise<void> {
+        const file = this.file;
+        if (!file) return;
+        const all = { ...(this.plugin.settings.epubBookmarks ?? {}) };
+        all[file.path] = (all[file.path] ?? []).filter(x => x.cfi !== bm.cfi);
+        this.plugin.settings.epubBookmarks = all;
+        await this.plugin.saveSettings();
+    }
+
+    private async displayBookmark(bm: EpubBookmark): Promise<void> {
+        if (!this.rendition || !bm.cfi) return;
         this.markExplicitJump();
         try {
-            await this.rendition.display(saved);
+            await this.rendition.display(bm.cfi);
         } catch {
             new Notice(t('epub.openError'));
         }
     }
 
-    private markExplicitJump(): void {
-        this.suppressProgressUntil = Date.now() + PROGRESS_SUPPRESS_MS;
+    private currentCfi(): string | null {
+        try {
+            const loc = this.rendition?.currentLocation() as unknown as { start?: { cfi?: string } };
+            return loc?.start?.cfi ?? null;
+        } catch {
+            return null;
+        }
     }
 
     // ── Book lifecycle ─────────────────────────────────────────
@@ -424,12 +538,14 @@ export class EpubView extends FileView {
         this.errorEl = box;
     }
 
-    private async openBook(file: TFile): Promise<void> {
+    private async openBook(file: TFile, startOverride?: string): Promise<void> {
         const seq = ++this.loadSeq;
         this.teardownBook();
         this.showError(null);
         this.locationCfis = null;
         this.updatePageChip();
+        this.readingMode = this.plugin.settings.epubReadingMode === 'scroll' ? 'scroll' : 'page';
+        this.updateModeIcon();
 
         const container = this.contentEl.createDiv('hl-epub-container');
         try {
@@ -437,10 +553,16 @@ export class EpubView extends FileView {
             if (seq !== this.loadSeq) return;
 
             const book = ePubLib(data as unknown as string) as unknown as Book;
+            // Page mode: one paginated iframe per section (swipe left/right).
+            // Scroll mode: continuous manager + scrolled flow — the whole book
+            // becomes one vertical scroll.
+            const isScroll = this.readingMode === 'scroll';
             const rendition = book.renderTo(container, {
                 width: '100%',
                 height: '100%',
-                spread: 'none',
+                ...(isScroll
+                    ? { manager: 'continuous', flow: 'scrolled' as const }
+                    : { spread: 'none' as const }),
                 allowScriptedContent: false,
             });
             this.book = book;
@@ -456,7 +578,7 @@ export class EpubView extends FileView {
             await book.ready;
             if (seq !== this.loadSeq) return;
 
-            const start = this.plugin.settings.epubProgress?.[file.path];
+            const start = startOverride ?? this.plugin.settings.epubProgress?.[file.path];
             try {
                 await rendition.display(start ?? undefined);
             } catch {
@@ -541,13 +663,17 @@ export class EpubView extends FileView {
 
         // Replay annotations on every section render — epub.js 0.3.93 has
         // no automatic re-attach after a page turn.
-        rendition.on('rendered', () => {
+        rendition.on('rendered', (_section: unknown, view: unknown) => {
             void this.syncAnnotations();
+            if (this.readingMode !== 'page') return;
+            const contents = (view as { contents?: Contents } | undefined)?.contents
+                ?? (this.rendition?.getContents?.() as unknown as Contents[] | undefined)?.[0];
+            if (contents) this.attachSwipe(contents);
         });
 
         // Persist read position + chapter title. Explicit jumps (toc /
-        // page / resume / card) suppress the position update so "resume"
-        // keeps pointing at where the user actually left off.
+        // page / bookmark / card / mode switch) suppress the position
+        // update so reopening lands where the user actually left off.
         rendition.on('relocated', (location: { start?: { cfi?: string; href?: string } }) => {
             const cfi = location?.start?.cfi;
             if (!cfi || !this.file) return;
@@ -560,14 +686,36 @@ export class EpubView extends FileView {
             }
             void this.refreshChapterTitle();
             this.updatePageChip();
-            this.updateResumeButton(cfi);
         });
     }
 
-    private updateResumeButton(currentCfi: string): void {
-        if (!this.resumeBtnEl || !this.file) return;
-        const saved = this.plugin.settings.epubProgress?.[this.file.path];
-        this.resumeBtnEl.toggleClass('is-disabled', !saved || saved === currentCfi);
+    /** Left/right swipe paging inside the section iframe (page mode only).
+     *  Listeners die with the iframe on page turns — re-attached per render. */
+    private attachSwipe(contents: Contents): void {
+        try {
+            const doc = contents.document;
+            doc.addEventListener('touchstart', (e: TouchEvent) => {
+                const touch = e.touches[0];
+                this.swipeStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+            }, { passive: true });
+            doc.addEventListener('touchend', (e: TouchEvent) => {
+                const start = this.swipeStart;
+                this.swipeStart = null;
+                if (!start) return;
+                const touch = e.changedTouches[0];
+                if (!touch) return;
+                // Ignore swipes that ended as a text selection.
+                if ((contents.window.getSelection()?.toString() ?? '') !== '') return;
+                const dx = touch.clientX - start.x;
+                const dy = touch.clientY - start.y;
+                if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                    if (dx < 0) void this.goNext();
+                    else void this.goPrev();
+                }
+            }, { passive: true });
+        } catch {
+            // gesture layer — never surface errors
+        }
     }
 
     /** Idempotent repaint of all DB highlights for the open book. */

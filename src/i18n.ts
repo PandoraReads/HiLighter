@@ -476,8 +476,13 @@ const zh: Record<string, string> = {
 	'epub.pageOf': '第 ${x} / ${y} 页',
 	'epub.pageGenerating': '正在生成页码…',
 	'epub.go': '跳转',
-	'epub.resume': '回到上次阅读位置',
-	'epub.noSavedPosition': '还没有保存的阅读位置',
+	'epub.bookmark': '书签',
+	'epub.addBookmark': '添加当前页为书签',
+	'epub.removeBookmark': '移除书签',
+	'epub.noBookmarks': '还没有书签',
+	'epub.modePageHint': '切换为左右翻页',
+	'epub.modeScrollHint': '切换为上下滚动阅读',
+	'notice.bookmarkAdded': '已添加书签',
 	'epub.conflict': 'EPUB 文件已由其他插件接管，HiLighter 未注册 EPUB 阅读视图',
 
 	// ── Manager Content ───────────────────────────────────
@@ -1081,8 +1086,13 @@ const en: Record<string, string> = {
 	'epub.pageOf': 'Page ${x} of ${y}',
 	'epub.pageGenerating': 'Generating page numbers…',
 	'epub.go': 'Go',
-	'epub.resume': 'Resume last reading position',
-	'epub.noSavedPosition': 'No saved reading position yet',
+	'epub.bookmark': 'Bookmarks',
+	'epub.addBookmark': 'Bookmark this page',
+	'epub.removeBookmark': 'Remove bookmark',
+	'epub.noBookmarks': 'No bookmarks yet',
+	'epub.modePageHint': 'Switch to page mode',
+	'epub.modeScrollHint': 'Switch to vertical scroll reading',
+	'notice.bookmarkAdded': 'Bookmark added',
 	'epub.conflict': 'EPUB files are handled by another plugin; HiLighter did not register its reader',
 
 	// ── Manager Content ───────────────────────────────────

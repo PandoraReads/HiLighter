@@ -5745,6 +5745,63 @@ mark.hl-note-anchor,
     white-space: nowrap;
 }
 
+/* ── Bookmark menu ── */
+
+.hl-epub-bm-add {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--hl-accent);
+    cursor: pointer;
+}
+
+.hl-epub-bm-add:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hl-epub-bm-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px 6px 10px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+.hl-epub-bm-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hl-epub-bm-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-normal);
+}
+
+.hl-epub-bm-del {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.hl-epub-bm-del:hover {
+    background: var(--background-modifier-error-hover, rgba(220, 38, 38, 0.15));
+    color: var(--text-error);
+}
+
 .hl-epub-container {
     flex: 1;
     min-height: 0;

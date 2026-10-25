@@ -134,6 +134,7 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 ## Changelog
 
 ### v2.5.2 (2026-10-26)
+- **Bookmarks & reading modes**: the reader toolbar gains bookmarks (bookmark the current page, jump back from the list, remove with one click) replacing the old resume button, and a page ⇄ scroll mode toggle — horizontal page turns (buttons or left/right swipe) or continuous vertical scrolling, with your position preserved across the switch and scroll updating the saved progress.
 - **EPUB reader toolbar**: an outline dropdown (jump to any chapter), page jump (auto-generated page numbers with a slider and exact-page input, cached per book), and a "resume last reading position" button. Outline/page/card jumps never overwrite your saved reading spot, so resume always points where you actually left off.
 - **Card order**: highlight cards for the current epub now follow the book's reading order (CFI position) instead of creation order; the studio's source-order sort uses the same comparator.
 - **EPUB reading & highlights (fixed)**: EPUB files in the vault now open in the HiLighter reader — the view previously stayed blank because it was not registered as a file view and never received the file. Select text to highlight in four colors, cards jump back to the exact sentence with a locate flash, and deleting or recoloring a card updates the book page instantly. A broken book now shows a readable in-view error with a retry button.

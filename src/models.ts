@@ -164,6 +164,8 @@ export interface HiLighterSettings {
     notePopup: NotePopupSettings;
     pdfOverlay: boolean;            // best-effort PDF textLayer highlight overlay
     epubProgress: Record<string, string>;   // epub path -> last-read CFI
+    epubBookmarks: Record<string, EpubBookmark[]>;  // epub path -> bookmarks
+    epubReadingMode: 'page' | 'scroll';     // horizontal pages vs vertical scroll
     // Internationalization
     language: string;              // UI language id or 'auto' (follow Obsidian)
     translationTargetLang: string;
@@ -238,6 +240,8 @@ export const DEFAULT_SETTINGS: HiLighterSettings = {
     notePopup: { doubleClick: true, modifierClick: true, singleClick: true },
     pdfOverlay: true,
     epubProgress: {},
+    epubBookmarks: {},
+    epubReadingMode: 'page',
     language: 'zh',
     translationTargetLang: '中文',
     highlightShortcut: '',
@@ -284,6 +288,13 @@ export interface EpubLocations {
     path: string;       // vault-relative epub path (primary key)
     mtime: number;      // file mtime at generation; stale → regenerate
     cfis: string[];     // ordered location CFIs from book.locations.generate()
+}
+
+/** A user bookmark inside an epub (stored on settings, per book). */
+export interface EpubBookmark {
+    cfi: string;        // position anchor
+    label: string;      // chapter title (+ page number when known)
+    createdAt: number;  // Unix ms
 }
 
 /** How a mind map's initial hierarchy was generated from highlight cards */
