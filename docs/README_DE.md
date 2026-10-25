@@ -7,7 +7,7 @@
 
 ---
 
-**HiLighter** ist ein Obsidian-Plugin, das sich auf die Verwaltung von Markierungsnotizen konzentriert. Es verwandelt markierte Inhalte in übersichtlich verwaltbare Notizkarten mit Unterstützung für mehrfarbige Anmerkungen, KI-gestützte Analyse und intelligente Suche – für eine effizientere Organisation deiner Notizen.
+**HiLighter** ist ein Obsidian-Plugin, das sich auf die Verwaltung von Markierungsnotizen konzentriert. Es verwandelt markierte Inhalte in übersichtlich verwaltbare Notizkarten mit Unterstützung für mehrfarbige Anmerkungen, KI-gestützte Analyse und intelligente Suche – für eine effizientere Organisation deiner Notizen. Funktioniert mit Markdown, PDF und EPUB.
 
 ![screenshot1](screenshots/screenshot1.png)
 
@@ -39,6 +39,13 @@
 *   **Zum exakten Satz springen**: Ein Klick auf eine Karte scrollt direkt zum markierten Satz im PDF, mit kurzem Aufblitzen zur Orientierung.
 
 ![pdf](screenshots/pdf-highlight.png)
+
+### 📖 EPUB-Lesen & Markierungen (neu in 2.6)
+*   **Lese EPUBs im Vault**: Klicke eine beliebige `.epub`-Datei an, um sie im HiLighter-Reader zu öffnen (aktiviere „Alle Dateierweiterungen erkennen" unter Einstellungen → Dateien & Links, oder nutze den Befehl *EPUB-Buch öffnen*). Die Leseposition wird pro Buch gemerkt.
+*   **Markieren & notieren**: Text auswählen und mit demselben Menü in vier Farben markieren — KI-Übersetzung und -Recherche inklusive. Markierungen sind CFI-verankert und überstehen Neustarts, Umblättern und Vault-Sync; Löschen oder Umfärben einer Karte spiegelt sich sofort auf der Buchseite.
+*   **Karten finden die Quelle**: Jede Markierung wird zur Karte; ein Klick springt zum exakten Satz mit Aufblink-Flash.
+*   **Reader-Symbolleiste**: Gliederungs-Dropdown für Kapitelsprünge, Seitensprung mit automatisch erzeugten Seitenzahlen und Lesezeichen (aktuelle Seite merken, aus der Liste zurückspringen, jederzeit löschen).
+*   **Zwei Lesemodi**: horizontales Umblättern (Buttons oder Wischen) oder durchgehendes vertikales Scrollen — jederzeit umschaltbar, die Position bleibt erhalten.
 
 ### 🧠 Mindmaps (neu in 2.4)
 *   **Erstellung mit einem Klick**: Alle Markierungen einer Datei als Mindmap importieren – gruppiert nach Dokumentüberschriften, Markierungsfarbe, Tag oder einfacher Reihenfolge.
@@ -131,7 +138,7 @@ Wenn dir HiLighter Zeit spart, kannst du den Entwickler auf einen Kaffee einlade
 
 ## Änderungsprotokoll
 
-### v2.5.2 (2026-10-26)
+### v2.6.0 (2026-10-26)
 - **Lesezeichen & Lesemodi**: Die Reader-Symbolleiste bekommt Lesezeichen (aktuelle Seite merken, aus der Liste zurückspringen, mit einem Klick löschen) als Ersatz für den alten Wiederaufnahme-Button — plus einen Umschalter Seite ⇄ Scroll: horizontales Umblättern (Buttons oder Wischen) oder durchgehendes vertikales Scrollen, wobei die Position beim Wechsel erhalten bleibt und das Scrollen die Leseposition live speichert.
 - **EPUB-Reader-Symbolleiste**: Gliederungs-Dropdown (zu jedem Kapitel springen), Seitensprung (automatisch erzeugte Seitennummern mit Slider und exakter Seiteneingabe, pro Buch gecacht) und ein Button „Zur letzten Leseposition". Gliederungs-/Seiten-/Kartensprünge überschreiben die gespeicherte Leseposition nie — die Wiederaufnahme zeigt immer dorthin, wo du wirklich aufgehört hast.
 - **Kartenreihenfolge**: Markierungskarten des aktuellen EPUB folgen jetzt der Lesereihenfolge des Buchs (CFI-Position) statt der Erstellungsreihenfolge; die Quellreihenfolge-Sortierung im Studio nutzt denselben Comparator.

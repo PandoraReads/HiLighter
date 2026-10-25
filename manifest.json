@@ -1,9 +1,9 @@
 {
 	"id": "hilighter",
 	"name": "HiLighter",
-	"version": "2.5.1",
+	"version": "2.6.0",
 	"minAppVersion": "1.7.2",
-	"description": "Highlight notes, card collection, mind maps, AI-assisted notes and spaced review. 高亮笔记卡片集 · 思维导图 · AI 笔记 · 间隔复习。",
+	"description": "Highlight notes, card collection, EPUB & PDF reading, mind maps, AI-assisted notes and spaced review. 高亮笔记卡片集 · EPUB/PDF 阅读高亮 · 思维导图 · AI 笔记 · 间隔复习。",
 	"author": "PandoraReads",
 	"authorUrl": "https://github.com/PandoraReads",
 	"isDesktopOnly": false

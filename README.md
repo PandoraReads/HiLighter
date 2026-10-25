@@ -5,7 +5,7 @@
 [![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/pandorareads/hilighter/releases)
 [![Obsidian Version](https://img.shields.io/badge/Obsidian-v1.7.2%2B-purple)](https://obsidian.md)
 
-**HiLighter** is an Obsidian plugin focused on highlight note management. It transforms highlighted content into manageable note cards with support for multiple color annotations, AI-powered analysis, and intelligent search features, making your note organization more efficient.
+**HiLighter** is an Obsidian plugin focused on highlight note management. It transforms highlighted content into manageable note cards with support for multiple color annotations, AI-powered analysis, and intelligent search features, making your note organization more efficient. Works across Markdown, PDF, and EPUB.
 
 **🌐 Languages / 语言**: **English** | [简体中文](./docs/README_ZH.md) | [日本語](./docs/README_JA.md) | [한국어](./docs/README_KO.md) | [Français](./docs/README_FR.md) | [Deutsch](./docs/README_DE.md) | [Español](./docs/README_ES.md) | [Português](./docs/README_PT.md) | [Русский](./docs/README_RU.md)
 
@@ -41,6 +41,13 @@
 *   **Jump to the exact sentence**: Click a card to scroll straight to the highlighted sentence in the PDF, with a brief locate flash.
 
 ![pdf](screenshots/pdf-highlight.png)
+
+### 📖 EPUB Reading & Highlights (New in 2.6)
+*   **Read epubs in your vault**: Click any `.epub` file to open it in the HiLighter reader (turn on "Detect all file extensions" under Settings → Files & Links so epubs appear in the explorer, or use the *Open EPUB book* command). Your reading position is remembered per book.
+*   **Highlight & take notes**: Select text and highlight in four colors with the same menu — AI translation and research included. Marks are CFI-anchored, so they survive reopens, page turns, and vault sync; deleting or recoloring a card updates the book page instantly.
+*   **Cards locate the source**: Every highlight becomes a note card; click it to jump back to the exact sentence with a locate flash.
+*   **Reader toolbar**: outline dropdown for chapter jumps, page jump with auto-generated page numbers, and bookmarks (add the current page, jump back from the list, remove anytime).
+*   **Two reading modes**: horizontal page turns (buttons or left/right swipe) or continuous vertical scrolling — switch anytime; your position is preserved.
 
 ### 🧠 Mind Maps (New in 2.4)
 *   **One-Click Generation**: Import all highlights from any file as a mind map — grouped by document headings, highlight color, tag, or flat order.
@@ -133,7 +140,7 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 
 ## Changelog
 
-### v2.5.2 (2026-10-26)
+### v2.6.0 (2026-10-26)
 - **Bookmarks & reading modes**: the reader toolbar gains bookmarks (bookmark the current page, jump back from the list, remove with one click) replacing the old resume button, and a page ⇄ scroll mode toggle — horizontal page turns (buttons or left/right swipe) or continuous vertical scrolling, with your position preserved across the switch and scroll updating the saved progress.
 - **EPUB reader toolbar**: an outline dropdown (jump to any chapter), page jump (auto-generated page numbers with a slider and exact-page input, cached per book), and a "resume last reading position" button. Outline/page/card jumps never overwrite your saved reading spot, so resume always points where you actually left off.
 - **Card order**: highlight cards for the current epub now follow the book's reading order (CFI position) instead of creation order; the studio's source-order sort uses the same comparator.

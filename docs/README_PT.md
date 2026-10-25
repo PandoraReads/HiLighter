@@ -7,7 +7,7 @@
 
 ---
 
-**HiLighter** é um plugin do Obsidian focado no gerenciamento de notas destacadas. Ele transforma o conteúdo destacado em cartões de notas fáceis de gerenciar, com suporte a anotações em várias cores, análise por IA e busca inteligente, tornando a organização das suas notas mais eficiente.
+**HiLighter** é um plugin do Obsidian focado no gerenciamento de notas destacadas. Ele transforma o conteúdo destacado em cartões de notas fáceis de gerenciar, com suporte a anotações em várias cores, análise por IA e busca inteligente, tornando a organização das suas notas mais eficiente. Funciona com Markdown, PDF e EPUB.
 
 ![screenshot1](screenshots/screenshot1.png)
 
@@ -39,6 +39,13 @@
 *   **Pular para a frase exata**: Clique em um cartão para rolar direto até a frase destacada no PDF, com um breve flash de localização.
 
 ![pdf](screenshots/pdf-highlight.png)
+
+### 📖 Leitura e destaque de EPUB (novo na 2.6)
+*   **Leia epubs do vault**: clique em qualquer arquivo `.epub` para abri-lo no leitor do HiLighter (ative «Detectar todas as extensões de arquivo» em Configurações → Arquivos e links, ou use o comando *Abrir livro EPUB*). A posição de leitura é lembrada por livro.
+*   **Destaque e anote**: selecione texto e destaque em quatro cores no mesmo menu — tradução e pesquisa com IA incluídas. As marcas são ancoradas por CFI e sobrevivem a reaberturas, viradas de página e sincronizações; excluir ou recolorir um cartão atualiza a página instantaneamente.
+*   **Os cartões localizam o original**: cada destaque vira um cartão; clique para voltar à frase exata com um flash de localização.
+*   **Barra do leitor**: sumário suspenso para pular capítulos, salto de página com números gerados automaticamente e favoritos (adicionar a página atual, voltar pela lista, remover quando quiser).
+*   **Dois modos de leitura**: passagem de página horizontal (botões ou deslizar) ou rolagem vertical contínua — alterne a qualquer momento; sua posição é preservada.
 
 ### 🧠 Mapas mentais (novo na 2.4)
 *   **Geração com um clique**: Importe todos os destaques de qualquer arquivo como um mapa mental — agrupados por títulos do documento, cor do destaque, tag ou ordem simples.
@@ -131,7 +138,7 @@ Se o HiLighter te economiza tempo, você pode convidar o desenvolvedor para um c
 
 ## Registro de alterações
 
-### v2.5.2 (2026-10-26)
+### v2.6.0 (2026-10-26)
 - **Favoritos e modos de leitura**: a barra do leitor ganha favoritos (marcar a página atual, voltar pela lista, remover com um clique) substituindo o antigo botão de retomada, além de um alternador página ⇄ rolagem — passagem de página horizontal (botões ou deslizar esquerda/direita) ou rolagem vertical contínua, mantendo a posição ao alternar e atualizando o progresso salvo durante a rolagem.
 - **Barra do leitor EPUB**: menu suspenso de sumário (pule para qualquer capítulo), salto de página (números de página gerados automaticamente com slider e entrada exata, em cache por livro) e botão «Voltar à última posição de leitura». Saltos por sumário/página/cartão nunca sobrescrevem a posição salva: retomar sempre aponta para onde você realmente parou.
 - **Ordem dos cartões**: os cartões de destaque do epub atual agora seguem a ordem de leitura do livro (posição CFI) em vez da ordem de criação; a ordenação por ordem de origem do estúdio usa o mesmo comparador.

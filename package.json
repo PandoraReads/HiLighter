@@ -1,6 +1,6 @@
 {
   "name": "hilighter",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "Highlight notes, card collection, mind maps, AI-assisted notes and spaced review. 高亮笔记卡片集 · 思维导图 · AI 笔记 · 间隔复习。",
   "main": "main.js",
   "type": "module",

@@ -7,7 +7,7 @@
 
 ---
 
-**HiLighter** est un plugin Obsidian dédié à la gestion des notes surlignées. Il transforme le contenu surligné en cartes de notes facilement gérables, avec prise en charge des annotations multicolores, de l'analyse par IA et de la recherche intelligente, pour une organisation de vos notes plus efficace.
+**HiLighter** est un plugin Obsidian dédié à la gestion des notes surlignées. Il transforme le contenu surligné en cartes de notes facilement gérables, avec prise en charge des annotations multicolores, de l'analyse par IA et de la recherche intelligente, pour une organisation de vos notes plus efficace. Fonctionne avec Markdown, PDF et EPUB.
 
 ![screenshot1](screenshots/screenshot1.png)
 
@@ -39,6 +39,13 @@
 *   **Aller à la phrase exacte** : Cliquez sur une carte pour faire défiler directement jusqu'à la phrase surlignée dans le PDF, avec un bref flash de localisation.
 
 ![pdf](screenshots/pdf-highlight.png)
+
+### 📖 Lecture et surlignage EPUB (nouveau en 2.6)
+*   **Lisez vos epub** : cliquez sur n'importe quel fichier `.epub` pour l'ouvrir dans le lecteur HiLighter (activez « Détecter toutes les extensions de fichiers » dans Paramètres → Fichiers et liens, ou utilisez la commande *Ouvrir un livre EPUB*). La position de lecture est mémorisée pour chaque livre.
+*   **Surlignez et prenez des notes** : sélectionnez du texte et surlignez en quatre couleurs via le même menu — traduction et recherche IA incluses. Les marques sont ancrées par CFI : elles survivent aux réouvertures, changements de page et synchronisations ; supprimer ou recolorer une carte met la page à jour instantanément.
+*   **Les cartes localisent la source** : chaque surlignage devient une carte ; cliquez pour revenir à la phrase exacte avec un flash de localisation.
+*   **Barre du lecteur** : plan déroulant pour sauter aux chapitres, saut de page avec numéros générés automatiquement, et signets (ajouter la page courante, revenir depuis la liste, supprimer à tout moment).
+*   **Deux modes de lecture** : pages horizontales (boutons ou balayage) ou défilement vertical continu — basculez à tout moment, votre position est conservée.
 
 ### 🧠 Cartes mentales (nouveau en 2.4)
 *   **Génération en un clic** : Importez tous les surlignages de n'importe quel fichier sous forme de carte mentale — groupés par titres du document, couleur de surlignage, tag ou ordre simple.
@@ -131,7 +138,7 @@ Si HiLighter vous fait gagner du temps, vous pouvez offrir un café au développ
 
 ## Journal des modifications
 
-### v2.5.2 (2026-10-26)
+### v2.6.0 (2026-10-26)
 - **Signets et modes de lecture** : la barre du lecteur gagne les signets (marquer la page courante, y revenir depuis la liste, suppression en un clic) en remplacement de l'ancien bouton de reprise, ainsi qu'une bascule page ⇄ défilement — tournages de page horizontaux (boutons ou balayage gauche/droite) ou défilement vertical continu, avec position conservée au basculement et progression sauvegardée en temps réel pendant le défilement.
 - **Barre d'outils du lecteur EPUB** : menu déroulant du plan (sauter à n'importe quel chapitre), saut de page (numéros de page générés automatiquement avec curseur et saisie exacte, mis en cache par livre) et bouton « Reprendre la dernière position de lecture ». Les sauts via plan/page/carte n'écrasent jamais votre position enregistrée : la reprise pointe toujours là où vous vous êtes réellement arrêté.
 - **Ordre des cartes** : les cartes de surlignage de l'epub courant suivent désormais l'ordre de lecture du livre (position CFI) au lieu de l'ordre de création ; le tri par ordre source du studio utilise le même comparateur.

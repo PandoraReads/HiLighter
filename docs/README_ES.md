@@ -7,7 +7,7 @@
 
 ---
 
-**HiLighter** es un plugin de Obsidian centrado en la gestión de notas resaltadas. Convierte el contenido resaltado en tarjetas de notas manejables, con soporte para anotaciones de varios colores, análisis con IA y búsqueda inteligente, haciendo que la organización de tus notas sea más eficiente.
+**HiLighter** es un plugin de Obsidian centrado en la gestión de notas resaltadas. Convierte el contenido resaltado en tarjetas de notas manejables, con soporte para anotaciones de varios colores, análisis con IA y búsqueda inteligente, haciendo que la organización de tus notas sea más eficiente. Funciona con Markdown, PDF y EPUB.
 
 ![screenshot1](screenshots/screenshot1.png)
 
@@ -39,6 +39,13 @@
 *   **Saltar a la frase exacta**: Haz clic en una tarjeta para desplazarte directamente a la frase resaltada en el PDF, con un breve destello de localización.
 
 ![pdf](screenshots/pdf-highlight.png)
+
+### 📖 Lectura y resaltado de EPUB (nuevo en 2.6)
+*   **Lee epubs de tu bóveda**: haz clic en cualquier archivo `.epub` para abrirlo en el lector de HiLighter (activa «Detectar todas las extensiones de archivo» en Ajustes → Archivos y enlaces, o usa el comando *Abrir libro EPUB*). La posición de lectura se recuerda por libro.
+*   **Resalta y toma notas**: selecciona texto y resáltalo en cuatro colores con el mismo menú — traducción e investigación con IA incluidas. Las marcas se anclan por CFI y sobreviven a reaperturas, pasos de página y sincronizaciones; eliminar o recolorear una tarjeta actualiza la página al instante.
+*   **Las tarjetas localizan el original**: cada resaltado se convierte en tarjeta; haz clic para volver a la frase exacta con un destello de localización.
+*   **Barra del lector**: desplegable de esquema para saltar de capítulo, salto de página con números autogenerados y marcadores (añadir la página actual, volver desde la lista, eliminar en cualquier momento).
+*   **Dos modos de lectura**: paso de página horizontal (botones o deslizamiento) o desplazamiento vertical continuo — cambia cuando quieras; tu posición se conserva.
 
 ### 🧠 Mapas mentales (novedad en la 2.4)
 *   **Generación con un clic**: Importa todos los resaltados de cualquier archivo como un mapa mental — agrupados por encabezados del documento, color de resaltado, etiqueta u orden plano.
@@ -131,7 +138,7 @@ Si HiLighter te ahorra tiempo, puedes invitar al desarrollador a un café (escan
 
 ## Registro de cambios
 
-### v2.5.2 (2026-10-26)
+### v2.6.0 (2026-10-26)
 - **Marcadores y modos de lectura**: la barra del lector incorpora marcadores (guardar la página actual, volver desde la lista, eliminar con un clic) en sustitución del antiguo botón de reanudación, además de un conmutador página ⇄ desplazamiento — paso de página horizontal (botones o deslizamiento izquierda/derecha) o desplazamiento vertical continuo, conservando la posición al cambiar y actualizando el progreso guardado al desplazarte.
 - **Barra del lector EPUB**: desplegable de esquema (salta a cualquier capítulo), salto de página (números de página autogenerados con deslizador y entrada exacta, en caché por libro) y botón «Volver a la última posición de lectura». Los saltos por esquema/página/tarjeta nunca sobrescriben tu posición guardada: reanudar siempre apunta a donde realmente lo dejaste.
 - **Orden de las tarjetas**: las tarjetas de resaltado del epub actual siguen ahora el orden de lectura del libro (posición CFI) en vez del orden de creación; la ordenación por orden de origen del estudio usa el mismo comparador.
