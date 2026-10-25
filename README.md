@@ -133,6 +133,9 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 
 ## Changelog
 
+### v2.5.2 (2026-10-26)
+- **EPUB reading & highlights (fixed)**: EPUB files in the vault now open in the HiLighter reader — the view previously stayed blank because it was not registered as a file view and never received the file. Select text to highlight in four colors, cards jump back to the exact sentence with a locate flash, and deleting or recoloring a card updates the book page instantly. A broken book now shows a readable in-view error with a retry button.
+
 ### v2.5.1 (2026-10-25)
 - **AI model setup**: Presets now prefill the whole form (only the API key is left to enter). A "Fetch model list" button pulls the live model IDs your key can actually use, and common product names (e.g. `deepseek-v3`) are auto-corrected to real API model IDs. On a 400/404, the error message now lists the models available to your key.
 - **Kimi fix**: New Kimi keys only serve `kimi-*` models (preset default is now `kimi-latest`), and k2.6+ only accepts temperature 1 — each model can now set its own temperature in the editor.

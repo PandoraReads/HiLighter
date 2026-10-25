@@ -131,6 +131,9 @@ Wenn dir HiLighter Zeit spart, kannst du den Entwickler auf einen Kaffee einlade
 
 ## Änderungsprotokoll
 
+### v2.5.2 (2026-10-26)
+- **EPUB-Lesen & Markierungen (behoben)**: EPUB-Dateien im Vault öffnen sich jetzt im HiLighter-Reader — zuvor blieb die Ansicht leer, weil sie nicht als Dateiansicht (FileView) registriert war und die Datei nie erhielt. Text auswählen, in vier Farben markieren; ein Kartenklick springt zum exakten Satz mit Aufblink-Flash, und Löschen/Umfärben einer Karte spiegelt sich sofort auf der Buchseite. Ein defektes Buch zeigt jetzt eine lesbare Fehlermeldung mit Wiederholen-Button.
+
 ### v2.5.1 (2026-10-25)
 - **KI-Modelleinrichtung**: Voreinstellungen füllen nun das gesamte Formular vor (nur der API-Schlüssel bleibt einzugeben). Ein Button „Modellliste abrufen" zieht die Modell-IDs, die dein Schlüssel tatsächlich nutzen kann, und gängige Produktnamen (z. B. `deepseek-v3`) werden automatisch zu echten API-Modell-IDs korrigiert. Bei 400/404 listet die Fehlermeldung nun die für deinen Schlüssel verfügbaren Modelle auf.
 - **Kimi-Fix**: Neue Kimi-Schlüssel dienen nur `kimi-*`-Modelle (Voreinstellung jetzt `kimi-latest`), und k2.6+ akzeptiert nur Temperatur 1 – jedes Modell kann nun in der Bearbeitung seine eigene Temperatur setzen.

@@ -131,6 +131,9 @@ Si HiLighter vous fait gagner du temps, vous pouvez offrir un café au développ
 
 ## Journal des modifications
 
+### v2.5.2 (2026-10-26)
+- **Lecture et surlignage EPUB (corrigé)** : les fichiers EPUB du coffre s'ouvrent désormais dans le lecteur HiLighter — la vue restait vide car elle n'était pas enregistrée comme vue de fichier (FileView) et ne recevait jamais le fichier. Sélectionnez du texte pour surligner en quatre couleurs, cliquez sur une carte pour revenir à la phrase exacte avec un flash de localisation, et supprimer ou recolorer une carte se répercute instantanément sur la page. Un livre corrompu affiche désormais un message lisible avec un bouton de relance.
+
 ### v2.5.1 (2026-10-25)
 - **Configuration des modèles IA** : Les préréglages préremplissent désormais tout le formulaire (seule la clé API reste à saisir). Un bouton « Récupérer la liste des modèles » interroge les IDs de modèles réellement disponibles pour votre clé, et les noms de produits courants (ex. `deepseek-v3`) sont auto-corrigés en IDs de modèles API réels. En cas d'erreur 400/404, le message liste désormais les modèles disponibles pour votre clé.
 - **Correction Kimi** : Les nouvelles clés Kimi ne servent que les modèles `kimi-*` (préréglage par défaut désormais `kimi-latest`), et k2.6+ n'accepte que la température 1 — chaque modèle peut maintenant définir sa propre température dans l'éditeur.

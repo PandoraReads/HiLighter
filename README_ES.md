@@ -131,6 +131,9 @@ Si HiLighter te ahorra tiempo, puedes invitar al desarrollador a un café (escan
 
 ## Registro de cambios
 
+### v2.5.2 (2026-10-26)
+- **Lectura y resaltado de EPUB (corregido)**: los archivos EPUB de la bóveda ahora se abren en el lector de HiLighter — antes la vista quedaba en blanco porque no estaba registrada como vista de archivo (FileView) y nunca recibía el archivo. Selecciona texto para resaltar en cuatro colores, haz clic en una tarjeta para saltar a la frase exacta con un destello de localización, y eliminar o recolorear una tarjeta se refleja al instante en la página. Un libro dañado ahora muestra un error legible con botón de reintento.
+
 ### v2.5.1 (2026-10-25)
 - **Configuración de modelos IA**: Los presets ahora rellenan todo el formulario (solo queda introducir la clave API). Un botón «Obtener lista de modelos» recupera los IDs de modelo que tu clave puede usar de verdad, y los nombres de producto habituales (p. ej. `deepseek-v3`) se autocorrigen a IDs de modelo reales de la API. Ante un 400/404, el mensaje de error ahora lista los modelos disponibles para tu clave.
 - **Corrección de Kimi**: Las nuevas claves de Kimi solo sirven modelos `kimi-*` (el preset por defecto ahora es `kimi-latest`), y k2.6+ solo acepta temperatura 1 — cada modelo puede ahora definir su propia temperatura en el editor.

@@ -131,6 +131,9 @@ Se o HiLighter te economiza tempo, você pode convidar o desenvolvedor para um c
 
 ## Registro de alterações
 
+### v2.5.2 (2026-10-26)
+- **Leitura e destaques em EPUB (corrigido)**: os arquivos EPUB do vault agora abrem no leitor do HiLighter — antes a visão ficava em branco porque não era registrada como visão de arquivo (FileView) e nunca recebia o arquivo. Selecione texto para destacar em quatro cores, clique em um cartão para voltar à frase exata com um flash de localização, e excluir ou recolorir um cartão reflete instantaneamente na página. Um livro corrompido agora mostra um erro legível com botão de repetir.
+
 ### v2.5.1 (2026-10-25)
 - **Configuração de modelos de IA**: Os presets agora preenchem o formulário inteiro (resta apenas inserir a chave da API). Um botão "Buscar lista de modelos" puxa os IDs de modelos que sua chave realmente pode usar, e nomes de produtos comuns (ex.: `deepseek-v3`) são autocorrigidos para IDs de modelo reais da API. Em um erro 400/404, a mensagem agora lista os modelos disponíveis para sua chave.
 - **Correção do Kimi**: Novas chaves do Kimi só servem modelos `kimi-*` (o preset padrão agora é `kimi-latest`), e o k2.6+ só aceita temperatura 1 — cada modelo agora pode definir sua própria temperatura no editor.

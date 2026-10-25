@@ -5,16 +5,37 @@
 import type { Rendition } from 'epubjs';
 import type { HighlightNote } from '../models';
 
+/** CFIs this plugin painted on a given rendition (full-repaint bookkeeping). */
+const painted = new WeakMap<Rendition, Set<string>>();
+
 /**
- * Adds a highlight annotation per note. epub.js keeps annotations
- * across section re-renders itself; calling this after `rendered`
- * is a cheap idempotent replay (annotations.add dedupes by CFI+class).
+ * Idempotent FULL repaint of all DB highlights on a rendition.
+ *
+ * epub.js 0.3.93 never re-attaches an annotation after a section
+ * re-render (its `annotations.inject` hook has no caller), so marks
+ * must be re-added on every `rendered` event. Re-adding on a live
+ * view would stack duplicate SVG rectangles, and annotations whose
+ * notes were deleted would linger forever — so every pass first
+ * removes everything the plugin previously painted, then adds the
+ * current notes back. Deletions and color changes reflect immediately.
  */
-export function applyAnnotations(
+export function syncAnnotations(
     rendition: Rendition,
     notes: HighlightNote[],
     hexFor: (note: HighlightNote) => string,
 ): void {
+    let set = painted.get(rendition);
+    if (!set) {
+        set = new Set();
+        painted.set(rendition, set);
+    }
+    set.forEach(cfi => {
+        try {
+            rendition.annotations.remove(cfi, 'highlight');
+        } catch { /* already gone */ }
+    });
+    set.clear();
+
     notes.forEach(note => {
         if (!note.cfi) return;
         try {
@@ -25,13 +46,16 @@ export function applyAnnotations(
                 // Clicking an annotation opens nothing here; the sidebar
                 // detail modal stays the management surface.
                 undefined,
-                `hl-epub-hl hl-h-${note.color}`,
+                // epub.js feeds this straight into classList.add(), which
+                // rejects space-separated tokens — one hyphenated class only.
+                `hl-epub-hl-${note.color}`,
                 {
                     fill: hexFor(note),
                     'fill-opacity': '0.3',
                     'mix-blend-mode': 'multiply',
                 },
             );
+            set.add(note.cfi);
         } catch {
             // one bad CFI must not break the rest
         }

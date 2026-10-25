@@ -5647,9 +5647,53 @@ mark.hl-note-anchor,
     background: transparent;
 }
 
+/* Open failure: readable in-view message instead of a silently blank pane */
+.hl-epub-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex: 1;
+    padding: 30px;
+    color: var(--text-muted);
+}
+
+.hl-epub-error-msg {
+    max-width: 480px;
+    text-align: center;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.hl-epub-error-retry {
+    padding: 6px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    color: var(--text-normal);
+    font-weight: 600;
+}
+
+.hl-epub-error-retry:hover {
+    background: rgba(var(--hl-accent-rgb, 124, 124, 124), 0.12);
+}
+
+/* Locate flash: pulse the SVG highlight rects when a card jumps back
+   to the book (parity with the PDF locate flash). */
+.hl-epub-flash {
+    animation: hlEpubFlash 1.2s ease;
+}
+
+@keyframes hlEpubFlash {
+    0%, 100% { opacity: 1; }
+    40%, 70% { opacity: 0.15; }
+    55% { opacity: 0.95; }
+}
+
 /* epub.js annotation fill uses inline SVG attributes; the class is a hook
-   for potential per-color overrides. */
-.epubjs-hl.hl-epub-hl {
+   for potential per-color overrides (one token per color: hl-epub-hl-{id}). */
+[class*="hl-epub-hl-"] {
     cursor: pointer;
 }
 
