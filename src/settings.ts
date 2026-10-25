@@ -23,6 +23,19 @@ const DEFAULT_NEW_COLOR_HEXES = ['#b39ddb', '#f0a35e', '#64b5f6', '#81c784', '#e
 export { DEFAULT_SETTINGS };
 export type { HiLighterSettings };
 
+/** Find the nearest scrollable ancestor (the settings tab scroller). */
+function findScrollParent(el: HTMLElement): HTMLElement | null {
+	let cur = el.parentElement;
+	while (cur) {
+		const oy = cur.ownerDocument.defaultView?.getComputedStyle(cur).overflowY;
+		if ((oy === 'auto' || oy === 'scroll') && cur.scrollHeight > cur.clientHeight) {
+			return cur;
+		}
+		cur = cur.parentElement;
+	}
+	return null;
+}
+
 export class HiLighterSettingTab extends PluginSettingTab {
 	plugin: HiLighterPlugin;
 
@@ -32,6 +45,17 @@ export class HiLighterSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
+		// Re-rendering wipes the DOM and jumps to the top; keep the user's
+		// scroll position so the page stays where they were editing.
+		const scroller = findScrollParent(this.containerEl);
+		const scrollTop = scroller?.scrollTop ?? 0;
+		this.renderBody();
+		if (scroller && scrollTop > 0) {
+			requestAnimationFrame(() => { scroller.scrollTop = scrollTop; });
+		}
+	}
+
+	private renderBody(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass('hl-settings');
