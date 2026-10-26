@@ -88,10 +88,7 @@ Der optionale Skill [`pandora-hilight`](../skills/pandora-hilight/SKILL.md) läs
 ```text
 Please install the pandora-hilight skill from https://github.com/PandoraReads/HiLighter:
 1. Sparse-clone the repo: git clone --depth 1 --filter=blob:none --sparse https://github.com/PandoraReads/HiLighter /tmp/hilighter-repo && cd /tmp/hilighter-repo && git sparse-checkout set skills/pandora-hilight
-2. Copy the whole skills/pandora-hilight folder into my agent skills directory:
-   - ZCode: ~/.zcode/skills/pandora-hilight
-   - Claude Code: ~/.claude/skills/pandora-hilight
-   (detect which one I use and install there; if both exist, install to both)
+2. Copy the skills/pandora-hilight folder into your own skills directory so the skill loads in future sessions.
 3. Verify that SKILL.md exists with a valid frontmatter, clean up /tmp/hilighter-repo, and tell me how to trigger the skill.
 ```
 

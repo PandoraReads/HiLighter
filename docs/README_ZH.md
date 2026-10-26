@@ -90,10 +90,7 @@
 ```text
 请帮我安装 HiLighter 的 pandora-hilight 技能：
 1. 稀疏克隆仓库：git clone --depth 1 --filter=blob:none --sparse https://github.com/PandoraReads/HiLighter /tmp/hilighter-repo && cd /tmp/hilighter-repo && git sparse-checkout set skills/pandora-hilight
-2. 把 skills/pandora-hilight 整个目录复制到我的 Agent 技能目录：
-   - ZCode：~/.zcode/skills/pandora-hilight
-   - Claude Code：~/.claude/skills/pandora-hilight
-   （检测我用的是哪个，装到对应位置；两个都有就都装）
+2. 把 skills/pandora-hilight 目录复制到你自己加载技能的目录，让技能在以后的会话中生效。
 3. 验证 SKILL.md 存在且 frontmatter 有效，清理 /tmp/hilighter-repo，然后告诉我怎么触发这个技能。
 ```
 
