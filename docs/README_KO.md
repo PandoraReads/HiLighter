@@ -9,7 +9,7 @@
 
 **HiLighter**는 하이라이트 노트 관리에 특화된 Obsidian 플러그인입니다. 하이라이트한 내용을 관리하기 쉬운 노트 카드로 변환하고, 다양한 색상 주석, AI 분석, 스마트 검색을 지원하여 노트 정리를 더욱 효율적으로 만들어 줍니다. Markdown·PDF·EPUB를 지원합니다.
 
-![screenshot1](screenshots/screenshot1.png)
+![screenshot1](../screenshots/screenshot1.png)
 
 ## ✨ 주요 기능
 
@@ -30,7 +30,7 @@
     *   **분류 태그**: 각 카드에 태그를 추가해 체계적으로 정리할 수 있으며, 태그 일괄 작업도 지원합니다.
     *   **일괄 삭제**: 일괄 모드에서 여러 카드를 선택한 뒤 한 번의 클릭으로 삭제하여 효율적으로 정리합니다.
 
-![screenshot2](screenshots/card-studio.png)
+![screenshot2](../screenshots/card-studio.png)
 
 ### 📄 PDF 주석 (2.5 신규)
 *   **PDF 내 하이라이트**: 어떤 PDF에서든 텍스트를 선택하고 색상을 고르면 — 페이지에 반투명 형광펜 표시가 나타나고 노트 카드가 즉시 생성됩니다. 메모, 태그, 플래시카드 복습, 마인드맵이 Markdown 하이라이트와 완전히 동일하게 작동합니다.
@@ -38,7 +38,7 @@
 *   **카드와 양방향 동기화**: 카드를 삭제하면 PDF 표시도 즉시 사라지고, 카드 색상을 바꾸면 표시도 즉시 업데이트됩니다.
 *   **정확한 문장으로 이동**: 카드를 클릭하면 PDF에서 하이라이트된 문장으로 바로 스크롤되며, 잠깐 깜빡임으로 위치를 알려줍니다.
 
-![pdf](screenshots/pdf-highlight.png)
+![pdf](../screenshots/pdf-highlight.png)
 
 ### 📖 EPUB 읽기와 하이라이트 (2.6 신규)
 *   **볼트에서 EPUB 바로 읽기**: 아무 `.epub` 파일이나 클릭하면 HiLighter 리더에서 열립니다(설정 → 파일 및 링크에서 "모든 파일 확장자 감지"를 켜야 파일 목록에 보이며, "EPUB 책 열기" 명령으로도 열 수 있습니다). 책마다 읽은 위치를 기억합니다.
@@ -55,7 +55,7 @@
 *   **요약과 노트**: 토픽에 요약 노드를 넣거나, 어떤 토픽에든 메모를 붙이고, 원본 하이라이트로 바로 돌아갈 수 있습니다.
 *   **가져오기/내보내기**: `.xmind` 파일을 직접 열 수 있으며, PNG, `.xmind`(Xmind에서 다시 열기 가능), Markdown 아웃라인, Obsidian `.canvas` 보드로 내보낼 수 있습니다.
 
-![mindmap](screenshots/mindmap.png)
+![mindmap](../screenshots/mindmap.png)
 
 ### ⚡ 플래시카드 복습 (FSRS)
 *   **간격 반복**: 내장된 FSRS 스케줄링이 하이라이트 카드를 플래시카드로 바꾸고, 마감 대기열과 카드별 복습 상태를 관리합니다.
@@ -79,7 +79,34 @@
 
 ---
 
+## 🤖 에이전트 스킬: 프롬프트 한 번으로 문서 전체 하이라이트
+
+선택적 스킬인 [`pandora-hilight`](../skills/pandora-hilight/SKILL.md)를 설치하면 AI 에이전트(ZCode, Claude Code 등)가 노트를 대신 처리합니다: 하이라이트할 문장을 골라 의미에 따라 색을 지정하고(노랑 = 핵심, 파랑 = 개념, 초록 = 방법, 분홍 = 명언), 각 하이라이트에 학습 노트를 작성해 HiLighter에 바로 저장합니다. 스킬은 사용자의 언어로 대화합니다 — 한국어로 물으면 한국어로 안내하고 노트를 작성합니다.
+
+**설치** — 아래 블록을 복사해 에이전트에게 보내세요:
+
+```text
+Please install the pandora-hilight skill from https://github.com/PandoraReads/HiLighter:
+1. Sparse-clone the repo: git clone --depth 1 --filter=blob:none --sparse https://github.com/PandoraReads/HiLighter /tmp/hilighter-repo && cd /tmp/hilighter-repo && git sparse-checkout set skills/pandora-hilight
+2. Copy the whole skills/pandora-hilight folder into my agent skills directory:
+   - ZCode: ~/.zcode/skills/pandora-hilight
+   - Claude Code: ~/.claude/skills/pandora-hilight
+   (detect which one I use and install there; if both exist, install to both)
+3. Verify that SKILL.md exists with a valid frontmatter, clean up /tmp/hilighter-repo, and tell me how to trigger the skill.
+```
+
+설치 후에는 에이전트에게 "highlight this note"라고 말하거나 `/pandora-hilight`를 실행하면 됩니다. Vault에 HiLighter 플러그인이 설치되어 있어야 하며, 스킬은 하이라이트를 플러그인 동기화 파일(`.hilighter/sync-data.json`)에 기록하고 가져오기를 자동으로 트리거합니다.
+
+직접 설치하고 싶다면 한 줄이면 충분합니다:
+
+```bash
+git clone --depth 1 https://github.com/PandoraReads/HiLighter /tmp/hl && mkdir -p ~/.zcode/skills && cp -r /tmp/hl/skills/pandora-hilight ~/.zcode/skills/ && rm -rf /tmp/hl
+```
+
+---
+
 ## 🔄 데이터 동기화
+
 
 HiLighter는 하이라이트를 기기별 IndexedDB에 저장하지만, 볼트 내 동기화 파일(기본값 `.hilighter/sync-data.json`)을 통해 여러 기기 간에 동기화할 수 있습니다. 설정에서 **동기화**를 켜고 **iCloud** 또는 **Obsidian Sync**로 해당 파일을 동기화하세요.
 

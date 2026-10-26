@@ -9,7 +9,7 @@
 
 **HiLighter** es un plugin de Obsidian centrado en la gestión de notas resaltadas. Convierte el contenido resaltado en tarjetas de notas manejables, con soporte para anotaciones de varios colores, análisis con IA y búsqueda inteligente, haciendo que la organización de tus notas sea más eficiente. Funciona con Markdown, PDF y EPUB.
 
-![screenshot1](screenshots/screenshot1.png)
+![screenshot1](../screenshots/screenshot1.png)
 
 ## ✨ Funciones principales
 
@@ -30,7 +30,7 @@
     *   **Etiquetas de clasificación**: Añade etiquetas a cada tarjeta para organizarlas, con operaciones de etiquetas por lotes.
     *   **Eliminación por lotes**: Activa el modo por lotes, selecciona varias tarjetas y elimínalas de una vez para una limpieza eficiente.
 
-![screenshot2](screenshots/card-studio.png)
+![screenshot2](../screenshots/card-studio.png)
 
 ### 📄 Anotación de PDF (novedad en la 2.5)
 *   **Resaltar dentro de PDF**: Selecciona texto en cualquier PDF y elige un color — aparece una marca translúcida de marcador en la página y se crea una tarjeta de nota al instante; tus notas, etiquetas, repaso con flashcards y mapas mentales funcionan exactamente igual que con los resaltados de Markdown.
@@ -38,7 +38,7 @@
 *   **Sincronización bidireccional con las tarjetas**: Al eliminar una tarjeta, su marca en el PDF desaparece de inmediato; al cambiar el color de una tarjeta, la marca se actualiza al instante.
 *   **Saltar a la frase exacta**: Haz clic en una tarjeta para desplazarte directamente a la frase resaltada en el PDF, con un breve destello de localización.
 
-![pdf](screenshots/pdf-highlight.png)
+![pdf](../screenshots/pdf-highlight.png)
 
 ### 📖 Lectura y resaltado de EPUB (nuevo en 2.6)
 *   **Lee epubs de tu bóveda**: haz clic en cualquier archivo `.epub` para abrirlo en el lector de HiLighter (activa «Detectar todas las extensiones de archivo» en Ajustes → Archivos y enlaces, o usa el comando *Abrir libro EPUB*). La posición de lectura se recuerda por libro.
@@ -55,7 +55,7 @@
 *   **Resúmenes y notas**: Enmarca temas con nodos de resumen, adjunta tus notas a cualquier tema y vuelve directamente al resaltado de origen.
 *   **Importación y exportación**: Abre archivos `.xmind` directamente; exporta a PNG, `.xmind` (reabrible en Xmind), un esquema Markdown o un tablero `.canvas` de Obsidian.
 
-![mindmap](screenshots/mindmap.png)
+![mindmap](../screenshots/mindmap.png)
 
 ### ⚡ Repaso con flashcards (FSRS)
 *   **Repetición espaciada**: La planificación FSRS integrada convierte las tarjetas de resaltado en flashcards, con una cola de pendientes y un estado de repaso por tarjeta.
@@ -79,7 +79,34 @@
 
 ---
 
+## 🤖 Skill de agente: resalta un documento entero con un solo prompt
+
+El skill opcional [`pandora-hilight`](../skills/pandora-hilight/SKILL.md) permite que un agente de IA (ZCode, Claude Code, …) procese una nota por ti: elige las frases que merecen resaltado, asigna colores por significado (amarillo = idea clave, azul = concepto, verde = método, rosa = cita), escribe una nota de estudio para cada resaltado y lo guarda todo directamente en HiLighter. El skill interactúa en tu idioma — si preguntas en español, te guía y anota en español.
+
+**Instalación** — copia el bloque de abajo y pégaselo a tu agente:
+
+```text
+Please install the pandora-hilight skill from https://github.com/PandoraReads/HiLighter:
+1. Sparse-clone the repo: git clone --depth 1 --filter=blob:none --sparse https://github.com/PandoraReads/HiLighter /tmp/hilighter-repo && cd /tmp/hilighter-repo && git sparse-checkout set skills/pandora-hilight
+2. Copy the whole skills/pandora-hilight folder into my agent skills directory:
+   - ZCode: ~/.zcode/skills/pandora-hilight
+   - Claude Code: ~/.claude/skills/pandora-hilight
+   (detect which one I use and install there; if both exist, install to both)
+3. Verify that SKILL.md exists with a valid frontmatter, clean up /tmp/hilighter-repo, and tell me how to trigger the skill.
+```
+
+Tras instalarlo, simplemente di a tu agente "highlight this note" o ejecuta `/pandora-hilight`. Requiere tener el plugin HiLighter instalado en tu vault; el skill escribe los resaltados en el archivo de sincronización del plugin (`.hilighter/sync-data.json`) y dispara la importación automáticamente.
+
+¿Prefieres hacerlo manualmente? Una sola línea:
+
+```bash
+git clone --depth 1 https://github.com/PandoraReads/HiLighter /tmp/hl && mkdir -p ~/.zcode/skills && cp -r /tmp/hl/skills/pandora-hilight ~/.zcode/skills/ && rm -rf /tmp/hl
+```
+
+---
+
 ## 🔄 Sincronización de datos
+
 
 HiLighter guarda los resaltados en un IndexedDB propio de cada dispositivo, pero puede sincronizarlos entre dispositivos mediante un archivo de la bóveda (por defecto `.hilighter/sync-data.json`). Activa la **Sincronización** en los ajustes y deja que **iCloud** u **Obsidian Sync** sincronicen ese archivo.
 

@@ -9,7 +9,7 @@
 
 **HiLighter** est un plugin Obsidian dédié à la gestion des notes surlignées. Il transforme le contenu surligné en cartes de notes facilement gérables, avec prise en charge des annotations multicolores, de l'analyse par IA et de la recherche intelligente, pour une organisation de vos notes plus efficace. Fonctionne avec Markdown, PDF et EPUB.
 
-![screenshot1](screenshots/screenshot1.png)
+![screenshot1](../screenshots/screenshot1.png)
 
 ## ✨ Fonctionnalités principales
 
@@ -30,7 +30,7 @@
     *   **Tags de classification** : Ajoutez des tags à chaque carte pour une organisation structurée, avec opérations de tags par lots.
     *   **Suppression par lots** : Activez le mode lot pour sélectionner plusieurs cartes et les supprimer en un clic, pour un nettoyage efficace.
 
-![screenshot2](screenshots/card-studio.png)
+![screenshot2](../screenshots/card-studio.png)
 
 ### 📄 Annotation PDF (nouveau en 2.5)
 *   **Surligner dans les PDF** : Sélectionnez du texte dans n'importe quel PDF et choisissez une couleur — un marqueur translucide apparaît sur la page et une carte de note est créée instantanément ; vos notes, tags, révisions en flashcards et cartes mentales fonctionnent exactement comme avec les surlignages Markdown.
@@ -38,7 +38,7 @@
 *   **Synchronisation bidirectionnelle avec les cartes** : Supprimer une carte fait disparaître immédiatement sa marque dans le PDF ; changer la couleur d'une carte met la marque à jour instantanément.
 *   **Aller à la phrase exacte** : Cliquez sur une carte pour faire défiler directement jusqu'à la phrase surlignée dans le PDF, avec un bref flash de localisation.
 
-![pdf](screenshots/pdf-highlight.png)
+![pdf](../screenshots/pdf-highlight.png)
 
 ### 📖 Lecture et surlignage EPUB (nouveau en 2.6)
 *   **Lisez vos epub** : cliquez sur n'importe quel fichier `.epub` pour l'ouvrir dans le lecteur HiLighter (activez « Détecter toutes les extensions de fichiers » dans Paramètres → Fichiers et liens, ou utilisez la commande *Ouvrir un livre EPUB*). La position de lecture est mémorisée pour chaque livre.
@@ -55,7 +55,7 @@
 *   **Résumés et notes** : Encadrez des sujets avec des nœuds de résumé, joignez vos notes à n'importe quel sujet, et retournez directement au surlignage source.
 *   **Import & export** : Ouvrez directement les fichiers `.xmind` ; exportez en PNG, `.xmind` (réouvrable dans Xmind), plan Markdown ou tableau Obsidian `.canvas`.
 
-![mindmap](screenshots/mindmap.png)
+![mindmap](../screenshots/mindmap.png)
 
 ### ⚡ Révision en flashcards (FSRS)
 *   **Répétition espacée** : La planification FSRS intégrée transforme les cartes de surlignage en flashcards, avec une file d'attente des révisions à venir et un statut de révision par carte.
@@ -79,7 +79,34 @@
 
 ---
 
+## 🤖 Skill d'agent : surligner tout un document en un seul prompt
+
+Le skill optionnel [`pandora-hilight`](../skills/pandora-hilight/SKILL.md) permet à un agent IA (ZCode, Claude Code, …) de traiter une note pour vous : il sélectionne les phrases à surligner, attribue les couleurs par sens (jaune = idée clé, bleu = concept, vert = méthode, rose = citation), rédige une note d'étude pour chaque surlignage et enregistre le tout directement dans HiLighter. Le skill interagit dans votre langue — posez vos questions en français, il vous guide et annote en français.
+
+**Installation** — copiez le bloc ci-dessous et envoyez-le à votre agent :
+
+```text
+Please install the pandora-hilight skill from https://github.com/PandoraReads/HiLighter:
+1. Sparse-clone the repo: git clone --depth 1 --filter=blob:none --sparse https://github.com/PandoraReads/HiLighter /tmp/hilighter-repo && cd /tmp/hilighter-repo && git sparse-checkout set skills/pandora-hilight
+2. Copy the whole skills/pandora-hilight folder into my agent skills directory:
+   - ZCode: ~/.zcode/skills/pandora-hilight
+   - Claude Code: ~/.claude/skills/pandora-hilight
+   (detect which one I use and install there; if both exist, install to both)
+3. Verify that SKILL.md exists with a valid frontmatter, clean up /tmp/hilighter-repo, and tell me how to trigger the skill.
+```
+
+Après l'installation, dites simplement à votre agent « highlight this note » ou lancez `/pandora-hilight`. Nécessite le plugin HiLighter installé dans votre coffre ; le skill écrit les surlignages dans le fichier de synchronisation du plugin (`.hilighter/sync-data.json`) et déclenche l'import automatiquement.
+
+Vous préférez le manuel ? Une seule ligne :
+
+```bash
+git clone --depth 1 https://github.com/PandoraReads/HiLighter /tmp/hl && mkdir -p ~/.zcode/skills && cp -r /tmp/hl/skills/pandora-hilight ~/.zcode/skills/ && rm -rf /tmp/hl
+```
+
+---
+
 ## 🔄 Synchronisation des données
+
 
 HiLighter stocke les surlignages dans un IndexedDB propre à chaque appareil, mais peut les synchroniser entre appareils via un fichier du coffre (par défaut `.hilighter/sync-data.json`). Activez la **Synchronisation** dans les paramètres et laissez **iCloud** ou **Obsidian Sync** synchroniser ce fichier.
 

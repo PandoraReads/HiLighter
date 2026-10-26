@@ -9,7 +9,7 @@
 
 ---
 
-![screenshot1](screenshots/screenshot1.png)
+![screenshot1](../screenshots/screenshot1.png)
 
 ## ✨ 核心特性
 
@@ -30,7 +30,7 @@
     *   **分类标签**：为每张卡片添加标签进行分类整理，支持批量标签操作。
     *   **批量删除**：进入批量模式，多选卡片后一键删除，高效清理无用笔记。
 
-![screenshot2](screenshots/card-studio.png)
+![screenshot2](../screenshots/card-studio.png)
 
 ### 📄 PDF 标注 (2.5 新增)
 *   **PDF 内直接高亮**：在任意 PDF 中划选文字、点选颜色——页面上即刻出现半透明荧光标记，同时生成笔记卡片；笔记、标签、闪卡复习、思维导图与 Markdown 高亮完全一致。
@@ -38,7 +38,7 @@
 *   **与卡片双向联动**：删除卡片，PDF 上的标记立刻消失；卡片换色，标记即时更新。
 *   **精确跳转**：点击卡片直接滚动到 PDF 中被高亮的句子，并闪烁定位。
 
-![pdf](screenshots/pdf-highlight.png)
+![pdf](../screenshots/pdf-highlight.png)
 
 ### 📖 EPUB 阅读与高亮 (2.6 新增)
 *   **库内直接阅读 epub**：点击任意 `.epub` 文件即在 HiLighter 阅读器中打开（需在 设置 → 文件与链接 打开「检测所有文件扩展名」让 epub 显示在文件列表，或使用「打开 EPUB 书籍」命令）。每本书独立记忆阅读进度。
@@ -55,7 +55,7 @@
 *   **概要与笔记**：为选中节点添加概要归纳，在节点上附加你的笔记，一键跳回原文高亮位置。
 *   **导入导出**：直接打开 `.xmind` 文件；导出为 PNG、`.xmind`（可在 Xmind 中打开）、Markdown 大纲或 Obsidian 白板（`.canvas`）。
 
-![mindmap](screenshots/mindmap.png)
+![mindmap](../screenshots/mindmap.png)
 
 ### ⚡ 闪卡复习 (FSRS)
 *   **间隔重复**：内置 FSRS 调度算法，将高亮卡片变成闪卡，支持到期队列与每张卡的复习状态标记。

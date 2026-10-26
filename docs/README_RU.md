@@ -9,7 +9,7 @@
 
 **HiLighter** — плагин для Obsidian, посвящённый управлению заметками с выделениями. Он превращает выделенный контент в удобные карточки заметок с поддержкой разноцветных аннотаций, анализа с помощью ИИ и интеллектуального поиска, делая организацию заметок более эффективной. Работает с Markdown, PDF и EPUB.
 
-![screenshot1](screenshots/screenshot1.png)
+![screenshot1](../screenshots/screenshot1.png)
 
 ## ✨ Ключевые возможности
 
@@ -30,7 +30,7 @@
     *   **Теги категорий**: Добавляйте теги к каждой карточке для упорядочивания, с поддержкой массовых операций с тегами.
     *   **Массовое удаление**: Включите пакетный режим, выберите несколько карточек и удалите их одним кликом — для эффективной очистки.
 
-![screenshot2](screenshots/card-studio.png)
+![screenshot2](../screenshots/card-studio.png)
 
 ### 📄 Аннотации в PDF (новое в 2.5)
 *   **Выделение внутри PDF**: Выделите текст в любом PDF и выберите цвет — на странице появляется полупрозрачный маркер, и одновременно создаётся карточка заметки; заметки, теги, повторение по карточкам и интеллект-карты работают точно так же, как с выделениями в Markdown.
@@ -38,7 +38,7 @@
 *   **Двусторонняя синхронизация с карточками**: Удаление карточки немедленно убирает отметку в PDF; смена цвета карточки мгновенно обновляет отметку.
 *   **Переход к точной фразе**: Клик по карточке прокручивает прямо к выделенной фразе в PDF с коротким миганием-подсветкой.
 
-![pdf](screenshots/pdf-highlight.png)
+![pdf](../screenshots/pdf-highlight.png)
 
 ### 📖 Чтение EPUB и выделения (новое в 2.6)
 *   **Читайте epub из хранилища**: щёлкните любой файл `.epub`, чтобы открыть его в читалке HiLighter (включите «Определять все расширения файлов» в Настройки → Файлы и ссылки или используйте команду *Открыть книгу EPUB*). Позиция чтения запоминается для каждой книги.
@@ -55,7 +55,7 @@
 *   **Резюме и заметки**: Обрамляйте узлы резюме, прикрепляйте свои заметки к любому узлу и мгновенно возвращайтесь к исходному выделению.
 *   **Импорт и экспорт**: Открывайте файлы `.xmind` напрямую; экспортируйте в PNG, `.xmind` (снова открывается в Xmind), Markdown-план или доску Obsidian `.canvas`.
 
-![mindmap](screenshots/mindmap.png)
+![mindmap](../screenshots/mindmap.png)
 
 ### ⚡ Повторение по флеш-карточкам (FSRS)
 *   **Интервальное повторение**: Встроенное планирование FSRS превращает карточки выделений во флеш-карточки с очередью к повторению и статусом повторения для каждой карточки.
@@ -79,7 +79,34 @@
 
 ---
 
+## 🤖 Навык агента: выделения во всём документе одним промптом
+
+Необязательный навык [`pandora-hilight`](../skills/pandora-hilight/SKILL.md) позволяет ИИ-агенту (ZCode, Claude Code, …) обработать заметку за вас: он отбирает предложения, достойные выделения, назначает цвета по смыслу (жёлтый = ключевая мысль, синий = понятие, зелёный = метод, розовый = цитата), пишет учебную заметку к каждому выделению и сохраняет всё прямо в HiLighter. Навык общается на вашем языке — спросите по-немецки, он будет вести и аннотировать по-немецки.
+
+**Установка** — скопируйте блок ниже и отправьте его своему агенту:
+
+```text
+Please install the pandora-hilight skill from https://github.com/PandoraReads/HiLighter:
+1. Sparse-clone the repo: git clone --depth 1 --filter=blob:none --sparse https://github.com/PandoraReads/HiLighter /tmp/hilighter-repo && cd /tmp/hilighter-repo && git sparse-checkout set skills/pandora-hilight
+2. Copy the whole skills/pandora-hilight folder into my agent skills directory:
+   - ZCode: ~/.zcode/skills/pandora-hilight
+   - Claude Code: ~/.claude/skills/pandora-hilight
+   (detect which one I use and install there; if both exist, install to both)
+3. Verify that SKILL.md exists with a valid frontmatter, clean up /tmp/hilighter-repo, and tell me how to trigger the skill.
+```
+
+После установки просто скажите агенту «highlight this note» или выполните `/pandora-hilight`. Требуется установленный в хранилище плагин HiLighter; навык записывает выделения в файл синхронизации плагина (`.hilighter/sync-data.json`) и автоматически запускает импорт.
+
+Предпочитаете вручную? Одна строка:
+
+```bash
+git clone --depth 1 https://github.com/PandoraReads/HiLighter /tmp/hl && mkdir -p ~/.zcode/skills && cp -r /tmp/hl/skills/pandora-hilight ~/.zcode/skills/ && rm -rf /tmp/hl
+```
+
+---
+
 ## 🔄 Синхронизация данных
+
 
 HiLighter хранит выделения в IndexedDB на каждом устройстве, но может синхронизировать их между устройствами через файл в хранилище (по умолчанию `.hilighter/sync-data.json`). Включите **Синхронизацию** в настройках и позвольте **iCloud** или **Obsidian Sync** синхронизировать этот файл.
 
