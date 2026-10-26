@@ -83,7 +83,7 @@
 
 ## 🤖 Agent 技能：一句话生成整篇高亮笔记
 
-可选安装 [`pandora-hilight`](../skills/pandora-hilight/SKILL.md) 技能，让 AI Agent（ZCode、Claude Code 等）帮你处理一篇笔记：自动选取精华句、按语义配色（黄=重点、蓝=概念、绿=方法、粉=金句）、为每条高亮写辅导笔记，并直接写入 HiLighter。
+可选安装 [`pandora-hilight`](../skills/pandora-hilight/SKILL.md) 技能，让 AI Agent（ZCode、Claude Code 等）帮你处理一篇笔记：自动选取精华句、按语义配色（黄=重点、蓝=概念、绿=方法、粉=金句）、为每条高亮写辅导笔记，并直接写入 HiLighter。技能会用你的语言与你交互——用德语提问，它就用德语引导和写笔记。
 
 **安装**：复制下面这段话发给你的 Agent 即可：
 

@@ -85,7 +85,7 @@
 
 ## 🤖 Agent Skill: Highlight a Whole Document with One Prompt
 
-The optional [`pandora-hilight`](skills/pandora-hilight/SKILL.md) skill lets an AI agent (ZCode, Claude Code, …) process a note for you: it picks the highlight-worthy sentences, assigns colors by semantics (yellow = key idea, blue = concept, green = method, pink = quote), writes a study note for every highlight, and saves everything straight into HiLighter.
+The optional [`pandora-hilight`](skills/pandora-hilight/SKILL.md) skill lets an AI agent (ZCode, Claude Code, …) process a note for you: it picks the highlight-worthy sentences, assigns colors by semantics (yellow = key idea, blue = concept, green = method, pink = quote), writes a study note for every highlight, and saves everything straight into HiLighter. The skill interacts in your language — ask about it in German and it guides (and annotates) in German.
 
 **Install** — copy the block below and paste it to your agent:
 

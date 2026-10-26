@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""pandora-hilight：把高亮记录写入 HiLighter（卡片）并在笔记正文包裹 <mark>（上色）。
+"""pandora-hilight: write highlight records into HiLighter (cards) and wrap
+the note body text in <mark> tags (coloring).
 
-HiLighter 的 Markdown 高亮双写：
-  1. IndexedDB 卡片（经 sync-data.json + obsidian://hilighter?op=sync-import 导入）
-  2. 笔记正文内 <mark class="hl-highlight hl-h-<color>" data-id="<id>"
-     data-hl-color="#<hex>">text</mark> —— 有颜色、点击卡片能定位的关键
+HiLighter's markdown highlighting is a dual write:
+  1. IndexedDB cards (imported via sync-data.json + obsidian://hilighter?op=sync-import)
+  2. Literal <mark class="hl-highlight hl-h-<color>" data-id="<id>"
+     data-hl-color="#<hex>">text</mark> in the note body — the colored,
+     click-to-locate anchor
 
-输入 JSON（agent 生成）：
-  [{"text": "单行内精确子串", "color": "yellow|blue|green|pink|c_xxx",
-    "note": "辅导笔记", "sourcePath": "vault相对路径", "lineIndex": 0基行号,
-    "tags": ["可选"], "colorHex": "#xxxxxx（自定义色可选）"}]
+Input JSON (agent-generated):
+  [{"text": "exact substring of one line", "color": "yellow|blue|green|pink|c_xxx",
+    "note": "tutor note", "sourcePath": "vault-relative path", "lineIndex": 0-based,
+    "tags": ["optional"], "colorHex": "#xxxxxx (custom colors only)"}]
 
-用法：
-  python3 hilight_merge.py <新记录.json> --vault <vault根绝对路径> [--no-open] [--no-marks]
+Usage:
+  python3 hilight_merge.py <records.json> --vault <absolute vault root> [--no-open] [--no-marks]
 """
 
 import argparse
@@ -38,7 +40,7 @@ def die(msg: str) -> None:
 def load_notes_records(new_raw):
     items = new_raw.get("highlights", new_raw) if isinstance(new_raw, dict) else new_raw
     if not isinstance(items, list) or not items:
-        die("新记录为空或格式错误")
+        die("records empty or malformed")
     return items
 
 
@@ -52,11 +54,11 @@ def main() -> None:
 
     vault = Path(args.vault).expanduser()
     if not vault.is_absolute() or not vault.is_dir():
-        die("--vault 必须是用户确认且存在的仓库绝对路径")
+        die("--vault must be an absolute path to the confirmed, existing Obsidian vault")
     vault = vault.resolve()
     sync_path = vault / SYNC_REL
     if not sync_path.exists():
-        die(f"同步文件不存在: {sync_path}（确认 HiLighter 插件已启用过）")
+        die(f"sync file not found: {sync_path} (make sure the HiLighter plugin has been enabled)")
 
     new_items = load_notes_records(json.loads(Path(args.records).read_text(encoding="utf-8")))
     data = json.loads(sync_path.read_text(encoding="utf-8"))
@@ -96,13 +98,13 @@ def main() -> None:
         if sp not in line_cache:
             f = (vault / sp).resolve()
             if not f.is_relative_to(vault) or f.suffix.lower() != ".md":
-                die(f"sourcePath 必须是仓库内的 Markdown 文件: {sp}")
+                die(f"sourcePath must be a markdown file inside the vault: {sp}")
             if not f.is_file():
-                die(f"源文件不存在: {sp}")
+                die(f"source file not found: {sp}")
             line_cache[sp] = f.read_text(encoding="utf-8").splitlines(keepends=True)
         lines = line_cache[sp]
         if li < 0 or li >= len(lines) or text not in lines[li]:
-            die(f"定位失败: {sp} 第{li}行(0基) 不包含该 text: {text[:40]!r}")
+            die(f"location mismatch: {sp} line {li} (0-based) does not contain the text: {text[:40]!r}")
 
         dup = next(
             (h for h in existing.values()
@@ -118,7 +120,7 @@ def main() -> None:
                 try:
                     supplied_id = str(uuid.UUID(supplied_id))
                 except (TypeError, ValueError, AttributeError):
-                    die("高亮记录 id 必须是 UUID")
+                    die("highlight record id must be a UUID")
             rec = {
                 "id": supplied_id or str(uuid.uuid4()),
                 "text": text,
@@ -135,13 +137,14 @@ def main() -> None:
             existing[rec["id"]] = rec
             merged += 1
 
-        # 正文上色：在该行内把 text 的首个出现包成 <mark>（已包过则跳过）
+        # Text mark: wrap the first occurrence of text in the line with
+        # <mark> (skip lines that are already wrapped)
         if not args.no_marks:
             line = lines[li]
             already = re.search(r"<mark[^>]*>" + re.escape(text) + r"</mark>", line)
             if not already:
                 if sp.startswith(INBOX_PREFIX):
-                    die(f"00_inbox 为只读层，禁止写 <mark> 入 {sp}（改用 --no-marks 只出卡片）")
+                    die(f"00_inbox/ is a read-only layer; writing <mark> into {sp} is forbidden (use --no-marks to produce cards only)")
                 hexv = color_hex(rec.get("color"), rec.get("colorHex", ""))
                 mark = (
                     f'<mark class="hl-highlight hl-h-{rec["color"]}" '
@@ -151,7 +154,7 @@ def main() -> None:
                 marked += 1
                 changed_files.add(sp)
 
-    # 落盘：正文 + sync
+    # Persist: note bodies + sync file
     for sp in changed_files:
         (vault / sp).write_text("".join(line_cache[sp]), encoding="utf-8")
 
@@ -181,7 +184,7 @@ def main() -> None:
         "autoImport": opened,
     }
     if not opened and merged > 0:
-        result["manualStep"] = "Obsidian 命令面板运行「导入同步数据」（HiLighter: Import sync data）"
+        result["manualStep"] = "Run 'HiLighter: Import sync data' from the Obsidian command palette"
     print(json.dumps(result, ensure_ascii=False))
 
 
