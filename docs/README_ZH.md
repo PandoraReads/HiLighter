@@ -75,7 +75,36 @@
 
 ### 基础配置
 1.  **AI 大模型 API（重要）**：为使用 AI 翻译和 AI 研究功能，需在插件设置中配置 AI 大模型 API。支持 DeepSeek、Google Gemini、火山引擎等主流服务商。
+### 基础配置
+1.  **AI 大模型 API（重要）**：为使用 AI 翻译和 AI 研究功能，需在插件设置中配置 AI 大模型 API。支持 DeepSeek、Google Gemini、火山引擎等主流服务商。
 2. **AI研究提示词**：支持为笔记研究自定义提示词。
+
+---
+
+## 🤖 Agent 技能：一句话生成整篇高亮笔记
+
+可选安装 [`pandora-hilight`](../skills/pandora-hilight/SKILL.md) 技能，让 AI Agent（ZCode、Claude Code 等）帮你处理一篇笔记：自动选取精华句、按语义配色（黄=重点、蓝=概念、绿=方法、粉=金句）、为每条高亮写辅导笔记，并直接写入 HiLighter。
+
+**安装**：复制下面这段话发给你的 Agent 即可：
+
+```text
+请帮我安装 HiLighter 的 pandora-hilight 技能：
+1. 稀疏克隆仓库：git clone --depth 1 --filter=blob:none --sparse https://github.com/PandoraReads/HiLighter /tmp/hilighter-repo && cd /tmp/hilighter-repo && git sparse-checkout set skills/pandora-hilight
+2. 把 skills/pandora-hilight 整个目录复制到我的 Agent 技能目录：
+   - ZCode：~/.zcode/skills/pandora-hilight
+   - Claude Code：~/.claude/skills/pandora-hilight
+   （检测我用的是哪个，装到对应位置；两个都有就都装）
+3. 验证 SKILL.md 存在且 frontmatter 有效，清理 /tmp/hilighter-repo，然后告诉我怎么触发这个技能。
+```
+
+安装后在 Agent 里说"高亮这篇笔记"或输入 `/pandora-hilight` 即可。需要 vault 中已安装 HiLighter 插件；技能会把高亮写入插件同步文件（`.hilighter/sync-data.json`）并自动触发导入。
+
+喜欢手动安装？一行命令：
+
+```bash
+git clone --depth 1 https://github.com/PandoraReads/HiLighter /tmp/hl && mkdir -p ~/.zcode/skills && cp -r /tmp/hl/skills/pandora-hilight ~/.zcode/skills/ && rm -rf /tmp/hl
+```
+
 ---
 
 ## 🔄 数据同步

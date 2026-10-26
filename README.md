@@ -77,7 +77,35 @@
 
 ### Basic Configuration
 1.  **AI LLM API (Important)**: To use AI Translation and AI Research features, configure an AI LLM API in plugin settings. Supports mainstream providers including DeepSeek, Google Gemini, and Volcano Engine (Ark).
+### Basic Configuration
+1.  **AI LLM API (Important)**: To use AI Translation and AI Research features, configure an AI LLM API in plugin settings. Supports mainstream providers including DeepSeek, Google Gemini, and Volcano Engine (Ark).
 2.  **Ribbon Icon**: You can control whether to display the sidebar highlight notes icon in settings.
+
+---
+
+## 🤖 Agent Skill: Highlight a Whole Document with One Prompt
+
+The optional [`pandora-hilight`](skills/pandora-hilight/SKILL.md) skill lets an AI agent (ZCode, Claude Code, …) process a note for you: it picks the highlight-worthy sentences, assigns colors by semantics (yellow = key idea, blue = concept, green = method, pink = quote), writes a study note for every highlight, and saves everything straight into HiLighter.
+
+**Install** — copy the block below and paste it to your agent:
+
+```text
+Please install the pandora-hilight skill from https://github.com/PandoraReads/HiLighter:
+1. Sparse-clone the repo: git clone --depth 1 --filter=blob:none --sparse https://github.com/PandoraReads/HiLighter /tmp/hilighter-repo && cd /tmp/hilighter-repo && git sparse-checkout set skills/pandora-hilight
+2. Copy the whole skills/pandora-hilight folder into my agent skills directory:
+   - ZCode: ~/.zcode/skills/pandora-hilight
+   - Claude Code: ~/.claude/skills/pandora-hilight
+   (detect which one I use and install there; if both exist, install to both)
+3. Verify that SKILL.md exists with a valid frontmatter, clean up /tmp/hilighter-repo, and tell me how to trigger the skill.
+```
+
+After installing, just tell your agent "highlight this note" or run `/pandora-hilight`. Requires the HiLighter plugin installed in your vault; the skill writes highlights into the plugin's sync file (`.hilighter/sync-data.json`) and triggers the import automatically.
+
+Prefer manual? One line:
+
+```bash
+git clone --depth 1 https://github.com/PandoraReads/HiLighter /tmp/hl && mkdir -p ~/.zcode/skills && cp -r /tmp/hl/skills/pandora-hilight ~/.zcode/skills/ && rm -rf /tmp/hl
+```
 
 ---
 
