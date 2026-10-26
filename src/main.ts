@@ -5,18 +5,15 @@ import {
 	WorkspaceLeaf,
 	Notice,
 	Platform,
-	ItemView,
-	setIcon,
-	getIcon,
 	App,
-	TextComponent,
-	Modal,
 	FuzzySuggestModal,
+	MarkdownView,
+	View,
 	moment
 } from 'obsidian';
 import { HiLighterSettingTab, DEFAULT_SETTINGS } from './settings';
 import type { HiLighterSettings } from './models';
-import { DEFAULT_RESEARCH_PROMPTS, AI_MODEL_PRESETS } from './models';
+import { DEFAULT_RESEARCH_PROMPTS } from './models';
 import type { AIModelConfig, ThemeId } from './models';
 import { HighlightView } from './highlight-view';
 import { HighlightManagerView, HIGHLIGHT_MANAGER_VIEW_TYPE } from './studio/studio-view';
@@ -42,19 +39,43 @@ import { initSync, type SyncController } from './sync/controller';
 import { createSyncHost } from './sync/obsidian-host';
 import { handleProtocolOp } from './protocol';
 
+/**
+ * Context captured from a text selection (markdown / PDF / EPUB) and threaded
+ * through the highlight appliers.
+ */
+export interface HighlightContext {
+	lineText: string;
+	sourcePath: string;
+	lineIndex: number;
+	leaf?: WorkspaceLeaf | null;
+	pdfPage?: number;
+	pdfAnchor?: PdfTextAnchor;
+	pdfRects?: PdfRect[];
+	anchorType?: string;
+	cfi?: string;
+	contextQuote?: string;
+}
+
+/** Minimal viewRegistry shape used to detect EPUB extension conflicts. */
+interface ViewRegistryLike {
+	getTypeByExtension?(extension: string): string | undefined;
+}
+
 export default class HiLighterPlugin extends Plugin {
 	settings: HiLighterSettings;
 	highlightMenu: HTMLElement | null = null;
 	lastSelection: string = '';
-	lastContext: any = null;
-	pendingSelectionInfo: { selection: string; context: any; x: number; y: number; doc: Document } | null = null;
+	lastContext: HighlightContext | null = null;
+	pendingSelectionInfo: { selection: string; context: HighlightContext; x: number; y: number; doc: Document } | null = null;
 	syncController: SyncController | null = null;
 	private syncPathLast: string | null = null;
 	private syncRestartTimer: number | null = null;
 
 	async onload() {
 		// Initialize vault-specific database before anything else
-		initDb(this.app.vault.adapter.basePath || this.app.vault.getRoot().path);
+		// (basePath is undocumented on DataAdapter but always present at runtime)
+		const adapterBasePath = (this.app.vault.adapter as { basePath?: string }).basePath;
+		initDb(adapterBasePath || this.app.vault.getRoot().path);
 
 		await this.loadSettings();
 		setLang(this.settings.language === 'auto' ? resolveAutoLanguage(moment.locale()) : this.settings.language);
@@ -81,13 +102,13 @@ export default class HiLighterPlugin extends Plugin {
 		if (!this.settings.aiModels || this.settings.aiModels.length === 0) {
 			const migratedModels: AIModelConfig[] = [];
 			const providerMap: Record<string, { baseUrl: string; model: string; apiKey: string }> = {
-				deepseek: { baseUrl: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat', apiKey: (this.settings as any).deepseekApiKey || '' },
-				gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: (this.settings as any).geminiModel || 'gemini-3.5-flash', apiKey: (this.settings as any).geminiApiKey || '' },
-				ark: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-1-5-lite-32k-250115', apiKey: (this.settings as any).arkApiKey || '' },
-				custom: { baseUrl: (this.settings as any).customApiUrl || '', model: (this.settings as any).customModel || '', apiKey: (this.settings as any).customApiKey || '' },
+				deepseek: { baseUrl: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat', apiKey: this.settings.deepseekApiKey || '' },
+				gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model: this.settings.geminiModel || 'gemini-3.5-flash', apiKey: this.settings.geminiApiKey || '' },
+				ark: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-1-5-lite-32k-250115', apiKey: this.settings.arkApiKey || '' },
+				custom: { baseUrl: this.settings.customApiUrl || '', model: this.settings.customModel || '', apiKey: this.settings.customApiKey || '' },
 			};
 
-			const oldProvider = (this.settings as any).aiProvider as string | undefined;
+			const oldProvider = this.settings.aiProvider;
 			if (oldProvider && providerMap[oldProvider]?.apiKey) {
 				// Migrate the active provider
 				const p = providerMap[oldProvider];
@@ -132,7 +153,7 @@ export default class HiLighterPlugin extends Plugin {
 
 		// EPUB: claim the extension unless another plugin already did
 		try {
-			const registry = (this.app as any).viewRegistry;
+			const registry = (this.app as { viewRegistry?: ViewRegistryLike }).viewRegistry;
 			const claimed = registry?.getTypeByExtension?.('epub');
 			if (claimed && claimed !== EPUB_VIEW_TYPE) {
 				new Notice(t('epub.conflict'));
@@ -270,21 +291,19 @@ export default class HiLighterPlugin extends Plugin {
 				// Refresh HighlightView if open
 				this.app.workspace.iterateAllLeaves((leaf) => {
 					if (leaf.view.getViewType() === HIGHLIGHT_VIEW_TYPE) {
-						(leaf.view as any).render();
+						void (leaf.view as HighlightView).render();
 					}
 				});
 			})
 		);
 	}
 
-	async onunload() {
+	onunload(): void {
 		this.syncController?.dispose();
 		if (this.settings.syncEnabled && this.settings.syncOnUnload && !Platform.isMobile) {
-			try {
-				await this.exportSyncFile();
-			} catch (e) {
-				console.error('[HiLighter] Auto-export on unload failed:', e);
-			}
+			this.exportSyncFile().catch((err: unknown) => {
+				console.error('[HiLighter] Auto-export on unload failed:', err);
+			});
 		}
 		this.hideHighlightMenu();
 	}
@@ -314,9 +333,10 @@ export default class HiLighterPlugin extends Plugin {
 	 */
 	refreshAllViews() {
 		this.app.workspace.iterateAllLeaves((leaf) => {
-			if (leaf.view.getViewType() === HIGHLIGHT_VIEW_TYPE ||
-				leaf.view.getViewType() === HIGHLIGHT_MANAGER_VIEW_TYPE) {
-				(leaf.view as any).render();
+			if (leaf.view.getViewType() === HIGHLIGHT_VIEW_TYPE) {
+				void (leaf.view as HighlightView).render();
+			} else if (leaf.view.getViewType() === HIGHLIGHT_MANAGER_VIEW_TYPE) {
+				(leaf.view as HighlightManagerView).render();
 			}
 		});
 	}
@@ -330,8 +350,8 @@ export default class HiLighterPlugin extends Plugin {
 			'editorial', 'native', 'paper',
 			'ocean', 'forest', 'galaxy', 'cyber', 'sunset', 'rose',
 		];
-		const current = themes.includes(this.settings.theme as ThemeId)
-			? this.settings.theme as ThemeId
+		const current = themes.includes(this.settings.theme)
+			? this.settings.theme
 			: 'editorial';
 		const next = themes[(themes.indexOf(current) + 1) % themes.length]!;
 		this.settings.theme = next;
@@ -404,20 +424,20 @@ export default class HiLighterPlugin extends Plugin {
 		};
 
 		const setupWindow = (win: Window) => {
-			this.registerDomEvent(win.document as any, 'mouseup', (evt: MouseEvent) => handleSelection(evt));
-			this.registerDomEvent(win.document as any, 'keydown', (evt: KeyboardEvent) => handleKeydown(evt));
-			this.registerDomEvent(win.document as any, 'mousedown', (evt: MouseEvent) => {
+			this.registerDomEvent(win.document, 'mouseup', (evt: MouseEvent) => handleSelection(evt));
+			this.registerDomEvent(win.document, 'keydown', (evt: KeyboardEvent) => handleKeydown(evt));
+			this.registerDomEvent(win.document, 'mousedown', (evt: MouseEvent) => {
 				this.pendingSelectionInfo = null;
 				if (this.highlightMenu && !this.highlightMenu.contains(evt.target as Node)) {
 					this.hideHighlightMenu();
 				}
 			});
 			// Custom color styles must exist in popout windows too
-			injectCustomColorStyles(win.document as any, this.settings);
+			injectCustomColorStyles(win.document, this.settings);
 		};
 
 		setupWindow(window);
-		this.app.workspace.on('window-open', (win) => setupWindow(win as any));
+		this.app.workspace.on('window-open', (win) => setupWindow(win as unknown as Window));
 	}
 
 	private matchesShortcut(evt: KeyboardEvent): boolean {
@@ -447,32 +467,34 @@ export default class HiLighterPlugin extends Plugin {
 
 			const target = evt.target as HTMLElement;
 			const doc = target.ownerDocument || document;
-			setTimeout(async () => {
-				const sel = doc.getSelection();
-				const selection = sel?.toString().trim();
+			window.setTimeout(() => {
+				void (async () => {
+					const sel = doc.getSelection();
+					const selection = sel?.toString().trim();
 
-				if (selection && selection.length > 0 && selection.length < 2000 && sel && sel.rangeCount > 0) {
-					// Find which leaf contains this target
-					let leaf: WorkspaceLeaf | null = null;
-					this.app.workspace.iterateAllLeaves(l => {
-						if (l.view.containerEl.contains(target)) leaf = l;
-					});
+					if (selection && selection.length > 0 && selection.length < 2000 && sel && sel.rangeCount > 0) {
+						// Find which leaf contains this target
+						let leaf: WorkspaceLeaf | null = null;
+						this.app.workspace.iterateAllLeaves(l => {
+							if (l.view.containerEl.contains(target)) leaf = l;
+						});
 
-					const range = sel.getRangeAt(0);
-					const rect = range.getBoundingClientRect();
-					const context = await this.captureContext(selection, target, leaf);
-					context.leaf = leaf;
-					this.showHighlightMenu(selection, context, rect.left + rect.width / 2, rect.bottom + 20, doc);
-				} else {
-					if (this.highlightMenu && !this.highlightMenu.contains(target)) {
-						this.hideHighlightMenu();
+						const range = sel.getRangeAt(0);
+						const rect = range.getBoundingClientRect();
+						const context = await this.captureContext(selection, target, leaf);
+						context.leaf = leaf;
+						this.showHighlightMenu(selection, context, rect.left + rect.width / 2, rect.bottom + 20, doc);
+					} else {
+						if (this.highlightMenu && !this.highlightMenu.contains(target)) {
+							this.hideHighlightMenu();
+						}
 					}
-				}
+				})();
 			}, 500);
 		});
 	}
 
-	private showHighlightMenu(selection: string, context: any, x: number, y: number, doc: Document) {
+	private showHighlightMenu(selection: string, context: HighlightContext, x: number, y: number, doc: Document) {
 		showHighlightMenu(this, selection, context, x, y, doc);
 	}
 
@@ -486,7 +508,7 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** Applies a highlight from the selection menu (markdown / pdf / epub branches). */
-	async applyHighlight(text: string, context: any, color: string, note = '') {
+	async applyHighlight(text: string, context: HighlightContext, color: string, note = '') {
 		// EPUB selections: DB-only anchor (CFI) + live annotation
 		if (context?.anchorType === 'epub' && context?.cfi) {
 			await this.applyEpubHighlight(text, context, color, note);
@@ -505,9 +527,9 @@ export default class HiLighterPlugin extends Plugin {
 		// Priority 1: Use the leaf stored in context from the original selection event
 		// Priority 2: Use the current active leaf (if it's a MarkdownView)
 		// Priority 3: Try to find any active MarkdownView
-		let view = (context?.leaf?.view as MarkdownView) ||
+		let view = (context?.leaf?.view as MarkdownView | undefined) ||
 			(this.app.workspace.getActiveViewOfType(MarkdownView)) ||
-			(this.app.workspace.getMostRecentLeaf()?.view as any);
+			(this.app.workspace.getMostRecentLeaf()?.view as MarkdownView | undefined);
 
 		if (!view || (view.getViewType && view.getViewType() !== 'markdown') || !view.editor) {
 			console.warn('[HiLighter] Could not find markdown editor view', view);
@@ -567,9 +589,9 @@ export default class HiLighterPlugin extends Plugin {
 				if (leaf.view.getViewType() === HIGHLIGHT_VIEW_TYPE) {
 					// Add a small buffer on mobile to ensure DB write is totally finished
 					if (Platform.isMobile) {
-						setTimeout(() => (leaf.view as any).render(), 150);
+						window.setTimeout(() => { void (leaf.view as HighlightView).render(); }, 150);
 					} else {
-						(leaf.view as any).render();
+						void (leaf.view as HighlightView).render();
 					}
 				}
 			});
@@ -579,7 +601,7 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** EPUB highlight: DB-only CFI anchor + immediate annotation on the open book. */
-	private async applyEpubHighlight(text: string, context: any, color: string, note = '') {
+	private async applyEpubHighlight(text: string, context: HighlightContext, color: string, note = '') {
 		try {
 			const colorDef = getColorDef(this.settings, color);
 			const entry: HighlightNote = {
@@ -603,13 +625,13 @@ export default class HiLighterPlugin extends Plugin {
 			const view = openEpubRegistry().get(entry.sourcePath);
 			if (view) await view.applyAnnotation(entry);
 			this.refreshAllViews();
-		} catch (err) {
+		} catch {
 			new Notice(t('pdf.saveFailed'));
 		}
 	}
 
 	/** PDF highlight: no file write; anchor = path + page + context quote. */
-	private async applyPdfHighlight(text: string, context: any, color: string, view: any, note = '') {
+	private async applyPdfHighlight(text: string, context: HighlightContext, color: string, view: (View & { file?: TFile }) | null | undefined, note = '') {
 		try {
 			const file = view?.file || this.app.workspace.getActiveFile();
 			if (!file) {
@@ -635,7 +657,7 @@ export default class HiLighterPlugin extends Plugin {
 			await db.addHighlightNote(entry);
 			this.refreshAllViews();
 			new Notice(t('pdf.saved'));
-		} catch (err) {
+		} catch {
 			new Notice(t('pdf.saveFailed'));
 		}
 	}
@@ -673,10 +695,10 @@ export default class HiLighterPlugin extends Plugin {
 			this.app.workspace.leftSplit.expand();
 		}
 
-		workspace.revealLeaf(leaf);
+		void workspace.revealLeaf(leaf);
 	}
 
-	private async captureContext(selection: string, target?: HTMLElement, leaf?: WorkspaceLeaf): Promise<{ lineText: string, sourcePath: string, lineIndex: number, pdfPage?: number, pdfAnchor?: PdfTextAnchor, pdfRects?: PdfRect[] }> {
+	private async captureContext(selection: string, target?: HTMLElement, leaf?: WorkspaceLeaf): Promise<HighlightContext> {
 		let lineText = '';
 		let sourcePath = '';
 		let lineIndex = 0;
@@ -693,14 +715,14 @@ export default class HiLighterPlugin extends Plugin {
 			}
 			if (!activeLeaf) activeLeaf = this.app.workspace.getMostRecentLeaf();
 
-			const view = activeLeaf?.view!;
+			const view = activeLeaf?.view;
 			const isMarkdown = view?.getViewType() === 'markdown';
 			const isPdf = view?.getViewType() === 'pdf';
-			const mode = (view as any)?.getMode?.();
+			const mode = (view as MarkdownView | undefined)?.getMode?.();
 
 			// 2. Resolve target file path
 			const activeFile = this.app.workspace.getActiveFile();
-			const file = (view as any)?.file || activeFile;
+			const file = (view as { file?: TFile } | undefined)?.file || activeFile;
 			sourcePath = file ? file.path : '';
 
 			// 3. Mode-specific extraction
@@ -721,7 +743,7 @@ export default class HiLighterPlugin extends Plugin {
 				}
 			} else if (isMarkdown && mode === 'source') {
 				// SOURCE MODE (Source / Live Preview)
-				const editor = (view as any).editor;
+				const editor = (view as MarkdownView).editor;
 				const cursor = editor.getCursor?.('from') || { line: 0, ch: 0 };
 				const currentLine = cursor.line;
 
@@ -788,7 +810,7 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<HiLighterSettings>);
 		this.settings.customColors = normalizeCustomColors(this.settings.customColors);
 	}
 	async saveSettings() {
@@ -807,26 +829,26 @@ export default class HiLighterPlugin extends Plugin {
 }
 
 /** Fuzzy picker for opening an indexed .epub file in the HiLighter reader. */
-class EpubPickModal extends FuzzySuggestModal<any> {
-	private files: any[];
-	private onPick: (file: any) => void;
+class EpubPickModal extends FuzzySuggestModal<TFile> {
+	private files: TFile[];
+	private onPick: (file: TFile) => void;
 
-	constructor(app: any, files: any[], onPick: (file: any) => void) {
+	constructor(app: App, files: TFile[], onPick: (file: TFile) => void) {
 		super(app);
 		this.files = files;
 		this.onPick = onPick;
 		this.setPlaceholder(t('cmd.openEpub'));
 	}
 
-	getItems(): any[] {
+	getItems(): TFile[] {
 		return this.files;
 	}
 
-	getItemText(file: any): string {
+	getItemText(file: TFile): string {
 		return file.basename || file.path;
 	}
 
-	onChooseItem(file: any): void {
+	onChooseItem(file: TFile): void {
 		this.onPick(file);
 	}
 }

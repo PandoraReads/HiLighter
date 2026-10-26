@@ -8,7 +8,7 @@
 // Colors come from the selected palette preset (palettes.ts); the
 // accent drives the root fill and associative lines.
 
-import { DEFAULT_PALETTE_DARK, DEFAULT_PALETTE_LIGHT, type ThemePalette } from './palettes';
+import { type ThemePalette } from './palettes';
 
 export type MindMapSpacing = 'spread' | 'compact';
 

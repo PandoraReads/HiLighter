@@ -184,7 +184,7 @@ export function openNotePopup(opts: NotePopupOptions): void {
     pop.style.top = `${Math.round(top)}px`;
 
     // Outside click / Esc close (capture phase so it wins over editor handlers)
-    setTimeout(() => {
+    window.setTimeout(() => {
         const handler = (ev: Event) => {
             const kev = ev as KeyboardEvent;
             if (kev.key === 'Escape') { close(); cleanup(); return; }
@@ -200,6 +200,6 @@ export function openNotePopup(opts: NotePopupOptions): void {
 
     if (textarea) {
         const ta = textarea;
-        setTimeout(() => ta.focus(), 30);
+        window.setTimeout(() => ta.focus(), 30);
     }
 }

@@ -60,7 +60,7 @@ export class BatchTagModal extends Modal {
         const confirmBtn = btnRow.createEl('button', { text: t('modal.batchTag.confirm'), cls: 'hl-batch-tag-btn confirm' });
         confirmBtn.onclick = () => this.submit();
 
-        setTimeout(() => this.inputEl.focus(), 50);
+        window.setTimeout(() => this.inputEl.focus(), 50);
     }
 
     private submit() {
@@ -440,7 +440,7 @@ export class TagEditModal extends Modal {
             if (e.key === 'Escape') this.close();
         });
 
-        setTimeout(() => this.inputEl.focus(), 50);
+        window.setTimeout(() => this.inputEl.focus(), 50);
     }
 
     private handleSubmit() {

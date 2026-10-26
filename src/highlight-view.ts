@@ -3,14 +3,14 @@
 // HiLighter - Highlight Notes Sidebar View
 // ============================================================
 
-import { ItemView, WorkspaceLeaf, Notice, setIcon, MarkdownView, TFile, TFolder, MarkdownRenderer, Modal, Platform } from 'obsidian';
+import { App, ItemView, WorkspaceLeaf, Notice, setIcon, MarkdownView, TFile, MarkdownRenderer, Modal, Platform } from 'obsidian';
 import { db } from './db';
 import type HiLighterPlugin from './main';
 import type { HighlightNote, ResearchPrompt } from './models';
 import { AIService, AIAction } from './ai-service';
 import { HIGHLIGHT_VIEW_TYPE, HIGHLIGHT_MANAGER_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE } from './view-types';
 import { t } from './i18n';
-import { getColors, getColorDef } from './colors';
+import { getColors } from './colors';
 import { attachImageHandlers } from './image-paste';
 import { jumpToPdfNote } from './pdf/pdf-anchors';
 import { jumpToEpubNote } from './epub/epub-jump';
@@ -28,7 +28,7 @@ class PromptSelectModal extends Modal {
     private prompts: ResearchPrompt[];
     private onSelect: (prompt: ResearchPrompt) => void;
 
-    constructor(app: any, prompts: ResearchPrompt[], onSelect: (prompt: ResearchPrompt) => void) {
+    constructor(app: App, prompts: ResearchPrompt[], onSelect: (prompt: ResearchPrompt) => void) {
         super(app);
         this.prompts = prompts;
         this.onSelect = onSelect;
@@ -42,7 +42,7 @@ class PromptSelectModal extends Modal {
 
         const container = contentEl.createDiv('hl-glass-modal-body');
 
-        const hint = container.createDiv({ cls: 'hl-prompt-select-hint', text: t('modal.promptSelect.hint') });
+        container.createDiv({ cls: 'hl-prompt-select-hint', text: t('modal.promptSelect.hint') });
 
         this.prompts.forEach(prompt => {
             const item = container.createDiv('hl-prompt-select-item');
@@ -55,7 +55,7 @@ class PromptSelectModal extends Modal {
             setIcon(nameEl.createSpan({ cls: 'hl-prompt-select-icon' }), 'sparkles');
             nameEl.createSpan({ text: prompt.name });
 
-            const descEl = item.createDiv({ cls: 'hl-prompt-select-desc', text: prompt.prompt.length > 100 ? prompt.prompt.substring(0, 100) + '...' : prompt.prompt });
+            item.createDiv({ cls: 'hl-prompt-select-desc', text: prompt.prompt.length > 100 ? prompt.prompt.substring(0, 100) + '...' : prompt.prompt });
         });
 
         const cancelWrap = container.createDiv('hl-glass-modal-actions');
@@ -98,6 +98,9 @@ export class HighlightView extends ItemView {
     private recentLoading = false;
     private recentEpoch = 0;
     private renderRequested = false;
+    private lastCardSig: string | null = null;
+    private renderTimer: number | null = null;
+    private searchTimeout: number | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: HiLighterPlugin) {
         super(leaf);
@@ -111,7 +114,7 @@ export class HighlightView extends ItemView {
     getIcon(): string { return 'highlighter'; }
 
     async onOpen() {
-        this.render();
+        void this.render();
         // Register events for dynamic updates
         this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
             if (this.currentFilter === 'active' && leaf?.view instanceof MarkdownView) {
@@ -147,16 +150,16 @@ export class HighlightView extends ItemView {
         this.cardRenderGeneration += 1;
         this.pendingCardHighlights = [];
         this.resetRecentPage();
-        (this as any)._lastCardSig = null;
+        this.lastCardSig = null;
         if (this.cardBatchFrame !== null) {
             cancelAnimationFrame(this.cardBatchFrame);
             this.cardBatchFrame = null;
         }
-        const container = this.contentEl.querySelector('.hl-highlight-container') as HTMLElement | null;
+        const container = this.contentEl.querySelector<HTMLElement>('.hl-highlight-container');
         if (container) container.onscroll = null;
-        if ((this as any)._renderTimer) {
-            clearTimeout((this as any)._renderTimer);
-            (this as any)._renderTimer = null;
+        if (this.renderTimer) {
+            window.clearTimeout(this.renderTimer);
+            this.renderTimer = null;
         }
     }
 
@@ -186,7 +189,7 @@ export class HighlightView extends ItemView {
         if (this.cardBatchFrame !== null || this.renderedCardCount >= this.pendingCardHighlights.length) return;
 
         const generation = this.cardRenderGeneration;
-        this.cardBatchFrame = requestAnimationFrame(() => {
+        this.cardBatchFrame = window.requestAnimationFrame(() => {
             this.cardBatchFrame = null;
             if (generation !== this.cardRenderGeneration || !container.isConnected) return;
 
@@ -247,7 +250,7 @@ export class HighlightView extends ItemView {
             if (epoch !== this.recentEpoch || this.currentFilter !== 'all' || !container.isConnected) return;
             if (db.getChangeSeq() !== this.recentDataSeq) {
                 this.resetRecentPage();
-                this.render();
+                void this.render();
                 return;
             }
             this.recentHighlights = [...this.recentHighlights, ...page.notes];
@@ -293,10 +296,10 @@ export class HighlightView extends ItemView {
      * event and text can appear incomplete during the rebuild.
      */
     private scheduleRender(delay = 150) {
-        if ((this as any)._renderTimer) clearTimeout((this as any)._renderTimer);
-        (this as any)._renderTimer = setTimeout(() => {
-            (this as any)._renderTimer = null;
-            this.render();
+        if (this.renderTimer) window.clearTimeout(this.renderTimer);
+        this.renderTimer = window.setTimeout(() => {
+            this.renderTimer = null;
+            void this.render();
         }, delay);
     }
 
@@ -443,8 +446,8 @@ export class HighlightView extends ItemView {
                 (highlightsHash >>> 0).toString(36),
             ].join('##');
 
-            if (cardSig !== (this as any)._lastCardSig) {
-                (this as any)._lastCardSig = cardSig;
+            if (cardSig !== this.lastCardSig) {
+                this.lastCardSig = cardSig;
 
                 this.cardRenderGeneration += 1;
                 if (this.cardBatchFrame !== null) {
@@ -498,7 +501,7 @@ export class HighlightView extends ItemView {
                 setIcon(headingsBtn, 'heading');
 
                 headingsBtn.onclick = () => {
-                    this.handleHeadingsToHighlights(activeFile);
+                    void this.handleHeadingsToHighlights(activeFile);
                 };
             }
         } catch (err) {
@@ -610,12 +613,12 @@ export class HighlightView extends ItemView {
             new Notice(newCards.length > 0
                 ? t('notice.headingsComplete', { count: newCards.length })
                 : t('notice.headingsNoNew'));
-        } catch (err: any) {
+        } catch (err) {
             console.error('[HiLighter] Headings-to-highlights error', err);
-            new Notice(t('notice.headingsError') + err.message);
+            new Notice(t('notice.headingsError') + (err instanceof Error ? err.message : String(err)));
         } finally {
             btn.disabled = false;
-            this.render();
+            void this.render();
         }
     }
 
@@ -650,14 +653,14 @@ export class HighlightView extends ItemView {
             this.cardViewMode = 'expanded';
             expandTab.addClass('is-active');
             collapseTab.removeClass('is-active');
-            this.render();
+            void this.render();
         };
         collapseTab.onclick = (e) => {
             e.stopPropagation();
             this.cardViewMode = 'collapsed';
             collapseTab.addClass('is-active');
             expandTab.removeClass('is-active');
-            this.render();
+            void this.render();
         };
 
         // Toggle pair: current file vs recently added notes.
@@ -674,10 +677,10 @@ export class HighlightView extends ItemView {
             await this.plugin.saveSettings();
             scopeActive.toggleClass('is-active', scope === 'active');
             scopeAll.toggleClass('is-active', scope === 'all');
-            this.render();
+            void this.render();
         };
-        scopeActive.onclick = (e) => { e.stopPropagation(); setScope('active'); };
-        scopeAll.onclick = (e) => { e.stopPropagation(); setScope('all'); };
+        scopeActive.onclick = (e) => { e.stopPropagation(); void setScope('active'); };
+        scopeAll.onclick = (e) => { e.stopPropagation(); void setScope('all'); };
 
         // Tab: Studio (Navigate) — standalone
         const studioTab = tabsRow.createDiv({
@@ -686,7 +689,7 @@ export class HighlightView extends ItemView {
         });
         studioTab.onclick = (e) => {
             e.stopPropagation();
-            this.plugin.activateView(
+            void this.plugin.activateView(
                 Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_MANAGER_VIEW_TYPE,
                 'main',
             );
@@ -704,11 +707,11 @@ export class HighlightView extends ItemView {
         });
         searchInput.oninput = (e) => {
             this.searchQuery = (e.target as HTMLInputElement).value;
-            if ((this as any)._searchTimeout) {
-                clearTimeout((this as any)._searchTimeout);
+            if (this.searchTimeout) {
+                window.clearTimeout(this.searchTimeout);
             }
-            (this as any)._searchTimeout = setTimeout(() => {
-                this.render();
+            this.searchTimeout = window.setTimeout(() => {
+                void this.render();
             }, 300);
         };
 
@@ -738,7 +741,7 @@ export class HighlightView extends ItemView {
             if (pill.custom) pillEl.setAttribute('data-custom-pill', 'true');
             pillEl.onclick = () => {
                 this.colorFilter = pill.id;
-                this.render();
+                void this.render();
             };
         });
 
@@ -801,7 +804,7 @@ export class HighlightView extends ItemView {
             setIcon(discardBtn, 'x');
             discardBtn.onclick = () => {
                 this.aiPreviews.delete(note.id);
-                this.render();
+                void this.render();
             };
         }
 
@@ -848,7 +851,7 @@ export class HighlightView extends ItemView {
                 } else {
                     this.expandedNotes.add(note.id);
                 }
-                this.render();
+                void this.render();
             };
 
             // Capture toggleWrap for visibility control
@@ -880,7 +883,7 @@ export class HighlightView extends ItemView {
                 await db.updateHighlightNote(note.id, { note: textarea.value });
                 note.note = textarea.value;
             }
-            this.render(); // Always re-render to switch back to renderer
+            void this.render(); // Always re-render to switch back to renderer
         };
 
         textarea.onkeydown = (e) => {
@@ -898,7 +901,7 @@ export class HighlightView extends ItemView {
 
         // --- Left Side: Color meaning chip + Tags ---
         const footerLeft = footerRow1.createDiv('hl-footer-left-tags');
-        const colorMeaning = this.plugin.settings.colorLabels?.[note.color];
+        const colorMeaning = (this.plugin.settings.colorLabels as Record<string, string>)?.[note.color];
         if (colorMeaning) {
             const colorChip = footerLeft.createSpan({ cls: `hl-color-chip chip-${note.color}` });
             colorChip.createSpan({ text: colorMeaning });
@@ -933,7 +936,7 @@ export class HighlightView extends ItemView {
             textarea.focus();
 
             // Scroll card into view with a longer timeout to accommodate mobile keyboard animation
-            setTimeout(() => {
+            window.setTimeout(() => {
                 const container = card.closest('.hl-highlight-container') as HTMLElement;
                 if (container) {
                     const containerRect = container.getBoundingClientRect();
@@ -961,7 +964,7 @@ export class HighlightView extends ItemView {
                 const result = await this.aiService.processAction(note.text, 'translate');
                 const cleaned = this.cleanAIResult(result);
                 this.aiPreviews.set(note.id, cleaned);
-                this.render();
+                void this.render();
                 new Notice(t('notice.translateComplete'));
                 // Ensure sidebar stays open on mobile/tablet after render
                 if (this.app.workspace.rightSplit) {
@@ -1002,7 +1005,7 @@ export class HighlightView extends ItemView {
                     ev.stopPropagation();
                     popover.remove();
                     await this.changeHighlightColor(note, c.id);
-                    this.render();
+                    void this.render();
                 };
             });
 
@@ -1017,7 +1020,7 @@ export class HighlightView extends ItemView {
                 const formWrap = popover.createDiv('hl-color-add-form-wrap');
                 renderAddColorForm(this.plugin, formWrap, document, () => {
                     popover.remove();
-                    this.render();
+                    void this.render();
                 });
             };
 
@@ -1031,7 +1034,7 @@ export class HighlightView extends ItemView {
             popover.style.left = `${left}px`;
 
             // Close on outside click
-            setTimeout(() => {
+            window.setTimeout(() => {
                 const handler = (ev: PointerEvent) => {
                     if (!popover.contains(ev.target as Node)) {
                         popover.remove();
@@ -1054,29 +1057,31 @@ export class HighlightView extends ItemView {
                 new Notice(t('modal.promptSelect.noPrompts'));
                 return;
             }
-            new PromptSelectModal(this.app, prompts, async (selected) => {
-                researchBtn.addClass('is-loading');
-                try {
-                    const result = await this.aiService.processAction(note.text, 'research', selected.id);
-                    const cleaned = this.cleanAIResult(result);
-                    this.aiPreviews.set(note.id, cleaned);
-                    this.render();
-                    new Notice(t('notice.researchComplete'));
-                    if (this.app.workspace.rightSplit) {
-                        this.app.workspace.rightSplit.expand();
+            new PromptSelectModal(this.app, prompts, (selected) => {
+                void (async () => {
+                    researchBtn.addClass('is-loading');
+                    try {
+                        const result = await this.aiService.processAction(note.text, 'research', selected.id);
+                        const cleaned = this.cleanAIResult(result);
+                        this.aiPreviews.set(note.id, cleaned);
+                        void this.render();
+                        new Notice(t('notice.researchComplete'));
+                        if (this.app.workspace.rightSplit) {
+                            this.app.workspace.rightSplit.expand();
+                        }
+                        const modal = new Modal(this.app);
+                        modal.titleEl.setText(t('research.modal.title'));
+                        modal.contentEl.createEl('p', { text: t('research.modal.body') });
+                        const btnWrap = modal.contentEl.createDiv({ style: 'text-align: right; margin-top: 20px;' });
+                        const btnOk = btnWrap.createEl('button', { text: t('btn.ok'), cls: 'mod-cta' });
+                        btnOk.onclick = () => modal.close();
+                        modal.open();
+                    } catch (err) {
+                        new Notice(t('notice.researchError') + err.message);
+                    } finally {
+                        researchBtn.removeClass('is-loading');
                     }
-                    const modal = new Modal(this.app);
-                    modal.titleEl.setText(t('research.modal.title'));
-                    modal.contentEl.createEl('p', { text: t('research.modal.body') });
-                    const btnWrap = modal.contentEl.createDiv({ style: 'text-align: right; margin-top: 20px;' });
-                    const btnOk = btnWrap.createEl('button', { text: t('btn.ok'), cls: 'mod-cta' });
-                    btnOk.onclick = () => modal.close();
-                    modal.open();
-                } catch (err) {
-                    new Notice(t('notice.researchError') + err.message);
-                } finally {
-                    researchBtn.removeClass('is-loading');
-                }
+                })();
             }).open();
         };
 
@@ -1111,7 +1116,7 @@ export class HighlightView extends ItemView {
                         const newTags = note.tags?.filter(t => t !== tag) || [];
                         await db.updateHighlightNote(note.id, { tags: newTags });
                         note.tags = newTags;
-                        this.render();
+                        void this.render();
                     };
                 });
             }
@@ -1149,7 +1154,7 @@ export class HighlightView extends ItemView {
                         const newTags = [...(note.tags || []), t];
                         await db.updateHighlightNote(note.id, { tags: newTags });
                         note.tags = newTags;
-                        this.render();
+                        void this.render();
                     };
                 });
             };
@@ -1165,7 +1170,7 @@ export class HighlightView extends ItemView {
                         const newTags = [...(note.tags || []), val];
                         await db.updateHighlightNote(note.id, { tags: Array.from(new Set(newTags)) });
                         note.tags = Array.from(new Set(newTags));
-                        this.render();
+                        void this.render();
                     }
                 } else if (ev.key === 'Escape') {
                     manager.remove();
@@ -1173,7 +1178,7 @@ export class HighlightView extends ItemView {
             };
 
             input.onblur = () => {
-                setTimeout(() => {
+                window.setTimeout(() => {
                     if (manager.parentElement) manager.remove();
                 }, 200);
             };
@@ -1203,7 +1208,7 @@ export class HighlightView extends ItemView {
                 this.pendingDeleteIds.delete(note.id);
             } finally {
                 this.isRenderingFlag = false;
-                this.render();
+                void this.render();
             }
         };
 
@@ -1233,7 +1238,7 @@ export class HighlightView extends ItemView {
                 const result = await this.aiService.processAction(note.text, action);
                 const cleaned = this.cleanAIResult(result);
                 this.aiPreviews.set(note.id, cleaned);
-                this.render();
+                void this.render();
                 new Notice(t('notice.translateComplete'));
                 // Ensure sidebar stays open on mobile/tablet after render
                 if (this.app.workspace.rightSplit) {
@@ -1278,7 +1283,7 @@ export class HighlightView extends ItemView {
 
             const content = await this.app.vault.read(file);
             // Regex to find the specific mark tag by its data-id
-            const regex = new RegExp(`<mark[^>]*data-id="${note.id}"[^>]*>(.*?)<\/mark>`, 'g');
+            const regex = new RegExp(`<mark[^>]*data-id="${note.id}"[^>]*>(.*?)</mark>`, 'g');
             const newContent = content.replace(regex, '$1');
 
             if (content !== newContent) {

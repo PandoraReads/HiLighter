@@ -20,7 +20,7 @@ export function refreshSidebarViews(app: App): void {
             // Add a small buffer on mobile to ensure DB writes are finished
             if (Platform.isMobile) {
                 void new Promise<void>((resolve) => {
-                    setTimeout(() => {
+                    window.setTimeout(() => {
                         void view.render();
                         resolve();
                     }, 150);

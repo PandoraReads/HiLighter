@@ -100,7 +100,7 @@ export function showHighlightMenu(
     noteAction.addEventListener('mousedown', openNote);
     noteAction.addEventListener('touchstart', openNote);
     noteAction.addEventListener('keydown', event => {
-        if (event instanceof KeyboardEvent && (event.key === 'Enter' || event.key === ' ')) openNote(event);
+        if (event.instanceOf(KeyboardEvent) && (event.key === 'Enter' || event.key === ' ')) openNote(event);
     });
 
     // AI explain: opens the same note popup, but the note itself is generated
@@ -140,7 +140,7 @@ export function showHighlightMenu(
     aiAction.addEventListener('mousedown', openAiNote);
     aiAction.addEventListener('touchstart', openAiNote);
     aiAction.addEventListener('keydown', event => {
-        if (event instanceof KeyboardEvent && (event.key === 'Enter' || event.key === ' ')) openAiNote(event);
+        if (event.instanceOf(KeyboardEvent) && (event.key === 'Enter' || event.key === ' ')) openAiNote(event);
     });
 
     // Dynamic anchor positioning: coordinates depend on the selection rect.

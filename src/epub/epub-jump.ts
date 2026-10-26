@@ -20,7 +20,7 @@ export async function jumpToEpubNote(app: App, note: HighlightNote): Promise<voi
 
     // The view loads asynchronously; poll the registry briefly.
     for (let i = 0; i < 20; i++) {
-        await new Promise((r) => setTimeout(r, 150));
+        await new Promise((r) => window.setTimeout(r, 150));
         const view = openEpubRegistry().get(note.sourcePath);
         if (view) {
             void app.workspace.revealLeaf(view.leaf);

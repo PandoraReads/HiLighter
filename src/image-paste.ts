@@ -155,11 +155,11 @@ export function createImagePickButton(
     label: string,
     imageFolder = '',
 ): HTMLButtonElement {
-    const btn = document.createElement('button');
+    const btn = createEl('button');
     btn.className = 'hl-note-img-btn';
     btn.type = 'button';
     btn.textContent = label;
-    const input = document.createElement('input');
+    const input = createEl('input');
     input.type = 'file';
     input.accept = 'image/*';
     input.multiple = true;

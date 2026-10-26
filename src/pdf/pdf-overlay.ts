@@ -153,12 +153,11 @@ function clearPage(page: HTMLElement): void {
 /** Renderer-independent painting: absolutely-positioned color rects on the page. */
 function paintRects(page: HTMLElement, notes: HighlightNote[]): void {
     const pageNo = Number(page.getAttribute('data-page-number') ?? 0);
-    const doc = page.ownerDocument ?? document;
     for (const note of notes) {
         if (note.pdfPage !== pageNo || !note.pdfRects || note.pdfRects.length === 0) continue;
         const hex = note.colorHex || PRESET_UI_HEX[note.color] || '#ffd700';
         for (const r of note.pdfRects) {
-            const div = doc.createElement('div');
+            const div = createDiv();
             div.className = 'hl-pdf-rect';
             div.setAttribute('data-id', note.id);
             div.setAttribute(OVERLAY_ATTR, 'rect');
@@ -203,8 +202,10 @@ function wrapSpanRange(span: HTMLElement, start: number, end: number, mark: HTML
     }
 }
 
-function makeMark(doc: Document, note: HighlightNote): HTMLElement {
-    const mark = doc.createElement('mark');
+function makeMark(note: HighlightNote): HTMLElement {
+    // Detached mark (global createEl does not append); it gets adopted into
+    // the span's document when inserted below.
+    const mark = createEl('mark');
     mark.className = `hl-highlight hl-h-${note.color}`;
     mark.setAttribute('data-id', note.id);
     mark.setAttribute(OVERLAY_ATTR, 'pdf');
@@ -272,10 +273,10 @@ function paintPage(page: HTMLElement, notes: HighlightNote[]): void {
         b.range.spanIndex - a.range.spanIndex || b.range.start - a.range.start);
 
     for (const { span, range, note } of pending) {
-        const mark = makeMark(span.ownerDocument ?? document, note);
+        const mark = makeMark(note);
         if (!wrapSpanRange(span, range.start, range.end, mark)) {
             // Fall back to the legacy whole-span wrap for odd structures.
-            const legacy = makeMark(span.ownerDocument ?? document, note);
+            const legacy = makeMark(note);
             span.replaceWith(legacy);
             legacy.appendChild(span);
         }

@@ -51,7 +51,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 		const scrollTop = scroller?.scrollTop ?? 0;
 		this.renderBody();
 		if (scroller && scrollTop > 0) {
-			requestAnimationFrame(() => { scroller.scrollTop = scrollTop; });
+			window.requestAnimationFrame(() => { scroller.scrollTop = scrollTop; });
 		}
 	}
 
@@ -161,7 +161,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 			.setDesc(t('settings.appearance.columns.desc'))
 			.addDropdown(drop => {
 				drop.addOption('auto', t('settings.columns.auto'));
-				[1, 2, 3, 4].forEach(n => drop.addOption(String(n), String(n)));
+				[1, 2, 3, 4].forEach(n => { drop.addOption(String(n), String(n)); });
 				drop.setValue(String(this.plugin.settings.studioColumns))
 					.onChange(async (v) => {
 						this.plugin.settings.studioColumns = (v === 'auto' ? 'auto' : Number(v)) as StudioColumns;
@@ -277,7 +277,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 			.setName(t('settings.fsrs.retention'))
 			.setDesc(t('settings.fsrs.retention.desc'))
 			.addDropdown(drop => {
-				['0.80', '0.85', '0.90', '0.95', '0.99'].forEach(v => drop.addOption(v, v));
+				['0.80', '0.85', '0.90', '0.95', '0.99'].forEach(v => { drop.addOption(v, v); });
 				drop.setValue(String(this.plugin.settings.fsrs?.desiredRetention ?? 0.9))
 					.onChange(async (v) => {
 						this.plugin.settings.fsrs = {
@@ -464,7 +464,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 							const models = this.plugin.settings.aiModels;
 							const idx = models.findIndex(m => m.id === model.id);
 							if (idx !== -1) {
-								models[idx] = { id: models[idx]!.id!, ...updated };
+								models[idx] = { id: models[idx]!.id, ...updated };
 								await this.plugin.saveSettings();
 								this.display();
 							}
@@ -613,7 +613,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 					const dataStr = JSON.stringify(data, null, 2);
 					const blob = new Blob([dataStr], { type: 'application/json' });
 					const url = URL.createObjectURL(blob);
-					const a = document.createElement('a');
+					const a = createDiv().createEl('a');
 					a.href = url;
 					a.download = `hilighter-data-${new Date().toISOString().split('T')[0]}.json`;
 					a.click();
@@ -629,9 +629,7 @@ export class HiLighterSettingTab extends PluginSettingTab {
 			.addButton(btn => btn
 				.setButtonText(t('btn.import'))
 				.onClick(() => {
-					const input = document.createElement('input');
-					input.type = 'file';
-					input.accept = 'application/json';
+					const input = createDiv().createEl('input', { type: 'file', attr: { accept: 'application/json' } });
 					input.onchange = async (e) => {
 						const file = (e.target as HTMLInputElement).files?.[0];
 						if (!file) return;
@@ -640,12 +638,13 @@ export class HiLighterSettingTab extends PluginSettingTab {
 							const reader = new FileReader();
 							reader.onload = async (event) => {
 								try {
-									const importedData = JSON.parse(event.target?.result as string);
+									const importedData: unknown = JSON.parse(event.target?.result as string);
 									if (Array.isArray(importedData)) {
 										let count = 0;
 										for (const item of importedData) {
-											if (item.id && item.text && item.color) {
-												await db.addHighlightNote(item);
+											const note = item as HighlightNote;
+											if (note.id && note.text && note.color) {
+												await db.addHighlightNote(note);
 												count++;
 											}
 										}
@@ -740,11 +739,11 @@ export class HiLighterSettingTab extends PluginSettingTab {
 				.setDesc(t('settings.sync.status.notFound'));
 
 			const syncPath = this.plugin.settings.syncFilePath;
-			(async () => {
+			void (async () => {
 				try {
 					if (await this.app.vault.adapter.exists(syncPath)) {
 						const raw = await this.app.vault.adapter.read(syncPath);
-						const syncData = JSON.parse(raw);
+						const syncData = JSON.parse(raw) as { exportedAt?: string | number; count?: number; highlights?: unknown[] };
 						const timeStr = syncData.exportedAt
 							? new Date(syncData.exportedAt).toLocaleString()
 							: '—';
@@ -777,11 +776,11 @@ export class HiLighterSettingTab extends PluginSettingTab {
 // ── Prompt Edit Modal (Glass Morphism) ──────────────────────
 class PromptEditModal extends Modal {
 	private prompt: ResearchPrompt | null;
-	private onSubmit: (result: { name: string; prompt: string }) => void;
+	private onSubmit: (result: { name: string; prompt: string }) => void | Promise<void>;
 	private nameInput!: HTMLInputElement;
 	private promptInput!: HTMLTextAreaElement;
 
-	constructor(app: App, prompt: ResearchPrompt | null, onSubmit: (result: { name: string; prompt: string }) => void) {
+	constructor(app: App, prompt: ResearchPrompt | null, onSubmit: (result: { name: string; prompt: string }) => void | Promise<void>) {
 		super(app);
 		this.prompt = prompt;
 		this.onSubmit = onSubmit;
@@ -832,7 +831,7 @@ class PromptEditModal extends Modal {
 			if (e.key === 'Escape') this.close();
 		});
 
-		setTimeout(() => this.nameInput.focus(), 50);
+		window.setTimeout(() => this.nameInput.focus(), 50);
 	}
 
 	private handleSubmit() {
@@ -846,7 +845,7 @@ class PromptEditModal extends Modal {
 			new Notice(t('modal.promptEdit.contentRequired'));
 			return;
 		}
-		this.onSubmit({ name, prompt });
+		void this.onSubmit({ name, prompt });
 		this.close();
 	}
 
@@ -861,7 +860,7 @@ interface ModelFormValues { name: string; baseUrl: string; model: string; apiKey
 class ModelEditModal extends Modal {
 	private model: AIModelConfig | null;
 	private prefill: Omit<ModelFormValues, 'apiKey'> | null;
-	private onSubmit: (result: ModelFormValues) => void;
+	private onSubmit: (result: ModelFormValues) => void | Promise<void>;
 	private nameInput!: HTMLInputElement;
 	private baseUrlInput!: HTMLInputElement;
 	private modelInput!: HTMLInputElement;
@@ -870,7 +869,7 @@ class ModelEditModal extends Modal {
 	private modelsDatalist: HTMLDataListElement | null = null;
 	private fetchBtn: HTMLButtonElement | null = null;
 
-	constructor(app: App, model: AIModelConfig | null, onSubmit: (result: ModelFormValues) => void, prefill?: Omit<ModelFormValues, 'apiKey'>) {
+	constructor(app: App, model: AIModelConfig | null, onSubmit: (result: ModelFormValues) => void | Promise<void>, prefill?: Omit<ModelFormValues, 'apiKey'>) {
 		super(app);
 		this.model = model;
 		this.onSubmit = onSubmit;
@@ -933,7 +932,7 @@ class ModelEditModal extends Modal {
 		// Sampling temperature (optional; some models restrict it, e.g. Kimi K2/K3 only allow 1)
 		const tempWrap = container.createDiv('hl-glass-field');
 		tempWrap.createEl('label', { text: t('modal.modelEdit.temperature'), cls: 'hl-glass-label' });
-		tempWrap.createEl('div', { text: t('modal.modelEdit.temperature.desc'), cls: 'hl-settings-hint' });
+		tempWrap.createDiv({ text: t('modal.modelEdit.temperature.desc'), cls: 'hl-settings-hint' });
 		this.tempInput = tempWrap.createEl('input', {
 			type: 'text',
 			placeholder: '0.7',
@@ -972,7 +971,7 @@ class ModelEditModal extends Modal {
 			if (e.key === 'Escape') this.close();
 		});
 
-		setTimeout(() => this.nameInput.focus(), 50);
+		window.setTimeout(() => this.nameInput.focus(), 50);
 	}
 
 	/** Pull live model ids from the provider and offer them as autocomplete. */
@@ -1007,8 +1006,8 @@ class ModelEditModal extends Modal {
 			} else {
 				new Notice(t('modal.modelEdit.fetchOk', { count: String(ids.length) }));
 			}
-		} catch (err: any) {
-			new Notice(err?.message || String(err));
+		} catch (err) {
+			new Notice(err instanceof Error && err.message ? err.message : String(err));
 		} finally {
 			if (this.fetchBtn) {
 				this.fetchBtn.disabled = false;
@@ -1044,7 +1043,7 @@ class ModelEditModal extends Modal {
 			}
 			temperature = parsed;
 		}
-		this.onSubmit({ name, baseUrl, model: resolved.id, apiKey, temperature });
+		void this.onSubmit({ name, baseUrl, model: resolved.id, apiKey, temperature });
 		this.close();
 	}
 

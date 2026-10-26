@@ -3,7 +3,7 @@
 // ============================================================
 
 import Dexie, { type Table } from 'dexie';
-import type { EpubLocations, FsrsState, HighlightNote, MindMapDoc, SyncTombstone } from './models';
+import type { EpubLocations, HighlightNote, MindMapDoc, SyncTombstone } from './models';
 import {
     planMerge,
     dedupeById,

@@ -9,6 +9,19 @@ import { deriveModelsUrl, resolveModelAlias } from './ai-endpoint';
 
 const DEFAULT_TEMPERATURE = 0.7;
 
+// Minimal OpenAI-compatible response shapes (only the fields this service reads).
+interface AIModelsListResponse {
+    data?: Array<{ id?: string }>;
+}
+
+interface AIChatCompletionResponse {
+    choices: Array<{ message: { content: string } }>;
+}
+
+function isTitled(value: unknown): value is { title?: string; name?: string; text?: string } {
+    return typeof value === 'object' && value !== null;
+}
+
 // ── Model list fetching (shared by settings UI and error enrichment) ──
 
 const MODEL_LIST_TTL_MS = 10 * 60 * 1000;
@@ -30,7 +43,7 @@ export async function fetchAvailableModels(baseUrl: string, apiKey: string, cach
     }
 
     let status = 0;
-    let json: any = null;
+    let json: AIModelsListResponse | null = null;
     try {
         const resp = await requestUrl({
             url,
@@ -38,10 +51,10 @@ export async function fetchAvailableModels(baseUrl: string, apiKey: string, cach
             headers: { 'Authorization': `Bearer ${apiKey}` }
         });
         status = resp.status;
-        json = resp.json;
-    } catch (err: any) {
+        json = resp.json as AIModelsListResponse | null;
+    } catch (err) {
         // Obsidian's requestUrl rejects with "Request failed, status NNN"
-        const m = /status (\d+)/.exec(err?.message || '');
+        const m = /status (\d+)/.exec(err instanceof Error ? err.message : String(err));
         throw new Error(t('modal.modelEdit.fetchFailed', { status: m?.[1] || '?' }));
     }
     if (status !== 200) {
@@ -49,7 +62,7 @@ export async function fetchAvailableModels(baseUrl: string, apiKey: string, cach
     }
 
     const ids: string[] = Array.isArray(json?.data)
-        ? json.data.map((d: any) => String(d?.id ?? '')).filter(Boolean).sort()
+        ? json.data.map(d => String(d?.id ?? '')).filter(Boolean).sort()
         : [];
     if (cacheKey) {
         if (modelListCache.size > 50) modelListCache.clear();
@@ -129,20 +142,21 @@ ${fullText}`;
         const fenced = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
 
         const tryParseArray = (s: string): string[] | null => {
+            let parsed: unknown;
             try {
-                const parsed = JSON.parse(s);
-                if (Array.isArray(parsed)) {
-                    return parsed
-                        .map(item => typeof item === 'string'
-                            ? item
-                            : (item && typeof item === 'object' ? String(item.title ?? item.name ?? item.text ?? '') : ''))
-                        .map(s => String(s).trim())
-                        .filter(Boolean);
-                }
+                parsed = JSON.parse(s);
             } catch {
                 /* fall through */
             }
-            return null;
+            if (!Array.isArray(parsed)) {
+                return null;
+            }
+            return parsed
+                .map((item: unknown) => typeof item === 'string'
+                    ? item
+                    : (isTitled(item) ? String(item.title ?? item.name ?? item.text ?? '') : ''))
+                .map(s => String(s).trim())
+                .filter(Boolean);
         };
 
         let titles = tryParseArray(fenced);
@@ -242,8 +256,11 @@ ${fullText}`;
                 throw new Error(t('ai.error.apiError', { status: resp.status, text: resp.text }));
             }
 
-            return resp.json.choices[0].message.content.trim();
-        } catch (err: any) {
+            const data = resp.json as AIChatCompletionResponse;
+            // Indexing is non-null asserted (erased at runtime): malformed responses
+            // throw the same TypeError as before and land in the catch below.
+            return data.choices[0]!.message.content.trim();
+        } catch (err) {
             console.error('[HiLighter] API error', err);
             const message = await this.enrichError(url, apiKey, resolved.id, err);
             throw new Error(t('ai.error.serviceFailed', { message }));
@@ -255,8 +272,8 @@ ${fullText}`;
      * on a 400/404, ask the provider which models the key can actually use
      * and tell the user when the configured model id is not among them.
      */
-    private async enrichError(url: string, apiKey: string, modelId: string, err: any): Promise<string> {
-        const original = err?.message || String(err);
+    private async enrichError(url: string, apiKey: string, modelId: string, err: unknown): Promise<string> {
+        const original = (err instanceof Error ? err.message : '') || String(err);
         const m = /status (\d+)/.exec(original);
         const status = Number(m?.[1]);
         // 400 = bad request (unknown model on most providers); 404 = model_not_found (OpenAI et al.)

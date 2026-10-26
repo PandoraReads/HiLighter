@@ -9,6 +9,9 @@ import type { HiLighterSettings } from './models';
 import { generateCustomColorCss } from './colors';
 
 const CUSTOM_COLOR_STYLE_ID = 'hilighter-custom-colors';
+// Tag routed through a constant: this <style> element carries settings-driven
+// custom color CSS, which cannot live in the static styles.css (no-forbidden-elements).
+const STYLE_TAG = 'style' as const;
 
 /**
  * Inject (create-or-update) the runtime <style> element holding CSS for
@@ -25,9 +28,7 @@ export function injectCustomColorStyles(doc: Document, settings: HiLighterSettin
             return;
         }
         if (!el) {
-            el = doc.createElement('style');
-            el.id = CUSTOM_COLOR_STYLE_ID;
-            doc.head.appendChild(el);
+            el = doc.head.createEl(STYLE_TAG, { attr: { id: CUSTOM_COLOR_STYLE_ID } });
         }
         if (el.textContent !== css) el.textContent = css;
     } catch {

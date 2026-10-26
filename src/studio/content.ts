@@ -65,7 +65,7 @@ export function renderMainContent(view: HighlightManagerView, parentProp?: HTMLE
     }
 
     if (groups.length === 0) {
-        body.createEl('div', { text: t('manager.content.empty'), cls: 'hl-studio-empty-content' });
+        body.createDiv({ text: t('manager.content.empty'), cls: 'hl-studio-empty-content' });
         return;
     }
 

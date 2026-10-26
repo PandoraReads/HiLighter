@@ -13,7 +13,7 @@ export function generateXhsImage(note: HighlightNote): void {
 }
 
 function downloadCanvas(canvas: HTMLCanvasElement): void {
-    const link = document.createElement('a');
+    const link = createEl('a');
     link.download = `hilighter-${Date.now()}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
@@ -44,7 +44,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 
 function newCanvas(w: number, h: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
     const dpr = 2;
-    const canvas = document.createElement('canvas');
+    const canvas = createEl('canvas');
     canvas.width = w * dpr;
     canvas.height = h * dpr;
     const ctx = canvas.getContext('2d')!;
