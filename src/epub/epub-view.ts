@@ -217,10 +217,12 @@ export class EpubView extends FileView {
         const viewRect = this.contentEl.getBoundingClientRect();
         // The toolbar height anchors the dropdown just below the bar.
         const top = barRect.bottom - viewRect.top + 6;
-        menu.style.top = `${top}px`;
 
         // Measure first (hidden), then clamp inside the view.
-        menu.style.visibility = 'hidden';
+        menu.setCssProps({
+            top: `${top}px`,
+            visibility: 'hidden',
+        });
         window.setTimeout(() => {
             const w = menu.offsetWidth;
             let left: number;
@@ -230,8 +232,10 @@ export class EpubView extends FileView {
                 left = barRect.right - viewRect.left - w;
             }
             left = Math.max(8, Math.min(left, viewRect.width - w - 8));
-            menu.style.left = `${left}px`;
-            menu.style.visibility = 'visible';
+            menu.setCssProps({
+                left: `${left}px`,
+                visibility: 'visible',
+            });
         }, 0);
     }
 
@@ -265,7 +269,7 @@ export class EpubView extends FileView {
             });
         };
         try {
-            walk((this.book?.navigation?.toc ?? []) as NavItem[], 0);
+            walk((this.book?.navigation?.toc ?? []), 0);
         } catch {
             // malformed nav — empty outline is cosmetic
         }
@@ -351,7 +355,7 @@ export class EpubView extends FileView {
                 (book.locations as unknown as EpubLocationsApi).load(cached.cfis);
                 return this.locationCfis;
             }
-            const cfis = (await (book.locations as unknown as EpubLocationsApi).generate(PAGE_CHARS)) as string[];
+            const cfis = (await (book.locations as unknown as EpubLocationsApi).generate(PAGE_CHARS));
             if (!Array.isArray(cfis) || cfis.length === 0) return null;
             this.locationCfis = cfis;
             void db.saveEpubLocations({ path: file.path, mtime, cfis }).catch(() => {});
