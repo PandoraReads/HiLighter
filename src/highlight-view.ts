@@ -10,7 +10,7 @@ import type { HighlightNote, ResearchPrompt } from './models';
 import { AIService, AIAction } from './ai-service';
 import { HIGHLIGHT_VIEW_TYPE, HIGHLIGHT_MANAGER_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE } from './view-types';
 import { t } from './i18n';
-import { getColors } from './colors';
+import { deriveCardBandColor, getColors } from './colors';
 import { attachImageHandlers } from './image-paste';
 import { jumpToPdfNote } from './pdf/pdf-anchors';
 import { jumpToEpubNote } from './epub/epub-jump';
@@ -20,6 +20,9 @@ import { changeNoteColor } from './studio/actions';
 import { renderAddColorForm } from './color-add';
 import { applyAppearance } from './appearance';
 import { randomUUID } from './mocks/crypto';
+import { cardLabel, cardPreviewMarkdown, cardSearchText, cardTemplate } from './card-templates';
+import { renderCardLayout, renderSidebarCardLayout } from './card-layout';
+import { HighlightDetailModal } from './studio/modals';
 
 export { HIGHLIGHT_VIEW_TYPE };
 
@@ -397,10 +400,8 @@ export class HighlightView extends ItemView {
 
             // Apply filters
             highlights = highlights.filter(h => {
-                const text = (h.text || '').toLowerCase();
-                const note = (h.note || '').toLowerCase();
                 const q = this.searchQuery.toLowerCase();
-                const matchesSearch = (text.indexOf(q) !== -1) || (note.indexOf(q) !== -1);
+                const matchesSearch = cardSearchText(h).includes(q);
                 const matchesColor = this.colorFilter === 'all' || h.color === this.colorFilter;
                 return matchesSearch && matchesColor;
             });
@@ -427,7 +428,7 @@ export class HighlightView extends ItemView {
             // this guard, many cards cause a visible empty→rebuild flicker every time.
             let highlightsHash = 2166136261;
             for (const h of highlights) {
-                const item = `${h.id}|${h.color}|${h.lineIndex ?? 0}|${(h.text || '').length}|${(h.note || '').length}|${(h.tags || []).join('+')}`;
+                const item = `${h.id}|${h.color}|${h.lineIndex ?? 0}|${h.text}|${h.note}|${h.title ?? ''}|${h.templateId ?? ''}|${JSON.stringify(h.cardFields ?? {})}|${JSON.stringify(h.links ?? [])}|${(h.tags || []).join('+')}`;
                 for (let index = 0; index < item.length; index += 1) {
                     highlightsHash = Math.imul(highlightsHash ^ item.charCodeAt(index), 16777619);
                 }
@@ -759,13 +760,75 @@ export class HighlightView extends ItemView {
     }
 
     private renderCard(parent: HTMLElement, note: HighlightNote) {
+        if (note.kind === 'idea') {
+            const idea = parent.createDiv('hl-highlight-card hl-idea-card');
+            const ideaBand = getColors(this.plugin.settings).find(color => color.id === note.color)?.hex || note.colorHex || '#8c79a5';
+            idea.style.setProperty('--hl-card-band', deriveCardBandColor(ideaBand, note.color));
+            const ideaTitleBand = idea.createDiv('hl-card-color-band');
+            ideaTitleBand.createSpan({ text: note.title || t('card.ideaHeader') });
+            ideaTitleBand.setAttribute('title', t('card.doubleClickTitle'));
+            if (note.text) idea.createDiv({ cls: 'hl-h-card-text', text: note.text });
+            const summary = cardPreviewMarkdown(note);
+            if (summary) {
+                const content = idea.createDiv('hl-h-card-note-rendered');
+                if (cardTemplate(note).id !== 'excerpt') {
+                    renderSidebarCardLayout(content, note);
+                    if (note.note.trim()) {
+                        const freeform = content.createDiv('hl-card-freeform-note hl-sidebar-freeform-note');
+                        this.renderMarkdownWhenVisible(idea, freeform.createDiv('hl-sidebar-freeform-content'), note.note, note.sourcePath);
+                    }
+                } else {
+                    this.renderMarkdownWhenVisible(idea, content, note.note, note.sourcePath);
+                }
+            }
+            const ideaMeta = idea.createDiv('hl-card-idea-meta');
+            ideaMeta.createSpan({ cls: 'hl-card-template-badge', text: cardLabel(cardTemplate(note).label) });
+            if (note.links?.length) ideaMeta.createSpan({ cls: 'hl-card-link-count', text: `↗ ${note.links.length}` });
+            let clickTimer: number | null = null;
+            idea.onclick = () => {
+                if (clickTimer) window.clearTimeout(clickTimer);
+                clickTimer = window.setTimeout(() => {
+                    clickTimer = null;
+                    new HighlightDetailModal(this.app, note, () => { void this.render(); },
+                        this.plugin.settings.noteImageFolder, this.plugin.settings.groupExportFolder || '').open();
+                }, 240);
+            };
+            idea.ondblclick = (event) => {
+                event.stopPropagation();
+                if (clickTimer) window.clearTimeout(clickTimer);
+                clickTimer = null;
+                new HighlightDetailModal(this.app, note, () => { void this.render(); },
+                    this.plugin.settings.noteImageFolder, this.plugin.settings.groupExportFolder || '', false, true).open();
+            };
+            return;
+        }
         const isAnchorNote = note.anchorType === 'note';
         const card = parent.createDiv(
             `hl-highlight-card ${isAnchorNote ? 'hl-anchor-card' : `border-${note.color}`} ${this.cardViewMode === 'collapsed' ? 'is-collapsed' : ''}`
         );
+        const cardBand = getColors(this.plugin.settings).find(color => color.id === note.color)?.hex || note.colorHex || '#8c79a5';
+        card.style.setProperty('--hl-card-band', deriveCardBandColor(cardBand, note.color));
+        const titleBand = card.createDiv('hl-card-color-band');
+        titleBand.createSpan({ text: note.title || t('card.excerptHeader') });
+        titleBand.setAttribute('title', t('card.doubleClickTitle'));
 
         // --- Full Card Navigation ---
-        card.onclick = () => this.jumpToHighlight(note);
+        let clickTimer: number | null = null;
+        card.onclick = () => {
+            if (clickTimer) window.clearTimeout(clickTimer);
+            clickTimer = window.setTimeout(() => {
+                clickTimer = null;
+                this.jumpToHighlight(note);
+            }, 240);
+        };
+        card.ondblclick = (event) => {
+            const target = event.target as HTMLElement;
+            if (target.closest('button, input, textarea, .hl-footer-actions, .hl-h-card-note')) return;
+            if (clickTimer) window.clearTimeout(clickTimer);
+            clickTimer = null;
+            new HighlightDetailModal(this.app, note, () => { void this.render(); },
+                this.plugin.settings.noteImageFolder, this.plugin.settings.groupExportFolder || '', false, true).open();
+        };
 
         // Text part (Clean style - no quotes, larger); anchor notes carry a
         // message-square glyph instead of the quote text when image-only.
@@ -776,9 +839,12 @@ export class HighlightView extends ItemView {
             if (note.text) anchorBadge.createSpan({ cls: 'hl-anchor-badge-word', text: note.text });
         }
         textEl.createSpan({ text: note.text });
+        if ((note.links ?? []).length > 0) textEl.createSpan({ cls: 'hl-card-link-count hl-card-inline-links', text: `↗ ${note.links!.length}` });
 
         // Note part
-        const noteArea = card.createDiv(`hl-h-card-note ${!note.note ? 'is-hidden' : ''}`);
+        const presentation = cardPreviewMarkdown(note);
+        const hasMethodTemplate = cardTemplate(note).id !== 'excerpt';
+        const noteArea = card.createDiv(`hl-h-card-note ${hasMethodTemplate ? 'hl-method-note-area' : ''} ${!presentation ? 'is-hidden' : ''}`);
 
         // AI Preview Area (Conditional)
         const preview = this.aiPreviews.get(note.id);
@@ -835,32 +901,43 @@ export class HighlightView extends ItemView {
         textarea.addEventListener('focus', autoResize, { once: true });
 
         const isExpanded = this.expandedNotes.has(note.id);
-        const renderedNote = noteArea.createDiv(`hl-h-card-note-rendered ${!isExpanded ? 'is-collapsed-note' : ''}`);
-        if (note.note) {
-            this.renderMarkdownWhenVisible(card, renderedNote, note.note, note.sourcePath);
-
-            // Add expand/collapse toggle if note exists
-            const toggleWrap = noteArea.createDiv('hl-note-toggle-wrap');
-            const toggleBtn = toggleWrap.createDiv('hl-note-expand-toggle');
-            setIcon(toggleBtn, isExpanded ? 'chevron-up' : 'chevron-down');
-
-            toggleBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (this.expandedNotes.has(note.id)) {
-                    this.expandedNotes.delete(note.id);
-                } else {
-                    this.expandedNotes.add(note.id);
+        const renderedNote = noteArea.createDiv(`hl-h-card-note-rendered ${!isExpanded && !hasMethodTemplate ? 'is-collapsed-note' : ''}`);
+        if (presentation) {
+            if (hasMethodTemplate) {
+                renderSidebarCardLayout(renderedNote, note);
+                if (note.note.trim()) {
+                    const freeform = renderedNote.createDiv(`hl-card-freeform-note hl-sidebar-freeform-note ${!isExpanded ? 'is-collapsed-freeform' : ''}`);
+                    this.renderMarkdownWhenVisible(card, freeform.createDiv('hl-sidebar-freeform-content'), note.note, note.sourcePath);
                 }
-                void this.render();
-            };
+            } else {
+                this.renderMarkdownWhenVisible(card, renderedNote, note.note || presentation, note.sourcePath);
+            }
 
-            // Capture toggleWrap for visibility control
-            const currentToggleWrap = toggleWrap;
+            const hasExpandableContent = hasMethodTemplate ? Boolean(note.note.trim()) : Boolean(presentation);
+            const currentToggleWrap = hasExpandableContent ? noteArea.createDiv('hl-note-toggle-wrap') : null;
+            if (currentToggleWrap) {
+                const toggleBtn = currentToggleWrap.createDiv('hl-note-expand-toggle');
+                setIcon(toggleBtn, isExpanded ? 'chevron-up' : 'chevron-down');
+                toggleBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (this.expandedNotes.has(note.id)) {
+                        this.expandedNotes.delete(note.id);
+                    } else {
+                        this.expandedNotes.add(note.id);
+                    }
+                    void this.render();
+                };
+            }
 
             renderedNote.onclick = (e) => {
                 e.stopPropagation();
+                if (cardTemplate(note).id !== 'excerpt') {
+                    new HighlightDetailModal(this.app, note, () => { void this.render(); },
+                        this.plugin.settings.noteImageFolder, this.plugin.settings.groupExportFolder || '').open();
+                    return;
+                }
                 if (noteArea.hasClass('is-editing')) return;
-                currentToggleWrap.addClass('is-hidden');
+                currentToggleWrap?.addClass('is-hidden');
                 noteArea.addClass('is-editing');
                 renderedNote.removeClass('is-collapsed-note');
                 textarea.removeClass('is-hidden');
@@ -869,7 +946,7 @@ export class HighlightView extends ItemView {
 
             // Auto-open if flagged
             if (this.autoOpenNoteId === note.id) {
-                currentToggleWrap.addClass('is-hidden');
+                currentToggleWrap?.addClass('is-hidden');
                 noteArea.addClass('is-editing');
                 renderedNote.removeClass('is-collapsed-note');
                 textarea.removeClass('is-hidden');
@@ -901,6 +978,9 @@ export class HighlightView extends ItemView {
 
         // --- Left Side: Color meaning chip + Tags ---
         const footerLeft = footerRow1.createDiv('hl-footer-left-tags');
+        if (note.templateId && note.templateId !== 'excerpt') {
+            footerLeft.createSpan({ cls: 'hl-card-template-badge', text: cardLabel(cardTemplate(note).label) });
+        }
         const colorMeaning = (this.plugin.settings.colorLabels as Record<string, string>)?.[note.color];
         if (colorMeaning) {
             const colorChip = footerLeft.createSpan({ cls: `hl-color-chip chip-${note.color}` });
@@ -975,6 +1055,14 @@ export class HighlightView extends ItemView {
             } finally {
                 translateBtn.removeClass('is-loading');
             }
+        };
+
+        const developBtn = footerActions.createEl('button', { cls: 'hl-footer-icon-btn', attr: { 'aria-label': t('card.openEditor') } });
+        setIcon(developBtn, 'layout-template');
+        developBtn.onclick = (event) => {
+            event.stopPropagation();
+            new HighlightDetailModal(this.app, note, () => { void this.render(); },
+                this.plugin.settings.noteImageFolder, this.plugin.settings.groupExportFolder || '').open();
         };
 
         // --- Folded Actions (The "More" Menu) ---

@@ -14,7 +14,10 @@ import { jumpToPdfNote } from '../pdf/pdf-anchors';
 import { jumpToEpubNote } from '../epub/epub-jump';
 import { locateHighlightMark } from '../locate';
 import { normalizeVaultFolder } from '../vault-path';
-import { renderMarkdownPreview, DetachedComponent } from './markdown';
+import { CARD_TEMPLATES, cardFieldsForTemplate, cardLabel, cardPreviewMarkdown, cardRelationMarkdown, cardTemplate } from '../card-templates';
+import type { CardTemplateId } from '../models';
+import { renderCardRelations } from './card-relations';
+import { randomUUID } from '../mocks/crypto';
 
 export class BatchTagModal extends Modal {
     private onSubmit: (tag: string) => void | Promise<void>;
@@ -80,23 +83,35 @@ export class HighlightDetailModal extends Modal {
     private onUpdate: () => void | Promise<void>;
     private imageFolder: string;
     private exportFolder: string;
-    private previewComponent: DetachedComponent | null = null;
-    private previewMode = false;
+    private createMode: boolean;
+    private focusTitleOnOpen: boolean;
 
-    constructor(app: App, note: HighlightNote, onUpdate: () => void, imageFolder = '', exportFolder = '') {
+    constructor(app: App, note: HighlightNote, onUpdate: () => void | Promise<void>, imageFolder = '', exportFolder = '', createMode = false, focusTitleOnOpen = false) {
         super(app);
         this.note = note;
         this.onUpdate = onUpdate;
         this.imageFolder = imageFolder;
         this.exportFolder = exportFolder;
+        this.createMode = createMode;
+        this.focusTitleOnOpen = focusTitleOnOpen;
+    }
+
+    static createIdea(app: App, onUpdate: () => void | Promise<void>, source?: HighlightNote, imageFolder = '', exportFolder = ''): void {
+        const now = Date.now();
+        const draft: HighlightNote = {
+            id: randomUUID(), kind: 'idea', title: '', text: '',
+            color: source?.color ?? 'yellow', note: '', sourcePath: source?.sourcePath ?? '',
+            lineIndex: 0, createdAt: now, updatedAt: now, templateId: 'zettel',
+            sourceHighlightIds: source ? [source.id] : [],
+            links: source ? [{ targetId: source.id, relation: 'based_on' }] : [],
+        };
+        new HighlightDetailModal(app, draft, onUpdate, imageFolder, exportFolder, true).open();
     }
 
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
         this.modalEl.addClass('hl-detail-modal');
-        this.previewComponent = new DetachedComponent();
-        this.previewComponent.load();
 
         const container = contentEl.createDiv('hl-detail-container');
 
@@ -104,7 +119,8 @@ export class HighlightDetailModal extends Modal {
         const header = container.createDiv('hl-detail-header');
 
         const highlightText = header.createDiv('hl-detail-highlight');
-        highlightText.textContent = this.note.text;
+        highlightText.textContent = this.note.kind === 'idea' ? (this.note.title || t('card.newIdea')) : (this.note.title || this.note.text);
+        if (this.note.title && this.note.text) header.createDiv({ cls: 'hl-detail-original', text: this.note.text });
 
         const meta = header.createDiv('hl-detail-meta');
         const filename = this.note.sourcePath.split('/').pop()?.replace('.md', '') || 'Note';
@@ -115,38 +131,57 @@ export class HighlightDetailModal extends Modal {
         // Open the enlarged card directly in its note editor.
         const body = container.createDiv('hl-detail-body');
 
-        // Write / preview toggle above the editor.
-        const modeTabs = body.createDiv('hl-detail-mode-tabs');
-        const writeTab = modeTabs.createEl('button', { cls: 'hl-detail-mode-tab is-active', text: t('modal.detail.tabWrite') });
-        const previewTab = modeTabs.createEl('button', { cls: 'hl-detail-mode-tab', text: t('modal.detail.tabPreview') });
+        const templateRow = body.createDiv('hl-card-template-row');
+        templateRow.createEl('label', { text: t('card.template'), attr: { for: 'hl-card-template' } });
+        const templateSelect = templateRow.createEl('select', { attr: { id: 'hl-card-template', 'aria-label': t('card.template') } });
+        CARD_TEMPLATES.forEach(spec => templateSelect.createEl('option', { value: spec.id, text: cardLabel(spec.label) }));
+        templateSelect.value = cardTemplate(this.note).id;
+        const templateHint = body.createDiv('hl-card-template-hint');
+        const fieldContainer = body.createDiv('hl-card-template-fields');
+        let draftFields = cardFieldsForTemplate(this.note);
+        const renderFields = () => {
+            fieldContainer.empty();
+            const spec = CARD_TEMPLATES.find(item => item.id === templateSelect.value) ?? CARD_TEMPLATES[0]!;
+            templateHint.setText(cardLabel(spec.description));
+            spec.fields.forEach(field => {
+                const wrap = fieldContainer.createDiv('hl-card-field');
+                wrap.createEl('label', { text: cardLabel(field.label) });
+                const input = wrap.createEl('textarea', {
+                    attr: { placeholder: cardLabel(field.hint), 'aria-label': cardLabel(field.label) },
+                });
+                input.value = draftFields[field.id] ?? '';
+                input.oninput = () => { draftFields = { ...draftFields, [field.id]: input.value }; };
+            });
+        };
+        templateSelect.onchange = renderFields;
+        renderFields();
+        let draftLinks = [...(this.note.links ?? [])];
+        let draftSourceIds = [...(this.note.sourceHighlightIds ?? [])];
+        const relationsEl = body.createDiv('hl-card-relations-host');
+        void renderCardRelations(relationsEl, {
+            card: this.note, links: draftLinks, sourceIds: draftSourceIds,
+            onDerive: !this.createMode && this.note.kind !== 'idea'
+                ? () => { void saveNote(() => HighlightDetailModal.createIdea(
+                    this.app, this.onUpdate, this.note, this.imageFolder, this.exportFolder)); }
+                : undefined,
+            onChange: links => { draftLinks = links; },
+            onSourcesChange: ids => { draftSourceIds = ids; },
+            onOpen: target => {
+                new HighlightDetailModal(this.app, target, this.onUpdate, this.imageFolder, this.exportFolder).open();
+            },
+        });
 
+        const titleRow = body.createDiv('hl-card-title-row');
+        const titleInput = titleRow.createEl('input', { cls: 'hl-card-idea-title', type: 'text', attr: {
+            placeholder: this.note.kind === 'idea' ? t('card.ideaTitle') : t('card.titleHint'),
+            'aria-label': t('card.titleLabel'),
+        } });
+        titleInput.value = this.note.title ?? '';
         const textarea = body.createEl('textarea', {
             cls: 'hl-detail-editor-input',
             attr: { placeholder: t('modal.noteEdit.placeholder'), 'aria-label': t('manager.card.myNote') },
         });
         textarea.value = this.note.note || '';
-
-        const previewEl = body.createDiv('hl-detail-markdown-preview');
-        previewEl.hide();
-        const renderPreview = () => {
-            void renderMarkdownPreview(this.app, textarea.value, previewEl, this.note.sourcePath, this.previewComponent!)
-                .catch(err => console.error('[HiLighter] preview render failed', err));
-        };
-        const setMode = (preview: boolean) => {
-            this.previewMode = preview;
-            writeTab.toggleClass('is-active', !preview);
-            previewTab.toggleClass('is-active', preview);
-            textarea.toggleClass('is-hidden', preview);
-            if (preview) {
-                previewEl.show();
-                renderPreview();
-            } else {
-                previewEl.hide();
-                window.setTimeout(() => textarea.isConnected && textarea.focus(), 0);
-            }
-        };
-        writeTab.onclick = () => setMode(false);
-        previewTab.onclick = () => setMode(true);
 
         attachImageHandlers(this.app, textarea, this.note.sourcePath, {
             onImageSaved: (line) => {
@@ -154,19 +189,36 @@ export class HighlightDetailModal extends Modal {
                 textarea.value = `${textarea.value}${separator}${line}`;
             },
         }, this.imageFolder);
+        body.appendChild(relationsEl);
         const editorActions = body.createDiv('hl-detail-editor-actions');
         const cancelEdit = editorActions.createEl('button', { cls: 'hl-studio-mini-btn', text: t('btn.cancel') });
         cancelEdit.onclick = () => this.close();
-        const saveEdit = editorActions.createEl('button', { cls: 'hl-studio-mini-btn is-primary', text: t('btn.save') });
-        const saveNote = async () => {
+        const saveEdit = editorActions.createEl('button', { cls: 'hl-studio-mini-btn is-primary', text: t('card.saveCard') });
+        const saveNote = async (afterSave?: () => void) => {
             if (saveEdit.disabled) return;
+            if (this.note.kind === 'idea' && !titleInput.value.trim()) {
+                new Notice(t('card.titleRequired'));
+                titleInput.focus();
+                return;
+            }
             saveEdit.disabled = true;
             try {
-                await db.updateHighlightNote(this.note.id, { note: textarea.value });
-                this.note.note = textarea.value;
+                const changes = {
+                    note: textarea.value,
+                    title: titleInput.value.trim(),
+                    templateId: templateSelect.value as CardTemplateId,
+                    cardFields: draftFields,
+                    links: draftLinks,
+                    sourceHighlightIds: draftSourceIds,
+                    updatedAt: Date.now(),
+                };
+                if (this.createMode) await db.addHighlightNote({ ...this.note, ...changes });
+                else await db.updateHighlightNote(this.note.id, changes);
+                this.note = { ...this.note, ...changes };
                 await this.onUpdate();
                 new Notice(t('modal.detail.noteUpdated'));
                 this.close();
+                afterSave?.();
             } catch {
                 saveEdit.disabled = false;
                 new Notice(t('notePopup.saveFailed'));
@@ -179,7 +231,10 @@ export class HighlightDetailModal extends Modal {
                 void saveNote();
             }
         };
-        window.setTimeout(() => textarea.isConnected && textarea.focus(), 0);
+        window.setTimeout(() => {
+            const target = this.focusTitleOnOpen ? titleInput : textarea;
+            if (target.isConnected) target.focus();
+        }, 0);
 
         // Footer
         const footer = container.createDiv('hl-detail-footer');
@@ -188,6 +243,7 @@ export class HighlightDetailModal extends Modal {
         const footerRow1 = footer.createDiv('hl-detail-footer-row1');
 
         const deleteBtn = footerRow1.createEl('button', { cls: 'hl-studio-mini-btn hl-detail-delete-btn', attr: { 'aria-label': t('modal.detail.aria.delete') } });
+        if (this.createMode) deleteBtn.hide();
         setIcon(deleteBtn, 'trash-2');
         deleteBtn.onclick = () => {
             new ConfirmModal(this.app, t('modal.detail.deleteConfirm'), () => {
@@ -203,6 +259,7 @@ export class HighlightDetailModal extends Modal {
         });
         setIcon(exportBtn, 'file-down');
         exportBtn.onclick = () => { void this.exportAsMarkdown(textarea.value); };
+        if (this.createMode) exportBtn.hide();
 
         const xhsBtn = actions.createEl('button', { cls: 'hl-studio-mini-btn', attr: { 'aria-label': t('modal.detail.aria.xhs') } });
         setIcon(xhsBtn, 'image');
@@ -210,6 +267,7 @@ export class HighlightDetailModal extends Modal {
             generateXhsImage(this.note);
             new Notice(t('modal.detail.xhsGenerated'));
         };
+        if (this.note.kind === 'idea' || this.createMode) xhsBtn.hide();
 
         const jumpBtn = actions.createEl('button', { cls: 'hl-studio-mini-btn', attr: { 'aria-label': t('modal.detail.aria.jump') } });
         setIcon(jumpBtn, 'external-link');
@@ -219,11 +277,13 @@ export class HighlightDetailModal extends Modal {
                 this.close();
             })();
         };
+        if (this.note.kind === 'idea' || this.createMode) jumpBtn.hide();
 
         const pinBtn = actions.createEl('button', {
             cls: 'hl-studio-mini-btn',
             attr: { 'aria-label': t('manager.pin') }
         });
+        if (this.createMode) pinBtn.hide();
         setIcon(pinBtn, 'pin');
         pinBtn.toggleClass('is-accent', (this.note.pinned || 0) > 0);
         pinBtn.onclick = () => {
@@ -256,15 +316,6 @@ export class HighlightDetailModal extends Modal {
             };
         }
 
-        // Row 2: Tags (left-aligned, below actions)
-        if (this.note.tags && this.note.tags.length > 0) {
-            const tagsWrap = footer.createDiv('hl-detail-tags');
-            (this.note.tags).forEach(tag => {
-                const tagEl = tagsWrap.createSpan('hl-tag');
-                setIcon(tagEl, 'tag');
-                tagEl.createSpan({ text: tag });
-            });
-        }
     }
 
     private async handleDelete(): Promise<void> {
@@ -288,7 +339,7 @@ export class HighlightDetailModal extends Modal {
                 }
             }
 
-            const excerptTitle = this.note.text.replace(/\s+/g, ' ').trim();
+            const excerptTitle = (this.note.title || this.note.text).replace(/\s+/g, ' ').trim();
             const safeTitle = excerptTitle.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').slice(0, 56).trim() || 'Highlight';
             const baseName = `${new Date(this.note.createdAt).toISOString().slice(0, 10)} ${safeTitle}`;
             const parent = folder ? `${folder}/` : '';
@@ -306,20 +357,21 @@ export class HighlightDetailModal extends Modal {
                 ? `- ${t('manager.group.export.tags')}: ${this.note.tags.map(tag => `\`${tag}\``).join(', ')}`
                 : '';
             const quotedText = this.note.text.split(/\r?\n/).map(line => `> ${line}`).join('\n');
+            const structured = cardPreviewMarkdown({ ...this.note, note: noteText });
+            const allCards = await db.getAllHighlights();
             const content = [
                 `# ${excerptTitle || t('manager.group.export.emptyNote')}`,
                 '',
                 `- ${t('manager.group.export.created')}: ${new Date(this.note.createdAt).toISOString().slice(0, 10)}`,
+                `- ${t('card.template')}: ${cardLabel(cardTemplate(this.note).label)}`,
+                cardRelationMarkdown(this.note, allCards),
                 source,
                 tags,
                 '',
-                `## ${t('manager.card.originalText')}`,
-                '',
-                quotedText || '> ',
-                '',
+                ...(this.note.kind === 'idea' ? [] : [`## ${t('manager.card.originalText')}`, '', quotedText || '> ', '']),
                 `## ${t('manager.group.export.note')}`,
                 '',
-                noteText.trim() || `_${t('manager.group.export.emptyNote')}_`,
+                structured.trim() || `_${t('manager.group.export.emptyNote')}_`,
                 '',
             ].filter((line, index, lines) => line !== '' || lines[index - 1] !== '').join('\n');
             await this.app.vault.create(path, content);
@@ -348,8 +400,6 @@ export class HighlightDetailModal extends Modal {
 
     onClose() {
         this.contentEl.empty();
-        this.previewComponent?.unload();
-        this.previewComponent = null;
     }
 }
 

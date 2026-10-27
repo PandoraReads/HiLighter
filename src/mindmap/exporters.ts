@@ -39,7 +39,7 @@ interface CanvasFile {
 function collectEdges(node: MindMapNode, out: Array<[string, string]>): void {
     const from = node.data.uid;
     for (const child of node.children ?? []) {
-        if (from && child.data.uid) out.push([from, child.data.uid]);
+        if (from && child.data.uid && !child.data.isFreeNode) out.push([from, child.data.uid]);
         collectEdges(child, out);
     }
 }

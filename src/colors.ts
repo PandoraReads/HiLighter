@@ -163,6 +163,36 @@ function hslToHex(h: number, s: number, l: number): string {
     return rgbToHex(r, g, b);
 }
 
+const CARD_BAND_PRESETS: Record<string, string> = {
+    green: '#D1EDD3',
+    blue: '#BFE7EA',
+    yellow: '#FFE8C4',
+    pink: '#D49A9A',
+    red: '#D49A9A',
+    purple: '#C4A4DA',
+    violet: '#C4A4DA',
+    grape: '#C4A4DA',
+};
+
+/** Pastel bands for known colors; customs fall into the closest supplied hue. */
+export function deriveCardBandColor(hex: string, colorId?: string): string {
+    const preset = colorId ? CARD_BAND_PRESETS[colorId.toLowerCase()] : undefined;
+    if (preset) return preset;
+    if (!/^#[0-9a-f]{6}$/i.test(hex)) return '#788b80';
+    const { r, g, b } = hexToRgb(hex);
+    const { h, s, l } = rgbToHsl(r, g, b);
+    if (s >= 0.12) {
+        if (h < 0.05 || h >= 0.9) return CARD_BAND_PRESETS.red!;
+        if (h < 0.17) return CARD_BAND_PRESETS.yellow!;
+        if (h < 0.46) return CARD_BAND_PRESETS.green!;
+        if (h < 0.7) return CARD_BAND_PRESETS.blue!;
+        return CARD_BAND_PRESETS.purple!;
+    }
+    const mutedSaturation = Math.min(s * 0.44, 0.46);
+    const softenedLightness = Math.min(0.56, Math.max(0.48, 0.52 + (l - 0.5) * 0.12));
+    return hslToHex(h, mutedSaturation, softenedLightness);
+}
+
 /** Light-theme <mark> style: pastel background (~78% white blend) + deep tone text. */
 function deriveMarkLight(hex: string): { bg: string; fg: string } {
     const { r, g, b } = hexToRgb(hex);

@@ -79,6 +79,7 @@ export class MobileRecentHighlightsView extends ItemView {
                 .limit(NOTES_PER_SCAN)
                 .each(note => {
                     scannedThisPage += 1;
+                    if (note.kind === 'idea') return true;
                     const path = note.sourcePath;
                     if (!path || this.seenPaths.has(path)) return true;
 
@@ -98,7 +99,7 @@ export class MobileRecentHighlightsView extends ItemView {
                 title: file.basename,
                 preview: (latest.text || latest.note || '').replace(/\s+/g, ' ').trim(),
                 lastHighlightedAt: latest.createdAt,
-                highlightCount: await db.highlightNotes.where('sourcePath').equals(file.path).count(),
+                highlightCount: (await db.getHighlightsByPath(file.path)).length,
             })));
 
             documents.forEach(document => this.renderDocument(document));

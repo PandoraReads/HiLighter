@@ -34,6 +34,7 @@ function makeNote(overrides: Partial<HighlightNote> = {}): HighlightNote {
         createdAt: overrides.createdAt ?? Date.now(),
         tags: overrides.tags,
         pinned: overrides.pinned,
+        templateId: overrides.templateId,
     };
 }
 
@@ -110,6 +111,15 @@ describe('sortHighlights', () => {
 });
 
 describe('groupHighlights', () => {
+    it('groups cards by their thinking template, with old cards under excerpt', () => {
+        const cards = [
+            makeNote({ id: 'plain' }),
+            makeNote({ id: 'concept', templateId: 'concept' }),
+        ];
+        const groups = groupHighlights(cards, 'template', COLORS);
+        expect(groups.map(group => group.key)).toEqual(['excerpt', 'onepage']);
+    });
+
     it('groups by file and orders groups by size', () => {
         const notes = [
             makeNote({ id: '1', sourcePath: 'small.md' }),

@@ -28,6 +28,18 @@ beforeEach(() => {
 });
 
 describe('HiLighterDatabase upsert + merge', () => {
+    it('timestamps content edits but not review-only updates', async () => {
+        const db = newDb();
+        await db.addHighlightNote(note({ id: 'edited' }));
+        await db.updateHighlightNote('edited', { note: 'new insight' });
+        const edited = await db.getHighlightNote('edited');
+        expect(edited?.updatedAt).toBeTypeOf('number');
+        const timestamp = edited?.updatedAt;
+        await db.updateHighlightNote('edited', { pinned: 123 });
+        expect((await db.getHighlightNote('edited'))?.updatedAt).toBe(timestamp);
+        await db.delete();
+    });
+
     it('adds, updates, and skips across one transaction', async () => {
         const db = newDb();
         await db.addHighlightNote(note({ id: 'a', text: 'old' }));
@@ -46,6 +58,17 @@ describe('HiLighterDatabase upsert + merge', () => {
 });
 
 describe('HiLighterDatabase recent sidebar pages', () => {
+    it('keeps independent ideas out of source anchor queries', async () => {
+        const db = newDb();
+        await db.highlightNotes.bulkPut([
+            note({ id: 'highlight' }),
+            note({ id: 'idea', kind: 'idea', title: 'A thought', sourceHighlightIds: ['highlight'] }),
+        ]);
+        expect((await db.getHighlightsByPath('a.md')).map(item => item.id)).toEqual(['highlight']);
+        expect((await db.getAllHighlights()).map(item => item.id)).toContain('idea');
+        await db.delete();
+    });
+
     it('returns 50 newest cards first and continues from the next page', async () => {
         const db = newDb();
         const records = Array.from({ length: 123 }, (_, index) => note({

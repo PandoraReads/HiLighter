@@ -11,6 +11,7 @@ import { t } from '../i18n';
 import { getColors } from '../colors';
 import type { ColorDef } from '../colors';
 import { compareEpubCfi } from '../epub/cfi-order';
+import { CARD_TEMPLATES, cardLabel, cardSearchText, currentTemplateId } from '../card-templates';
 import type { FilterItem, NoteGroup, StudioGroupBy, StudioSortBy } from './studio-state';
 
 export function dayKey(d: Date): string {
@@ -38,8 +39,7 @@ export function filterHighlights(notes: HighlightNote[], opts: FilterOptions): H
     const archiveTag = opts.archiveTag ?? t('tag.archive');
 
     return notes.filter(h => {
-        const matchesSearch = (h.text + (h.note || '') + (h.tags || []).join(' ')).toLowerCase()
-            .indexOf(q) !== -1;
+        const matchesSearch = cardSearchText(h).includes(q);
         if (!matchesSearch) return false;
         if (opts.excludeArchive && (h.tags || []).indexOf(archiveTag) !== -1) return false;
         if (!hasFilter) return true;
@@ -49,6 +49,7 @@ export function filterHighlights(notes: HighlightNote[], opts: FilterOptions): H
             case 'tag': return (h.tags || []).some(tg => opts.selectedGroups.has(tg));
             case 'color': return opts.selectedGroups.has(h.color);
             case 'date': return opts.selectedGroups.has(monthKey(h.createdAt));
+            case 'template': return opts.selectedGroups.has(currentTemplateId(h.templateId));
             default: return true;
         }
     });
@@ -115,11 +116,17 @@ export function groupHighlights(
             }));
     }
 
+    if (groupBy === 'template') {
+        notes.forEach(h => ensure(currentTemplateId(h.templateId)).push(h));
+        return CARD_TEMPLATES.filter(spec => map.has(spec.id))
+            .map(spec => ({ key: spec.id, name: cardLabel(spec.label), items: map.get(spec.id)! }));
+    }
+
     if (groupBy === 'file') {
         notes.forEach(h => ensure(h.sourcePath).push(h));
         return [...map.entries()]
             .sort((a, b) => b[1].length - a[1].length)
-            .map(([p, its]) => ({ key: p, name: p.split('/').pop()!.replace(/\.md$/, ''), items: its }));
+            .map(([p, its]) => ({ key: p, name: p ? p.split('/').pop()!.replace(/\.md$/, '') : t('card.newIdea'), items: its }));
     }
 
     if (groupBy === 'tag') {
@@ -163,7 +170,7 @@ export function collectFilterItems(
     if (groupBy === 'file') {
         notes.forEach(h => inc(h.sourcePath));
         return [...map.entries()].sort((a, b) => b[1] - a[1])
-            .map(([p, c]) => ({ key: p, label: p.split('/').pop()!.replace(/\.md$/, ''), count: c }));
+            .map(([p, c]) => ({ key: p, label: p ? p.split('/').pop()!.replace(/\.md$/, '') : t('card.newIdea'), count: c }));
     }
 
     if (groupBy === 'tag') {
@@ -189,6 +196,12 @@ export function collectFilterItems(
             });
     }
 
+    if (groupBy === 'template') {
+        notes.forEach(h => inc(currentTemplateId(h.templateId)));
+        return CARD_TEMPLATES.filter(spec => map.has(spec.id))
+            .map(spec => ({ key: spec.id, label: cardLabel(spec.label), count: map.get(spec.id)! }));
+    }
+
     return [];
 }
 
@@ -199,6 +212,7 @@ export function groupByLabel(groupBy: StudioGroupBy): string {
         case 'tag': return t('manager.nav.tags');
         case 'color': return t('manager.nav.colors');
         case 'date': return t('manager.nav.dates');
+        case 'template': return t('card.template');
         default: return '';
     }
 }

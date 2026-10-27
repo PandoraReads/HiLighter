@@ -10,6 +10,7 @@ import {
     shouldPruneTombstone,
     TOMBSTONE_TTL_MS,
 } from './sync/merge';
+import { cardSearchText } from './card-templates';
 
 export class HiLighterDatabase extends Dexie {
     highlightNotes!: Table<HighlightNote, string>;
@@ -86,7 +87,8 @@ export class HiLighterDatabase extends Dexie {
     }
 
     async getHighlightsByPath(path: string): Promise<HighlightNote[]> {
-        return await this.highlightNotes.where('sourcePath').equals(path).toArray();
+        return (await this.highlightNotes.where('sourcePath').equals(path).toArray())
+            .filter(note => note.kind !== 'idea');
     }
 
     async getAllHighlights(): Promise<HighlightNote[]> {
@@ -108,8 +110,7 @@ export class HiLighterDatabase extends Dexie {
         if (search || color !== 'all') {
             collection = collection.filter(note => {
                 if (color !== 'all' && note.color !== color) return false;
-                return !search || (note.text || '').toLowerCase().includes(search)
-                    || (note.note || '').toLowerCase().includes(search);
+                return !search || cardSearchText(note).includes(search);
             });
         }
 
@@ -149,7 +150,13 @@ export class HiLighterDatabase extends Dexie {
     }
 
     async updateHighlightNote(id: string, changes: Partial<HighlightNote>): Promise<void> {
-        await this.highlightNotes.update(id, changes);
+        const contentKeys: Array<keyof HighlightNote> = [
+            'text', 'note', 'color', 'tags', 'title', 'templateId', 'cardFields', 'links', 'sourceHighlightIds',
+        ];
+        const contentChanged = contentKeys.some(key => Object.prototype.hasOwnProperty.call(changes, key));
+        await this.highlightNotes.update(id, contentChanged
+            ? { ...changes, updatedAt: changes.updatedAt ?? Date.now() }
+            : changes);
         this.notify();
     }
 

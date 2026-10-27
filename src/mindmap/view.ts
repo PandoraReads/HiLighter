@@ -53,6 +53,9 @@ export class HighlightMindMapView extends ItemView {
     private panelEl: HTMLElement | null = null;
     private docTitleEl: HTMLElement | null = null;
     private exportMenuOpen = false;
+    private activeNodeCount = 0;
+    private canUndo = false;
+    private canRedo = false;
 
     constructor(leaf: WorkspaceLeaf, plugin: HiLighterPlugin) {
         super(leaf);
@@ -128,6 +131,7 @@ export class HighlightMindMapView extends ItemView {
             void this.openDoc(this.docs[0]!);
         } else {
             this.renderEmptyState(this.canvasEl);
+            this.renderNodePanel(null, 0);
         }
     }
 
@@ -189,28 +193,15 @@ export class HighlightMindMapView extends ItemView {
         paletteSelect.onchange = () => {
             this.paletteId = paletteSelect.value;
             this.engine.setPaletteId(this.paletteId);
+            this.scheduleSave(this.engine.getTree());
         };
 
-        this.iconButton(actions, 'unfold-horizontal', t('mindmap.spacing.spread'), (btn) => {
-            this.spacing = this.spacing === 'spread' ? 'compact' : 'spread';
-            btn.setAttribute('aria-label', this.spacing === 'spread'
-                ? t('mindmap.spacing.spread') : t('mindmap.spacing.compact'));
-            btn.toggleClass('is-active', this.spacing === 'compact');
-            this.engine.refreshTheme(this.isDark(), this.accent(), this.spacing);
-        });
-
-        const undoBtn = this.iconButton(actions, 'undo-2', t('mindmap.toolbar.undo'), () => this.engine.undo());
-        const redoBtn = this.iconButton(actions, 'redo-2', t('mindmap.toolbar.redo'), () => this.engine.redo());
-        this.undoRedoButtons = [undoBtn, redoBtn];
-
-        this.iconButton(actions, 'scan', t('mindmap.toolbar.fit'), () => this.engine.fit());
-
-        this.renderExportMenu(actions);
+        this.renderExportMenu(actions, !this.currentDoc);
     }
 
-    private undoRedoButtons: HTMLElement[] = [];
+    private undoRedoButtons: HTMLButtonElement[] = [];
 
-    private renderExportMenu(parent: HTMLElement): void {
+    private renderExportMenu(parent: HTMLElement, disabled = false): void {
         const wrap = parent.createDiv('hl-mindmap-export-wrap');
         const btn = this.iconButton(wrap, 'share', t('mindmap.toolbar.export'), () => {
             this.exportMenuOpen = !this.exportMenuOpen;
@@ -218,6 +209,7 @@ export class HighlightMindMapView extends ItemView {
             if (this.exportMenuOpen) this.renderExportMenuItems(wrap);
         });
         btn.addClass('hl-mindmap-export-trigger');
+        (btn as HTMLButtonElement).disabled = disabled;
     }
 
     private renderExportMenuItems(wrap: HTMLElement): void {
@@ -310,9 +302,6 @@ export class HighlightMindMapView extends ItemView {
         empty.createDiv('hl-mindmap-empty-title').setText(t('mindmap.empty.title'));
         empty.createDiv('hl-mindmap-empty-hint').setText(t('mindmap.empty.hint'));
         const actions = empty.createDiv('hl-mindmap-empty-actions');
-        const importBtn = actions.createEl('button', { cls: 'mod-cta' });
-        importBtn.setText(t('mindmap.toolbar.import'));
-        importBtn.onclick = () => this.openImportFlow();
         const blankBtn = actions.createEl('button', { cls: 'hl-mindmap-empty-blank' });
         blankBtn.setText(t('mindmap.doc.newBlank'));
         blankBtn.onclick = () => void this.createBlankDoc();
@@ -365,11 +354,11 @@ export class HighlightMindMapView extends ItemView {
                     accent: this.accent(),
                     callbacks: {
                         onDataChange: (tree) => this.scheduleSave(tree),
-                        onNodeActive: (node) => this.renderNodePanel(node),
+                        onNodeActive: (node, activeCount) => this.renderNodePanel(node, activeCount),
                         onHistoryChange: (canUndo, canRedo) => {
-                            const [undoBtn, redoBtn] = this.undoRedoButtons;
-                            if (undoBtn) (undoBtn as HTMLButtonElement).disabled = !canUndo;
-                            if (redoBtn) (redoBtn as HTMLButtonElement).disabled = !canRedo;
+                            this.canUndo = canUndo;
+                            this.canRedo = canRedo;
+                            this.updateHistoryButtons();
                         },
                     },
                 });
@@ -384,6 +373,7 @@ export class HighlightMindMapView extends ItemView {
             this.canvasResizeObserver?.disconnect();
             this.canvasResizeObserver = new ResizeObserver(() => this.engine.resize());
             this.canvasResizeObserver.observe(canvas);
+            this.renderNodePanel(null);
         };
         tryInit(0);
 
@@ -479,7 +469,7 @@ export class HighlightMindMapView extends ItemView {
             try {
                 const all = await db.getAllHighlights();
                 const byPath = new Map<string, number>();
-                for (const note of all) {
+                for (const note of all.filter(item => item.kind !== 'idea')) {
                     byPath.set(note.sourcePath, (byPath.get(note.sourcePath) ?? 0) + 1);
                 }
                 const highlightFiles = [...byPath.keys()]
@@ -564,45 +554,104 @@ export class HighlightMindMapView extends ItemView {
 
     // ── Selected-node panel ───────────────────────────────────
 
-    private renderNodePanel(node: MindMapNode | null): void {
+    private renderNodePanel(node: MindMapNode | null, activeCount = 0): void {
         this.selectedNode = node;
+        this.activeNodeCount = activeCount;
         const panel = this.panelEl;
         const canvas = this.canvasEl;
         if (!canvas) return;
 
         panel?.remove();
         this.panelEl = null;
-        if (!node) return;
-
         const el = canvas.createDiv('hl-mindmap-panel');
         this.panelEl = el;
+        el.onpointerdown = event => event.stopPropagation();
+        el.onmousedown = event => event.stopPropagation();
+        el.onclick = event => event.stopPropagation();
 
-        const isLinked = !!node.data.highlightId;
+        const isLinked = !!node?.data.highlightId;
+        const hasSelection = activeCount > 0 && node !== null;
         const actions = el.createDiv('hl-mindmap-panel-actions');
-        const buttons: Array<[string, string, () => void]> = [
-            ['plus-square', t('mindmap.panel.addChild'), () => this.engine.insertChildNode()],
-            ['plus', t('mindmap.panel.addSibling'), () => this.engine.insertSiblingNode()],
-            ['quote', t('mindmap.panel.summary'), () => this.engine.addSummary()],
-            ['spline', t('mindmap.panel.link'), () => this.engine.startAssociativeLine()],
-            ['trash-2', t('mindmap.panel.remove'), () => {
-                this.engine.removeActiveNode();
-                this.renderNodePanel(null);
-            }],
-        ];
-        if (isLinked) {
-            buttons.push(['external-link', t('mindmap.panel.jump'), () => void this.jumpFromNode(node)]);
-        }
-        for (const [icon, label, run] of buttons) {
-            const btn = actions.createEl('button', { cls: 'hl-mindmap-panel-btn', attr: { 'aria-label': label, title: label } });
+        const createButton = (icon: string, label: string, run: () => void, disabled = false): HTMLButtonElement => {
+            const btn = actions.createEl('button', {
+                cls: 'hl-mindmap-panel-btn',
+                attr: { 'aria-label': label, title: label },
+            });
             setIcon(btn, icon);
-            btn.onclick = (e) => {
-                e.stopPropagation();
+            btn.disabled = disabled;
+            btn.onclick = (event) => {
+                event.stopPropagation();
+                if (btn.disabled) return;
                 run();
             };
-        }
+            return btn;
+        };
 
-        // Detail card: full highlight text + user note.
+        createButton('sticky-note', t('mindmap.panel.addFree'), () => {
+            if (!this.currentDoc) return;
+            this.engine.insertFreeNode(t('mindmap.panel.freeCard'));
+            this.scheduleSave(this.engine.getTree());
+        }, !this.currentDoc);
+        createButton('plus-square', t('mindmap.panel.addChild'), () => this.engine.insertChildNode(), !hasSelection);
+        createButton('plus', t('mindmap.panel.addSibling'), () => this.engine.insertSiblingNode(), !hasSelection);
+        createButton('quote', t('mindmap.panel.summary'), () => this.engine.addSummary(), !hasSelection);
+        createButton('spline', t('mindmap.panel.link'), () => this.engine.startAssociativeLine(), !hasSelection);
+        createButton('align-left', t('mindmap.panel.alignLeft'), () => this.engine.styleActiveNodes('textAlign', 'left'), !hasSelection);
+        createButton('align-right', t('mindmap.panel.alignRight'), () => this.engine.styleActiveNodes('textAlign', 'right'), !hasSelection);
+        createButton('trash-2', t('mindmap.panel.remove'), () => {
+            this.engine.removeActiveNode();
+            this.renderNodePanel(null, 0);
+        }, !hasSelection);
+        createButton('external-link', t('mindmap.panel.jump'), () => {
+            if (node) void this.jumpFromNode(node);
+        }, !hasSelection || activeCount !== 1 || !isLinked);
+
+        const divider = () => actions.createDiv('hl-mindmap-toolbar-divider');
+        divider();
+        const spacingLabel = this.spacing === 'spread' ? t('mindmap.spacing.spread') : t('mindmap.spacing.compact');
+        const spacingBtn = createButton('unfold-horizontal', spacingLabel, () => {}, !this.currentDoc);
+        spacingBtn.onclick = (event) => {
+            event.stopPropagation();
+            if (spacingBtn.disabled) return;
+            this.spacing = this.spacing === 'spread' ? 'compact' : 'spread';
+            const label = this.spacing === 'spread' ? t('mindmap.spacing.spread') : t('mindmap.spacing.compact');
+            spacingBtn.setAttribute('aria-label', label);
+            spacingBtn.title = label;
+            spacingBtn.toggleClass('is-active', this.spacing === 'compact');
+            this.engine.refreshTheme(this.isDark(), this.accent(), this.spacing);
+        };
+        spacingBtn.toggleClass('is-active', this.spacing === 'compact');
+        divider();
+        const undoBtn = createButton('undo-2', t('mindmap.toolbar.undo'), () => this.engine.undo(), !this.currentDoc || !this.canUndo);
+        const redoBtn = createButton('redo-2', t('mindmap.toolbar.redo'), () => this.engine.redo(), !this.currentDoc || !this.canRedo);
+        this.undoRedoButtons = [undoBtn, redoBtn];
+        createButton('scan', t('mindmap.toolbar.fit'), () => this.engine.fit(), !this.currentDoc);
+
+        if (!node || !hasSelection) return;
+
+        /*
+         * Detail card: full highlight text + user note and node appearance.
+         */
         const detail = el.createDiv('hl-mindmap-panel-detail');
+        const appearance = detail.createDiv('hl-mindmap-panel-appearance');
+        const widthLabel = appearance.createEl('label', { text: t('mindmap.panel.width') });
+        const widthInput = widthLabel.createEl('input', {
+            type: 'number',
+            attr: { min: '100', max: '600', step: '10', 'aria-label': t('mindmap.panel.width') },
+        });
+        widthInput.value = typeof node.data.customTextWidth === 'number'
+            ? String(node.data.customTextWidth) : '260';
+        widthInput.onchange = () => {
+            const width = Number(widthInput.value);
+            if (Number.isFinite(width) && width >= 100 && width <= 600) {
+                this.engine.styleActiveNodes('customTextWidth', width);
+            }
+        };
+        const colorLabel = appearance.createEl('label', { text: t('mindmap.panel.fill') });
+        const colorInput = colorLabel.createEl('input', { type: 'color', attr: { 'aria-label': t('mindmap.panel.fill') } });
+        colorInput.value = typeof node.data.fillColor === 'string' && /^#[0-9a-f]{6}$/i.test(node.data.fillColor)
+            ? node.data.fillColor : '#ffffff';
+        colorInput.onchange = () => this.engine.styleActiveNodes('fillColor', colorInput.value);
         if (node.data.lost) {
             detail.createDiv('hl-mindmap-panel-lost').setText(t('mindmap.panel.lost'));
         }
@@ -616,6 +665,13 @@ export class HighlightMindMapView extends ItemView {
             detail.createDiv('hl-mindmap-panel-hint').setText(t('mindmap.panel.freeNode'));
         }
     }
+
+    private updateHistoryButtons(): void {
+        const [undoBtn, redoBtn] = this.undoRedoButtons;
+        if (undoBtn) undoBtn.disabled = !this.currentDoc || !this.canUndo;
+        if (redoBtn) redoBtn.disabled = !this.currentDoc || !this.canRedo;
+    }
+
 
     private async jumpFromNode(node: MindMapNode): Promise<void> {
         const id = node.data.highlightId;

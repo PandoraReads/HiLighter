@@ -18,13 +18,13 @@ import {
     type Grade,
 } from '../../fsrs';
 import type { HighlightManagerView } from '../studio-view';
+import { cardSearchText, currentTemplateId } from '../../card-templates';
 
 export function startFsrsSession(view: HighlightManagerView, mode: 'due' | 'new'): void {
     const pool = view.highlights.filter(h => {
         // Honor the toolbar search/facet filters like the old shuffle did
         const q = view.searchQuery.toLowerCase();
-        const matchesSearch = (h.text + (h.note || '') + (h.tags || []).join(' ')).toLowerCase()
-            .indexOf(q) !== -1;
+        const matchesSearch = cardSearchText(h).includes(q);
         if (!matchesSearch) return false;
         if (view.selectedGroups.size === 0) return true;
         switch (view.groupBy) {
@@ -36,6 +36,7 @@ export function startFsrsSession(view: HighlightManagerView, mode: 'due' | 'new'
                 const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                 return view.selectedGroups.has(key);
             }
+            case 'template': return view.selectedGroups.has(currentTemplateId(h.templateId));
             default: return true;
         }
     });
