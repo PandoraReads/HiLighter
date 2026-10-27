@@ -169,6 +169,7 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 - **Card methods and links**: add Cornell, one-page synthesis, and Luhmann-style idea card layouts with named cards, structured method fields, and links between related cards. Sidebar and Card Studio cards now render method content in dedicated layouts.
 - **Card Studio polish**: refine card headers, metadata, editing, and floating actions; add compact icon-only controls and improve card grouping and sorting.
 - **Mind map editing**: add free-positioned cards, multi-node selection, alignment and appearance controls, and a persistent floating action rail. Improve imported-map style switching and preserve map contents when changing palettes.
+- **Mind map toolbar**: group the fit-to-canvas action with the compact-layout control for easier access.
 - **Data compatibility**: extend local database and vault-sync merging for card methods, titles, and relations while retaining existing highlight cards.
 
 ### v2.6.0 (2026-10-26)

@@ -621,11 +621,11 @@ export class HighlightMindMapView extends ItemView {
             this.engine.refreshTheme(this.isDark(), this.accent(), this.spacing);
         };
         spacingBtn.toggleClass('is-active', this.spacing === 'compact');
+        createButton('scan', t('mindmap.toolbar.fit'), () => this.engine.fit(), !this.currentDoc);
         divider();
         const undoBtn = createButton('undo-2', t('mindmap.toolbar.undo'), () => this.engine.undo(), !this.currentDoc || !this.canUndo);
         const redoBtn = createButton('redo-2', t('mindmap.toolbar.redo'), () => this.engine.redo(), !this.currentDoc || !this.canRedo);
         this.undoRedoButtons = [undoBtn, redoBtn];
-        createButton('scan', t('mindmap.toolbar.fit'), () => this.engine.fit(), !this.currentDoc);
 
         if (!node || !hasSelection) return;
 
