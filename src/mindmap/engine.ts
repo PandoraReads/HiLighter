@@ -17,6 +17,7 @@ import AssociativeLine from 'simple-mind-map/src/plugins/AssociativeLine.js';
 import Export from 'simple-mind-map/src/plugins/Export.js';
 import ExportXMind from 'simple-mind-map/src/plugins/ExportXMind.js';
 import RainbowLines from 'simple-mind-map/src/plugins/RainbowLines.js';
+import Select from 'simple-mind-map/src/plugins/Select.js';
 import type { MindMapNode } from './build';
 import { composeTheme, type MindMapSpacing } from './themes';
 import { resolveLeafBorderMode, resolvePalette, tintedBorder } from './palettes';
@@ -41,7 +42,7 @@ export type MindMapLayout =
 
 export interface EngineCallbacks {
     onDataChange: (tree: MindMapNode) => void;
-    onNodeActive: (node: MindMapNode | null) => void;
+    onNodeActive: (node: MindMapNode | null, activeCount: number) => void;
     onHistoryChange: (canUndo: boolean, canRedo: boolean) => void;
     onRenderEnd?: () => void;
 }
@@ -58,7 +59,7 @@ export interface EngineInit {
     callbacks: EngineCallbacks;
 }
 
-const PLUGIN_LIST = [Drag, AssociativeLine, Export, ExportXMind, RainbowLines];
+const PLUGIN_LIST = [Drag, AssociativeLine, Export, ExportXMind, RainbowLines, Select];
 
 /**
  * simple-mind-map only initializes plugins from its STATIC plugin list;
@@ -79,7 +80,7 @@ function ensurePluginsRegistered(): void {
 interface SmmInstance {
     on(event: string, cb: (...args: unknown[]) => void): void;
     destroy(): void;
-    setData(data: unknown): void;
+    updateData(data: unknown): void;
     setLayout(layout: string): void;
     setTheme(theme: unknown): void;
     execCommand(name: string, ...args: unknown[]): void;
@@ -91,7 +92,7 @@ interface SmmInstance {
     setThemeConfig(config: unknown): void;
     render(): void;
     renderer?: {
-        activeNodeList?: Array<Record<string, unknown>>;
+        activeNodeList?: Array<{ getData?: () => Record<string, unknown> }>;
         nodes?: Array<{
             getData?: (includeSelf?: boolean) => { uid?: string; text?: string } | undefined;
             getRect?: () => { x: number; y: number; width: number; height: number };
@@ -170,6 +171,8 @@ export class MindMapEngine {
             // Xmind-like drag: drop ON a topic = child, BETWEEN = sibling.
             enableAutoMoveIntoDrag: true,
             autoMoveWhenMouseInEdgeOnDrag: true,
+            enableFreeDrag: true,
+            useLeftKeySelectionRightKeyDrag: true,
         }) as unknown as SmmInstance;
 
         this.mindMap.on('data_change', (data: MindMapNode) => {
@@ -180,7 +183,7 @@ export class MindMapEngine {
             // with an argument it looks up a FIELD, so getData(true) is undefined).
             const first = activeNodeList[0] as { getData?: () => Record<string, unknown> } | undefined;
             const data = first?.getData?.();
-            this.callbacks.onNodeActive(data ? ({ data } as MindMapNode) : null);
+            this.callbacks.onNodeActive(data ? ({ data } as MindMapNode) : null, activeNodeList.length);
         });
         this.mindMap.on('back_forward', () => {
             this.emitHistory();
@@ -211,11 +214,6 @@ export class MindMapEngine {
         }
     }
 
-    /** Replaces the whole tree (import/build/sync), keeping view state. */
-    setTree(tree: MindMapNode): void {
-        this.mindMap?.setData(tree as unknown as Record<string, unknown>);
-    }
-
     setLayout(layout: MindMapLayout): void {
         this.layout = layout;
         this.mindMap?.setLayout(layout);
@@ -242,10 +240,10 @@ export class MindMapEngine {
     /** Switches the color palette and re-renders. */
     setPaletteId(paletteId: string): void {
         this.paletteId = paletteId;
-        const tree = this.mindMap?.getData(true) as MindMapNode | undefined;
+        const tree = this.getTree();
         if (tree) {
             this.applyLeafBorders(tree);
-            this.mindMap?.setData(tree);
+            this.mindMap?.updateData(tree);
         }
         this.mindMap?.setThemeConfig(this.buildThemeConfig(this.dark, this.accent, this.spacing));
     }
@@ -255,7 +253,14 @@ export class MindMapEngine {
         const palette = resolvePalette(this.paletteId, dark);
         // A palette's own accent (when present) drives root/lines over the plugin accent.
         const effAccent = palette.accent ?? accent;
-        return composeTheme(this.themeId, palette, effAccent, spacing, dark);
+        const theme = composeTheme(this.themeId, palette, effAccent, spacing, dark);
+        const cardStyle = { shape: 'roundedRectangle', fillColor: palette.nodeFill, borderColor: palette.nodeBorder, borderWidth: 1, paddingX: 12, paddingY: 8 };
+        return {
+            ...theme,
+            root: { ...(theme.root as Record<string, unknown>), shape: 'roundedRectangle', borderWidth: 1 },
+            second: { ...(theme.second as Record<string, unknown>), ...cardStyle },
+            node: { ...(theme.node as Record<string, unknown>), ...cardStyle },
+        };
     }
 
     /**
@@ -315,6 +320,30 @@ export class MindMapEngine {
         this.mindMap?.execCommand('INSERT_NODE');
     }
 
+    /** Add a visually separate card to the canvas. It can be freely dragged. */
+    insertFreeNode(label: string): void {
+        const tree = this.getTree();
+        const freeNode: MindMapNode = {
+            data: {
+                uid: `free_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                text: label,
+                expand: true,
+                lineColor: 'transparent',
+                lineWidth: 0,
+                isFreeNode: true,
+            },
+            children: [],
+        };
+        this.mindMap?.updateData({ ...tree, children: [...(tree.children ?? []), freeNode] });
+    }
+
+    /** Apply a style to all selected nodes, including marquee selections. */
+    styleActiveNodes(prop: string, value: string | number): void {
+        for (const node of this.mindMap?.renderer?.activeNodeList ?? []) {
+            this.mindMap?.execCommand('SET_NODE_STYLE', node, prop, value);
+        }
+    }
+
     removeActiveNode(): void {
         this.mindMap?.execCommand('REMOVE_NODE');
     }
@@ -331,7 +360,7 @@ export class MindMapEngine {
 
     /** Latest tree (current data, not last saved). */
     getTree(): MindMapNode {
-        return (this.mindMap?.getData(true) ?? { data: { text: '' }, children: [] }) as MindMapNode;
+        return (this.mindMap?.getData(false) ?? { data: { text: '' }, children: [] }) as MindMapNode;
     }
 
     /** Rendered node rects, used by the .canvas exporter. */

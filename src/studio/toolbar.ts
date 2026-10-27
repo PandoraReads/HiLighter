@@ -201,6 +201,7 @@ function groupModes(): Array<{ id: StudioGroupBy; label: string; icon: string }>
         { id: 'tag', label: t('manager.group.tag'), icon: 'tag' },
         { id: 'color', label: t('manager.group.color'), icon: 'palette' },
         { id: 'date', label: t('manager.group.date'), icon: 'calendar' },
+        { id: 'template', label: t('card.template'), icon: 'layout-template' },
     ];
 }
 

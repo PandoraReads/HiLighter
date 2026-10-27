@@ -30,6 +30,10 @@ declare module 'simple-mind-map/src/plugins/RainbowLines.js' {
     const plugin: any;
     export default plugin;
 }
+declare module 'simple-mind-map/src/plugins/Select.js' {
+    const plugin: any;
+    export default plugin;
+}
 declare module 'simple-mind-map/src/parse/xmind' {
     const xmindParse: {
         parseXmindFile(file: ArrayBuffer | Uint8Array | Blob, handleMultiCanvas?: unknown): Promise<unknown>;

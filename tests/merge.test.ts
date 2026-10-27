@@ -59,6 +59,26 @@ describe('planMerge', () => {
         expect(ex.tags).toEqual(['a', 'b']);
     });
 
+    it('syncs a tag-only classification change', () => {
+        const ex = note({ id: 'a', tags: ['reading'] });
+        const inc = note({ id: 'a', tags: ['reading', 'concept'] });
+        const [merged] = planMerge([inc], [ex], new Map(), NOW).toPut;
+        expect(merged?.tags).toEqual(['reading', 'concept']);
+    });
+
+    it('synchronizes card templates and relationships by the newer edit', () => {
+        const ex = note({ id: 'a', templateId: 'concept', cardFields: { definition: 'old' }, links: [], updatedAt: 10 });
+        const inc = note({ id: 'a', templateId: 'claim', cardFields: { claim: 'new' }, links: [{ targetId: 'b', relation: 'supports' }], updatedAt: 20 });
+        const [merged] = planMerge([inc], [ex], new Map(), NOW).toPut;
+        expect(merged?.templateId).toBe('claim');
+        expect(merged?.cardFields).toEqual({ claim: 'new' });
+        expect(merged?.links).toEqual([{ targetId: 'b', relation: 'supports' }]);
+
+        const [reverse] = planMerge([ex], [inc], new Map(), NOW).toPut;
+        expect(reverse?.templateId).toBe('claim');
+        expect(reverse?.links).toEqual([{ targetId: 'b', relation: 'supports' }]);
+    });
+
     it('suppresses rows whose id has a live tombstone', () => {
         const inc = note({ id: 'gone' });
         const plan = planMerge([inc], [undefined], new Map([['gone', NOW - 1000]]), NOW);

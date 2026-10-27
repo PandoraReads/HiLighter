@@ -46,7 +46,7 @@ export async function changeNoteColor(
 ): Promise<boolean> {
     if (note.color === newColor) return false;
 
-    if (note.sourcePath.toLowerCase().endsWith('.md')) {
+    if (note.kind !== 'idea' && note.sourcePath.toLowerCase().endsWith('.md')) {
         try {
             const file = app.vault.getAbstractFileByPath(note.sourcePath);
             if (file instanceof TFile) {
@@ -115,7 +115,7 @@ export async function addTagToNote(view: HighlightManagerView, note: HighlightNo
  *  anchors only — PDF/EPUB/reading-mode notes have no file mark). */
 export async function removeHighlightFromVault(app: App, note: HighlightNote): Promise<void> {
     try {
-        if (!note.sourcePath.toLowerCase().endsWith('.md')) return;
+        if (note.kind === 'idea' || !note.sourcePath.toLowerCase().endsWith('.md')) return;
         const file = app.vault.getAbstractFileByPath(note.sourcePath);
         if (!(file instanceof TFile)) return;
         const content = await app.vault.read(file);

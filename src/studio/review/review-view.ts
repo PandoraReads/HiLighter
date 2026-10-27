@@ -6,6 +6,7 @@ import { addTagToNote, jumpToSource } from '../actions';
 import { rateCurrent, exitSession, skipCurrent, startFsrsSession } from './session';
 import type { HighlightManagerView } from '../studio-view';
 import { extractNotePreview } from '../card-presentation';
+import { cardPreviewMarkdown, cardTitle } from '../../card-templates';
 
 function intervalLabel(due: number, now: number): string {
     const minutes = Math.max(1, Math.round((due - now) / 60000));
@@ -54,14 +55,15 @@ export function renderReview(view: HighlightManagerView, parent: HTMLElement): v
     main.createDiv({ cls: 'hl-flash-prompt', text: session.flipped ? t('manager.card.myNote') : t('fsrs.review.prompt') });
     if (session.flipped) {
         const answer = main.createDiv('hl-flash-answer');
-        if (note.note) {
-            void MarkdownRenderer.render(view.app, note.note, answer, note.sourcePath, view)
-                .catch(() => { answer.textContent = note.note; });
+        const answerText = cardPreviewMarkdown(note);
+        if (answerText) {
+            void MarkdownRenderer.render(view.app, answerText, answer, note.sourcePath, view)
+                .catch(() => { answer.textContent = answerText; });
         } else {
             answer.createDiv({ text: t('manager.review.notePlaceholder'), cls: 'hl-flash-empty-answer' });
         }
     } else {
-        main.createDiv({ cls: 'hl-flash-quote', text: note.text });
+        main.createDiv({ cls: 'hl-flash-quote', text: cardTitle(note) });
         const imageTarget = extractNotePreview(note.note || '').images[0];
         if (imageTarget) {
             const imageFile = view.app.metadataCache.getFirstLinkpathDest(imageTarget, note.sourcePath);
@@ -119,6 +121,7 @@ export function renderReview(view: HighlightManagerView, parent: HTMLElement): v
     setIcon(jump.createSpan(), 'external-link');
     jump.createSpan({ text: t('fsrs.jumpSource') });
     jump.onclick = () => { void jumpToSource(view.app, note); };
+    if (note.kind === 'idea') jump.hide();
     const priority = auxiliary.createEl('button', { text: t('tag.key') });
     priority.onclick = () => { void addTagToNote(view, note, t('tag.key')); };
     const archive = auxiliary.createEl('button', { text: t('tag.archive') });

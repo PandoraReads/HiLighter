@@ -3,7 +3,8 @@
 // ============================================================
 
 import { isValidColorId } from '../colors';
-import type { HiLighterSettings, HighlightNote, SyncTombstone } from '../models';
+import type { CardTemplateId, HiLighterSettings, HighlightNote, SyncTombstone } from '../models';
+import { CARD_TEMPLATES } from '../card-templates';
 
 export type { SyncTombstone };
 
@@ -107,9 +108,42 @@ export function sanitizeHighlights(list: unknown[], settings: HiLighterSettings)
         if (typeof item !== 'object' || item === null) continue;
         const h = item as Record<string, unknown>;
         if (typeof h.id !== 'string' || typeof h.text !== 'string' || typeof h.color !== 'string') continue;
+        const template = CARD_TEMPLATES.find(spec => spec.id === h.templateId);
+        const legacyFields: Record<string, string[]> = {
+            concept: ['definition', 'example', 'boundary'],
+            claim: ['claim', 'evidence', 'counterexample'],
+            question: ['question', 'answer', 'verify'],
+            action: ['next', 'context'],
+        };
+        const legacy = typeof h.templateId === 'string' ? legacyFields[h.templateId] : undefined;
+        const validFields = new Set([...(template?.fields.map(field => field.id) ?? []), ...(legacy ?? [])]);
+        const rawFields = typeof h.cardFields === 'object' && h.cardFields !== null && !Array.isArray(h.cardFields)
+            ? h.cardFields as Record<string, unknown> : {};
+        const cardFields = Object.fromEntries(Object.entries(rawFields)
+            .filter((entry): entry is [string, string] =>
+                validFields.has(entry[0]) && typeof entry[1] === 'string' && entry[1].length <= 20_000));
+        const sourceHighlightIds = Array.isArray(h.sourceHighlightIds)
+            ? [...new Set(h.sourceHighlightIds.filter((id): id is string => typeof id === 'string' && id !== h.id && id.length <= 128))]
+            : [];
+        const rawLinks: unknown[] = Array.isArray(h.links) ? h.links as unknown[] : [];
+        const links = [...new Map(rawLinks
+            .filter((link): link is { targetId: string; relation: string } => {
+                if (typeof link !== 'object' || link === null) return false;
+                const candidate = link as Record<string, unknown>;
+                return typeof candidate.targetId === 'string' && candidate.targetId !== h.id && candidate.targetId.length <= 128 &&
+                    typeof candidate.relation === 'string' && candidate.relation.length <= 120;
+            })
+            .map(link => [link.targetId, { targetId: link.targetId, relation: link.relation }])).values()];
         out.push({
             ...(h as unknown as HighlightNote),
             color: isValidColorId(settings, h.color) ? h.color : 'yellow',
+            kind: h.kind === 'idea' ? 'idea' : undefined,
+            title: typeof h.title === 'string' ? h.title.slice(0, 300) : undefined,
+            templateId: template?.id ?? (legacy ? h.templateId as CardTemplateId : h.templateId ? 'excerpt' : undefined),
+            cardFields,
+            sourceHighlightIds,
+            links,
+            updatedAt: typeof h.updatedAt === 'number' && Number.isFinite(h.updatedAt) ? h.updatedAt : undefined,
         });
     }
     return out;

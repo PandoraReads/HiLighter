@@ -83,6 +83,22 @@ describe('sanitizeHighlights', () => {
         expect(out!.cfi).toBe('epubcfi(/6)');
         expect(out!.fsrs).toEqual({ due: 1 });
     });
+
+    it('normalizes template, idea, and link data from untrusted sync files', () => {
+        const [valid, invalid] = sanitizeHighlights([
+            { id: 'a', text: '', color: 'yellow', kind: 'idea', title: 'Thought', templateId: 'claim',
+                cardFields: { claim: 'Mine', bad: 42 }, sourceHighlightIds: ['b', 3],
+                links: [{ targetId: 'b', relation: 'supports' }, { targetId: 'a', relation: 'self' }, { targetId: 3 }] },
+            { id: 'c', text: 'quote', color: 'yellow', kind: 'oops', templateId: 'malicious', links: 'bad' },
+        ], settings);
+        expect(valid?.kind).toBe('idea');
+        expect(valid?.cardFields).toEqual({ claim: 'Mine' });
+        expect(valid?.sourceHighlightIds).toEqual(['b']);
+        expect(valid?.links).toEqual([{ targetId: 'b', relation: 'supports' }]);
+        expect(invalid?.kind).toBeUndefined();
+        expect(invalid?.templateId).toBe('excerpt');
+        expect(invalid?.links).toEqual([]);
+    });
 });
 
 describe('buildPayload', () => {

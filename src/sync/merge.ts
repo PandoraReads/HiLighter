@@ -71,17 +71,25 @@ export function planMerge(
 
         const ex = existing[i];
         if (ex) {
+            const cardChanged = ex.kind !== note.kind || ex.title !== note.title ||
+                ex.templateId !== note.templateId || ex.updatedAt !== note.updatedAt ||
+                JSON.stringify(ex.cardFields ?? {}) !== JSON.stringify(note.cardFields ?? {}) ||
+                JSON.stringify(ex.sourceHighlightIds ?? []) !== JSON.stringify(note.sourceHighlightIds ?? []) ||
+                JSON.stringify(ex.links ?? []) !== JSON.stringify(note.links ?? []);
             const changed = ex.text !== note.text ||
                 ex.note !== note.note ||
                 ex.color !== note.color ||
                 ex.sourcePath !== note.sourcePath ||
-                fsrsDiffers(ex.fsrs, note.fsrs);
+                JSON.stringify(ex.tags ?? []) !== JSON.stringify(note.tags ?? []) ||
+                fsrsDiffers(ex.fsrs, note.fsrs) || cardChanged;
             if (changed) {
-                // Merge: keep local note/tags if incoming is empty; resolve
-                // fsrs by the newer lastReview (fall back to reps).
+                // Card edits are resolved as a unit so links and fields cannot
+                // be overwritten by an older sync file. Legacy rows keep the
+                // historical incoming-wins behavior when timestamps tie.
+                const newer = (ex.updatedAt ?? 0) > (note.updatedAt ?? 0) ? ex : note;
                 toPut.push({
-                    ...note,
-                    note: note.note || ex.note,
+                    ...newer,
+                    note: newer.note || (newer === note ? ex.note : note.note),
                     tags: [...new Set([...(ex.tags || []), ...(note.tags || [])])],
                     fsrs: pickNewerFsrs(ex.fsrs, note.fsrs),
                 });

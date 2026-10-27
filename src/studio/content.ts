@@ -17,6 +17,8 @@ import { togglePin, refreshSidebarViews, changeNoteColor } from './actions';
 import { HighlightDetailModal } from './modals';
 import { extractNotePreview, noteReviewStatus } from './card-presentation';
 import { renderMarkdownPreview } from './markdown';
+import { cardLabel, cardPreviewMarkdown, cardRelationMarkdown, cardTemplate, cardTitle } from '../card-templates';
+import { renderCardLayout } from '../card-layout';
 import type { HighlightManagerView } from './studio-view';
 import { normalizeVaultFolder } from '../vault-path';
 
@@ -43,6 +45,18 @@ export function renderMainContent(view: HighlightManagerView, parentProp?: HTMLE
     body.empty();
     body.onscroll = null;
     parent.querySelector('.hl-studio-scroll-top')?.remove();
+    parent.querySelector('.hl-studio-fab-stack')?.remove();
+
+    const fabStack = parent.createDiv('hl-studio-fab-stack');
+    const newIdea = fabStack.createEl('button', {
+        cls: 'hl-studio-fab hl-studio-new-idea',
+        attr: { type: 'button', 'aria-label': t('card.newIdea'), title: t('card.newIdea') },
+    });
+    setIcon(newIdea, 'lightbulb');
+    newIdea.onclick = () => HighlightDetailModal.createIdea(view.app, () => {
+        void view.loadHighlights().then(() => view.render());
+        refreshSidebarViews(view.app);
+    }, undefined, view.plugin.settings.noteImageFolder, view.plugin.settings.groupExportFolder || '');
 
     // Stats panel expands over the grouped body while the toolbar stays mounted
     if (view.statsOpen) {
@@ -74,8 +88,10 @@ export function renderMainContent(view: HighlightManagerView, parentProp?: HTMLE
 }
 
 function mountScrollTopButton(parent: HTMLElement, body: HTMLElement): void {
-    const button = parent.createEl('button', {
-        cls: 'hl-studio-scroll-top',
+    const fabStack = parent.querySelector('.hl-studio-fab-stack');
+    if (!fabStack) return;
+    const button = fabStack.createEl('button', {
+        cls: 'hl-studio-fab hl-studio-scroll-top',
         attr: { type: 'button', 'aria-label': t('manager.scrollToTop'), title: t('manager.scrollToTop') },
     });
     setIcon(button, 'arrow-up');
@@ -160,11 +176,14 @@ async function saveGroupAsMarkdown(view: HighlightManagerView, group: NoteGroup)
             const source = item.sourcePath ? `- ${t('manager.group.export.source')}: [[${item.sourcePath.replace(/\|/g, '\\|')}]]` : '';
             const tags = item.tags?.length ? `- ${t('manager.group.export.tags')}: ${item.tags.map(tag => `\`${tag}\``).join(', ')}` : '';
             const created = new Date(item.createdAt).toISOString().slice(0, 10);
-            const note = item.note.trim() || `_${t('manager.group.export.emptyNote')}_`;
+            const note = cardPreviewMarkdown(item).trim() || `_${t('manager.group.export.emptyNote')}_`;
             return [
-                `## ${index + 1}. ${item.text.replace(/\s+/g, ' ').trim()}`,
-                '', quotedText || '> ', '',
+                `## ${index + 1}. ${cardTitle(item).replace(/\s+/g, ' ')}`,
+                '',
+                ...(item.kind === 'idea' ? [] : [quotedText || '> ', '']),
                 `- ${t('manager.group.export.created')}: ${created}`,
+                `- ${t('card.template')}: ${cardLabel(cardTemplate(item).label)}`,
+                cardRelationMarkdown(item, view.highlights),
                 source,
                 tags,
                 '', `### ${t('manager.group.export.note')}`, '', note,
@@ -279,7 +298,6 @@ function toggleSelection(view: HighlightManagerView, note: HighlightNote): void 
 function renderStudioCard(view: HighlightManagerView, parent: HTMLElement, note: HighlightNote): void {
     const card = parent.createDiv(`hl-studio-card border-${note.color}`);
     card.style.setProperty('--hl-card-mark', getColors(view.plugin.settings).find(color => color.id === note.color)?.hex || note.colorHex || '#9e9e9e');
-
     // Drag to another group to change its color / tags (dimension-dependent)
     if (dropEnabled(view.groupBy)) wireDragSource(card, note);
 
@@ -313,23 +331,35 @@ function renderStudioCard(view: HighlightManagerView, parent: HTMLElement, note:
     const colorLabel = colorDef?.isCustom ? customColorName : configuredAlias;
     const kind = top.createSpan({ cls: `hl-studio-card-kind ${colorLabel ? 'has-label' : 'is-dot-only'}`, text: colorLabel || '' });
     kind.setAttribute('aria-label', colorLabel || colorDef?.label || note.color);
+    if (note.templateId && note.templateId !== 'excerpt') {
+        top.createSpan({ cls: 'hl-card-template-badge', text: cardLabel(cardTemplate(note).label) });
+    }
     top.createSpan({ cls: `hl-studio-card-status is-${noteReviewStatus(note)}`, text: t(`manager.card.status.${noteReviewStatus(note)}`) });
 
     const header = card.createDiv('card-header');
-    header.createDiv({ cls: 'highlight-text', text: note.text });
+    if (note.text) header.createDiv({ cls: 'highlight-text', text: note.text });
+    else if (!note.title) header.createDiv({ cls: 'highlight-text', text: cardTitle(note) });
 
     // Note preview: real markdown rendering (wikilinks, bold, images...),
     // clipped to the card like the old plain-text preview was.
-    const preview = extractNotePreview(note.note || '');
+    const presentation = cardPreviewMarkdown(note);
+    const preview = extractNotePreview(presentation);
     const noteBlock = card.createDiv('hl-studio-card-note');
     const noteText = noteBlock.createDiv('hl-studio-card-note-text');
-    if ((note.note || '').trim()) {
+    if (presentation.trim()) {
         // Links inside the preview should open the link, not the card editor.
         noteText.addEventListener('click', (e) => {
             if ((e.target as HTMLElement).closest('a, .internal-link')) e.stopPropagation();
         });
-        void renderMarkdownPreview(view.app, note.note, noteText, note.sourcePath, view)
-            .catch(err => console.error('[HiLighter] card note render failed', err));
+        if (renderCardLayout(noteText, note)) {
+            noteText.addClass('has-method');
+            card.addClass('has-method');
+            if (note.note.trim()) void renderMarkdownPreview(view.app, note.note, noteText.createDiv('hl-card-freeform-note'), note.sourcePath, view)
+                .catch(err => console.error('[HiLighter] card note render failed', err));
+        } else {
+            void renderMarkdownPreview(view.app, presentation, noteText, note.sourcePath, view)
+                .catch(err => console.error('[HiLighter] card note render failed', err));
+        }
     } else {
         noteText.addClass('is-empty');
         noteText.setText(t('manager.card.emptyNote'));
@@ -343,6 +373,7 @@ function renderStudioCard(view: HighlightManagerView, parent: HTMLElement, note:
     footer.createSpan({ cls: 'hl-studio-card-source', text: source });
     footer.createSpan({ cls: 'hl-studio-card-date', text: new Date(note.createdAt).toLocaleDateString() });
     (note.tags || []).slice(0, 2).forEach(tag => footer.createSpan({ cls: 'hl-studio-card-tag', text: tag }));
+    if ((note.links ?? []).length > 0) footer.createSpan({ cls: 'hl-card-link-count', text: `↗ ${note.links!.length}` });
 }
 
 function renderListRow(view: HighlightManagerView, parent: HTMLElement, note: HighlightNote): void {
@@ -356,8 +387,8 @@ function renderListRow(view: HighlightManagerView, parent: HTMLElement, note: Hi
 
     const body = row.createDiv('hl-list-body');
     const textEl = body.createDiv({ cls: 'hl-list-text' });
-    textEl.textContent = note.text;
-    const preview = extractNotePreview(note.note || '');
+    textEl.textContent = cardTitle(note);
+    const preview = extractNotePreview(cardPreviewMarkdown(note));
     body.createDiv({ cls: 'hl-list-note', text: preview.text || t('manager.card.emptyNote') });
 
     const meta = row.createDiv('hl-list-meta');

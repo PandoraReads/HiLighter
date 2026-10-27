@@ -165,6 +165,12 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 
 ## Changelog
 
+### v2.6.3 (2026-10-28)
+- **Card methods and links**: add Cornell, one-page synthesis, and Luhmann-style idea card layouts with named cards, structured method fields, and links between related cards. Sidebar and Card Studio cards now render method content in dedicated layouts.
+- **Card Studio polish**: refine card headers, metadata, editing, and floating actions; add compact icon-only controls and improve card grouping and sorting.
+- **Mind map editing**: add free-positioned cards, multi-node selection, alignment and appearance controls, and a persistent floating action rail. Improve imported-map style switching and preserve map contents when changing palettes.
+- **Data compatibility**: extend local database and vault-sync merging for card methods, titles, and relations while retaining existing highlight cards.
+
 ### v2.6.0 (2026-10-26)
 - **Bookmarks & reading modes**: the reader toolbar gains bookmarks (bookmark the current page, jump back from the list, remove with one click) replacing the old resume button, and a page ⇄ scroll mode toggle — horizontal page turns (buttons or left/right swipe) or continuous vertical scrolling, with your position preserved across the switch and scroll updating the saved progress.
 - **EPUB reader toolbar**: an outline dropdown (jump to any chapter), page jump (auto-generated page numbers with a slider and exact-page input, cached per book), and a "resume last reading position" button. Outline/page/card jumps never overwrite your saved reading spot, so resume always points where you actually left off.

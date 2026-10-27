@@ -41,6 +41,15 @@ export interface CustomColor {
 /** Where a note is anchored (absent = classic markdown <mark> anchor) */
 export type AnchorType = 'markdown' | 'note' | 'pdf' | 'epub';
 
+export type CurrentCardTemplateId = 'excerpt' | 'cornell' | 'onepage' | 'zettel';
+/** Earlier content-type IDs remain readable until the user edits the card. */
+export type CardTemplateId = CurrentCardTemplateId | 'concept' | 'claim' | 'question' | 'action';
+
+export interface CardLink {
+    targetId: string;
+    relation: string;
+}
+
 /**
  * Precise position of a PDF highlight inside the pdf.js textLayer:
  * page + span index + character offsets, verified at paint time via
@@ -275,6 +284,13 @@ export interface HighlightNote {
     contextQuote?: string;       // Surrounding text for DB-only anchors
     colorHex?: string;           // Hex snapshot, written when the color is custom
     fsrs?: FsrsState;            // Absent = new card
+    kind?: 'idea';               // Absent = source-anchored highlight
+    title?: string;              // Independent idea title
+    templateId?: CardTemplateId; // Absent = excerpt, preserving old records
+    cardFields?: Record<string, string>;
+    sourceHighlightIds?: string[]; // Provenance for an idea card
+    links?: CardLink[];          // Outgoing, labelled card relationships
+    updatedAt?: number;         // Resolves cross-device card edits
 }
 
 /** A deleted highlight id + when it was deleted (cross-device delete propagation). */

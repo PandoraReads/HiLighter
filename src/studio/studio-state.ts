@@ -5,7 +5,7 @@
 import type { HighlightNote } from '../models';
 
 /** Gallery grouping dimension (was derived from the old sidebar tab) */
-export type StudioGroupBy = 'file' | 'tag' | 'color' | 'date';
+export type StudioGroupBy = 'file' | 'tag' | 'color' | 'date' | 'template';
 
 /** Sort modes for the gallery / list body */
 export type StudioSortBy = 'time_desc' | 'time_asc' | 'az' | 'za' | 'source_order';
