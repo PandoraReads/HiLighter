@@ -29,6 +29,8 @@ import { injectCustomColorStyles } from './appearance';
 import { capturePdfAnchorFromSelection, capturePdfContext } from './pdf/pdf-anchors';
 import type { PdfRect, PdfTextAnchor } from './models';
 import { registerPdfOverlay } from './pdf/pdf-overlay';
+import { startPdfScreenshot } from './pdf/pdf-screenshot';
+import { registerCardReferences } from './studio/card-reference';
 import { EpubView, EPUB_VIEW_TYPE } from './epub/epub-view';
 import { openEpubRegistry } from './epub/registry';
 import { db, initDb } from './db';
@@ -54,6 +56,7 @@ export interface HighlightContext {
 	anchorType?: string;
 	cfi?: string;
 	contextQuote?: string;
+	editorRange?: { from: { line: number; ch: number }; to: { line: number; ch: number } };
 }
 
 /** Minimal viewRegistry shape used to detect EPUB extension conflicts. */
@@ -225,6 +228,32 @@ export default class HiLighterPlugin extends Plugin {
 			callback: () => this.openEpubPicker(),
 		});
 
+		this.addCommand({
+			id: 'pdf-screenshot-card', name: t('pdf.captureCommand'),
+			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: '9' }],
+			checkCallback: (checking: boolean) => {
+				const view = this.app.workspace.getMostRecentLeaf()?.view;
+				if (view?.getViewType() !== 'pdf') return false;
+				if (!checking) startPdfScreenshot(this, view);
+				return true;
+			},
+		});
+		this.addCommand({
+			id: 'open-pdf-highlight-toolbar', name: t('pdf.openToolbar'),
+			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'H' }],
+			checkCallback: (checking: boolean) => {
+				const leaf = this.app.workspace.getMostRecentLeaf();
+				const view = leaf?.view;
+				if (!leaf || view?.getViewType() !== 'pdf') return false;
+				if (!checking) {
+					const rect = view.containerEl.getBoundingClientRect();
+					this.showHighlightMenu('', { leaf }, rect.left + rect.width / 2, rect.top + 56, view.containerEl.ownerDocument);
+				}
+				return true;
+			},
+		});
+
+		registerCardReferences(this);
 		registerNoteHover(this);
 
 		// PDF textLayer highlight overlay (best-effort, toggleable)
@@ -498,6 +527,10 @@ export default class HiLighterPlugin extends Plugin {
 		showHighlightMenu(this, selection, context, x, y, doc);
 	}
 
+	startPdfScreenshot(context: HighlightContext) {
+		startPdfScreenshot(this, context?.leaf?.view, context?.pdfPage);
+	}
+
 	/** Short AI annotation of a selection; used to prefill the note popup. */
 	async annotateSelection(text: string): Promise<string> {
 		return new AIService(this.settings).processAction(text, 'explain');
@@ -508,10 +541,10 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** Applies a highlight from the selection menu (markdown / pdf / epub branches). */
-	async applyHighlight(text: string, context: HighlightContext, color: string, note = '') {
+	async applyHighlight(text: string, context: HighlightContext, color: string, note = '', draft?: HighlightNote) {
 		// EPUB selections: DB-only anchor (CFI) + live annotation
 		if (context?.anchorType === 'epub' && context?.cfi) {
-			await this.applyEpubHighlight(text, context, color, note);
+			await this.applyEpubHighlight(text, context, color, note, draft);
 			return;
 		}
 
@@ -520,7 +553,7 @@ export default class HiLighterPlugin extends Plugin {
 			? context.leaf.view
 			: null;
 		if (context?.pdfPage != null || pdfView) {
-			await this.applyPdfHighlight(text, context, color, pdfView || context?.leaf?.view, note);
+			await this.applyPdfHighlight(text, context, color, pdfView || context?.leaf?.view, note, draft);
 			return;
 		}
 
@@ -544,7 +577,7 @@ export default class HiLighterPlugin extends Plugin {
 				return;
 			}
 			await db.addHighlightNote({
-				id: randomUUID(), text, color, note, sourcePath,
+				...draft, id: draft?.id ?? randomUUID(), text, color, note, sourcePath,
 				lineIndex: context?.lineIndex ?? 0, createdAt: Date.now(),
 				anchorType: 'note', contextQuote: context?.lineText || text,
 			});
@@ -554,16 +587,26 @@ export default class HiLighterPlugin extends Plugin {
 		}
 
 		const editor = view.editor;
-		const id = randomUUID();
+		const id = draft?.id ?? randomUUID();
 		// data-hl-color carries the hex snapshot for every color so marks stay
 		// renderable even if a custom color definition is later deleted.
 		const colorDef = getColorDef(this.settings, color);
 		const colorHex = colorDef ? colorDef.hex : '#ffd700';
-		const highlightTag = `<mark class="hl-highlight hl-h-${color}" data-id="${id}" data-hl-color="${colorHex}">${text}</mark>`;
+		let selectedText = text;
 
 		try {
 			editor.focus();
-			editor.replaceSelection(highlightTag);
+			if (draft) {
+				const range = context.editorRange;
+				if (!range) throw new Error('The original selection is unavailable');
+				selectedText = editor.getRange(range.from, range.to);
+				if (selectedText.trim() !== text) throw new Error('The original selection has changed');
+				const tag = `<mark class="hl-highlight hl-h-${color}" data-id="${id}" data-hl-color="${colorHex}">${selectedText}</mark>`;
+				editor.replaceRange(tag, range.from, range.to);
+			} else {
+				const tag = `<mark class="hl-highlight hl-h-${color}" data-id="${id}" data-hl-color="${colorHex}">${text}</mark>`;
+				editor.replaceSelection(tag);
+			}
 
 			// Force Live Preview Refresh: Move cursor slightly or clear selection
 			const cursor = editor.getCursor();
@@ -573,6 +616,7 @@ export default class HiLighterPlugin extends Plugin {
 			const finalPath = activeFile ? activeFile.path : context.sourcePath || '';
 
 			const highlightEntry: HighlightNote = {
+				...draft,
 				id,
 				text,
 				color,
@@ -601,11 +645,12 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** EPUB highlight: DB-only CFI anchor + immediate annotation on the open book. */
-	private async applyEpubHighlight(text: string, context: HighlightContext, color: string, note = '') {
+	private async applyEpubHighlight(text: string, context: HighlightContext, color: string, note = '', draft?: HighlightNote) {
 		try {
 			const colorDef = getColorDef(this.settings, color);
 			const entry: HighlightNote = {
-				id: randomUUID(),
+				...draft,
+				id: draft?.id ?? randomUUID(),
 				text,
 				color,
 				note,
@@ -631,7 +676,7 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** PDF highlight: no file write; anchor = path + page + context quote. */
-	private async applyPdfHighlight(text: string, context: HighlightContext, color: string, view: (View & { file?: TFile }) | null | undefined, note = '') {
+	private async applyPdfHighlight(text: string, context: HighlightContext, color: string, view: (View & { file?: TFile }) | null | undefined, note = '', draft?: HighlightNote) {
 		try {
 			const file = view?.file || this.app.workspace.getActiveFile();
 			if (!file) {
@@ -640,7 +685,8 @@ export default class HiLighterPlugin extends Plugin {
 			}
 			const colorDef = getColorDef(this.settings, color);
 			const entry: HighlightNote = {
-				id: randomUUID(),
+				...draft,
+				id: draft?.id ?? randomUUID(),
 				text,
 				color,
 				note,
@@ -705,6 +751,7 @@ export default class HiLighterPlugin extends Plugin {
 		let pdfPage: number | undefined = undefined;
 		let pdfAnchor: PdfTextAnchor | undefined = undefined;
 		let pdfRects: PdfRect[] | undefined = undefined;
+		let editorRange: HighlightContext['editorRange'];
 		try {
 			// 1. Identify valid leaf and view
 			let activeLeaf = leaf;
@@ -744,6 +791,7 @@ export default class HiLighterPlugin extends Plugin {
 			} else if (isMarkdown && mode === 'source') {
 				// SOURCE MODE (Source / Live Preview)
 				const editor = (view as MarkdownView).editor;
+				editorRange = { from: editor.getCursor('from'), to: editor.getCursor('to') };
 				const cursor = editor.getCursor?.('from') || { line: 0, ch: 0 };
 				const currentLine = cursor.line;
 
@@ -806,7 +854,7 @@ export default class HiLighterPlugin extends Plugin {
 
 		lineText = (lineText || '').trim();
 		if (lineText.length > 8000) lineText = lineText.slice(0, 8000);
-		return { lineText, sourcePath, lineIndex, pdfPage, pdfAnchor, pdfRects };
+		return { lineText, sourcePath, lineIndex, pdfPage, pdfAnchor, pdfRects, editorRange };
 	}
 
 	async loadSettings() {

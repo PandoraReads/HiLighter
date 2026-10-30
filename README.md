@@ -22,15 +22,18 @@
     *   **Keyword Search**: Real-time filtering of note content via top search bar.
 *   **AI-Powered Intelligence**:
     *   **AI Translation (Languages)**: One-click precise translation of highlighted sentences.
-    *   **AI Research (Microscope)**: Comes with multiple built-in research prompt templates (philosophical analysis, concise summary, critical analysis) and supports **custom research prompts** — freely add, edit, and switch between prompts to suit different deep reading scenarios.
+    *   **Sidebar AI Chat**: Connect a configured model, select one or more cards as context, and ask a question or choose a built-in or custom research prompt. Save a reply as a new idea card linked to the cards used for that request. Send with the arrow or Enter; use Shift+Enter for a new line.
 *   **Flexible Interaction**:
-    *   **Quick Edit**: Click pencil icon to directly edit notes on cards with auto-adjusting height.
+    *   **Quick Edit**: Click a card's note area to edit it; the detail editor saves changes automatically and renders Markdown when editing ends.
     *   **Tag System**: Support for custom tags with built-in intelligent recommendation algorithm.
     *   **Card Collection Navigation**: One-click switch to full-screen "Card Studio" mode for centralized inspiration management.
 *   **Note Card Management**:
     *   **Locate Original Text**: Click a card to instantly jump to the highlighted position in the source note for quick context recovery.
     *   **Classification Tags**: Add tags to each card for organized categorization, with support for batch tag operations.
     *   **Batch Deletion**: Enter batch mode to multi-select cards and delete them in one click for efficient cleanup.
+    *   **Card Hierarchy**: Drag a card onto the upper area of another card to nest it, or onto its lower edge to place it immediately after that card at the same level. Move several selected cards together; same-document hierarchies support up to three levels. Drop into empty list space to move back to the top level.
+    *   **Live Card References**: Drag a sidebar card into a Markdown note to insert a reference that displays the latest card content. The embedded card can open its editor or remove the reference.
+*   **Dictionary and Translation**: Select text and use the lookup icon to see dictionary definitions above the translation. Chinese entries use Wiktionary and English entries use Free Dictionary API; pronunciation uses an available local system voice.
 
 ![screenshot2](screenshots/card-studio.png)
 
@@ -39,6 +42,7 @@
 *   **Persistent marks**: Every highlight is anchored to page geometry, so marks survive page turns, closing and reopening the file, zooming, and vault syncs across devices.
 *   **Two-way sync with cards**: Delete a card and its PDF mark disappears immediately; recolor a card and the mark updates instantly.
 *   **Jump to the exact sentence**: Click a card to scroll straight to the highlighted sentence in the PDF, with a brief locate flash.
+*   **Capture a region**: In the PDF reader, use the selection toolbar or `Ctrl/Cmd+Shift+9` to select a region and create an image note card. For scanned PDFs, `Ctrl/Cmd+Shift+H` opens the toolbar without selecting text. Both shortcuts can be changed in Obsidian's hotkey settings.
 
 ![pdf](screenshots/pdf-highlight.png)
 
@@ -51,6 +55,7 @@
 
 ### 🧠 Mind Maps (New in 2.4)
 *   **One-Click Generation**: Import all highlights from any file as a mind map — grouped by document headings, highlight color, tag, or flat order.
+*   **Card Layout and Hierarchy**: Nodes use card-style layouts with rendered Markdown. Collapse card details in one click, switch between selection and hand tools, and jump from a linked card to its source. When source cards have a hierarchy, imports use that hierarchy.
 *   **Xmind-Style Editing**: Drag topics to re-parent or reorder, Tab/Enter/Delete shortcuts, double-click inline editing, collapse/expand branches, undo/redo, and associative lines between any two topics.
 *   **9 Structures**: Balanced mind map, logic diagram (right/left), organization chart, horizontal/vertical timelines, fishbone, and catalog organization — switchable at any time.
 *   **6 Style Themes × 8 Color Palettes**: Line shapes and widths (curves, straight, rainbow branch lines) combined with full color schemes (background, node fill/border with per-level fading borders, plus a colorful card-colored option).
@@ -76,9 +81,7 @@
 2. **Community Plugins:** Search for `HiLighter` in Obsidian's Community Plugins browser and install it directly.
 
 ### Basic Configuration
-1.  **AI LLM API (Important)**: To use AI Translation and AI Research features, configure an AI LLM API in plugin settings. Supports mainstream providers including DeepSeek, Google Gemini, and Volcano Engine (Ark).
-### Basic Configuration
-1.  **AI LLM API (Important)**: To use AI Translation and AI Research features, configure an AI LLM API in plugin settings. Supports mainstream providers including DeepSeek, Google Gemini, and Volcano Engine (Ark).
+1.  **AI model configuration**: Configure a model in plugin settings to use AI translation and sidebar chat. Providers include DeepSeek, Google Gemini, and Volcano Engine (Ark); research prompts can also be customized there.
 2.  **Ribbon Icon**: You can control whether to display the sidebar highlight notes icon in settings.
 
 ---
@@ -164,6 +167,15 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 ---
 
 ## Changelog
+
+### v2.7.0 (2026-10-30)
+
+- Added sidebar AI chat with model switching, selectable card context, research prompt presets, and the ability to save answers as linked idea cards.
+- Added card references in Markdown, card-to-card links, and drag-and-drop hierarchy for individual or multiple selected cards. Sidebar batch actions support tag changes and deletion.
+- Added PDF region capture to image cards and a selection lookup popup with Chinese and English dictionary definitions, translation, and system pronunciation.
+- Updated the card detail editor with automatic saving, Markdown preview, compact two-column layout, and linked-card controls; refined sidebar filtering and card presentation.
+- Updated mind map nodes to card layouts with Markdown rendering, card-detail collapse, pointer/hand tools, source navigation, and imports that respect saved card hierarchy.
+- Improved long-list scroll restoration, quote-card word wrapping, and EPUB error messaging.
 
 ### v2.6.3 (2026-10-28)
 - **Card methods and links**: add Cornell, one-page synthesis, and Luhmann-style idea card layouts with named cards, structured method fields, and links between related cards. Sidebar and Card Studio cards now render method content in dedicated layouts.

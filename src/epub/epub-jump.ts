@@ -28,5 +28,5 @@ export async function jumpToEpubNote(app: App, note: HighlightNote): Promise<voi
             return;
         }
     }
-    new Notice(t('epub.openError'));
+    new Notice(t('epub.jumpUnavailable'));
 }

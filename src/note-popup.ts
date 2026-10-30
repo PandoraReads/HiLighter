@@ -35,6 +35,7 @@ export interface NotePopupOptions {
      *  "generating" placeholder; the resolved text is filled in for review. */
     aiPending?: Promise<string>;
     onSave(result: NotePopupResult): void | Promise<void>;
+    onEdit?(result: NotePopupResult): void;
 }
 
 const POPUP_CLS = 'hl-note-popup';
@@ -115,9 +116,7 @@ export function openNotePopup(opts: NotePopupOptions): void {
         });
     };
 
-    const dropHint = body.createEl('button', { cls: 'hl-note-popup-dropzone', text: t('notePopup.dropHint') });
-    dropHint.type = 'button';
-    attachImageHandlers(app, dropHint, opts.sourcePath, {
+    if (opts.imageOnly) attachImageHandlers(app, body, opts.sourcePath, {
         onImageSaved: (line) => { images = [...images, line]; renderChips(); },
     }, opts.imageFolder);
 
@@ -127,6 +126,7 @@ export function openNotePopup(opts: NotePopupOptions): void {
         const files = extractImageFiles(e.clipboardData);
         if (files.length === 0) return;
         e.preventDefault();
+        e.stopPropagation();
         void (async () => {
             const lines = await saveImageAttachments(app, files, opts.sourcePath, opts.imageFolder);
             images = [...images, ...lines];
@@ -142,9 +142,9 @@ export function openNotePopup(opts: NotePopupOptions): void {
         onImageSaved: (line) => { images = [...images, line]; renderChips(); },
     }, t('notePopup.addImage'), opts.imageFolder);
     actions.appendChild(pickBtn);
-    dropHint.onclick = () => pickBtn.click();
 
     const cancelBtn = actions.createEl('button', { cls: 'hl-note-popup-cancel', text: t('btn.cancel') });
+    const editBtn = opts.onEdit ? actions.createEl('button', { text: t('notePopup.editCard') }) : null;
     const saveBtn = actions.createEl('button', { cls: 'hl-note-popup-save', text: t('notePopup.save') });
 
     const close = () => {
@@ -164,6 +164,12 @@ export function openNotePopup(opts: NotePopupOptions): void {
     };
 
     cancelBtn.onclick = close;
+    if (editBtn) editBtn.onclick = () => {
+        const text = textarea?.value.trim() ?? '';
+        const result = { note: [text, ...images].filter(Boolean).join('\n\n'), images: [...images], isEmpty: !text && images.length === 0 };
+        close();
+        opts.onEdit?.(result);
+    };
     closeBtn.onclick = close;
     saveBtn.onclick = save;
 

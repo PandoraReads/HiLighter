@@ -11,6 +11,9 @@ import { HIGHLIGHT_VIEW_TYPE } from '../view-types';
 import { locateHighlightMark } from '../locate';
 import type { HighlightView } from '../highlight-view';
 import type { HighlightManagerView } from './studio-view';
+import { jumpToPdfNote } from '../pdf/pdf-anchors';
+import { jumpToEpubNote } from '../epub/epub-jump';
+import { sourceKind } from './source-kind';
 
 /** Re-render every open sidebar HighlightView (desktop immediate / mobile buffered). */
 export function refreshSidebarViews(app: App): void {
@@ -129,6 +132,9 @@ export async function removeHighlightFromVault(app: App, note: HighlightNote): P
 
 /** Opens the source file and scrolls to the anchored sentence. */
 export async function jumpToSource(app: App, note: HighlightNote): Promise<void> {
+    const kind = sourceKind(note);
+    if (kind === 'pdf') return jumpToPdfNote(app, note);
+    if (kind === 'epub') return jumpToEpubNote(app, note);
     await app.workspace.openLinkText(note.sourcePath, '', false);
     const view = app.workspace.getActiveViewOfType(MarkdownView);
     if (view && view.editor) {

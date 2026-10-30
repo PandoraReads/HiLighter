@@ -4,6 +4,7 @@
 
 import type { HighlightNote } from '../models';
 import { t } from '../i18n';
+import { wrapCardText } from './xhs-wrap';
 
 /** Picks one of the four styles at random and downloads a PNG. */
 export function generateXhsImage(note: HighlightNote): void {
@@ -20,26 +21,7 @@ function downloadCanvas(canvas: HTMLCanvasElement): void {
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-    const rawLines = text.split('\n');
-    const result: string[] = [];
-    for (const raw of rawLines) {
-        if (!raw.trim()) {
-            result.push('');
-            continue;
-        }
-        let line = '';
-        for (const char of raw) {
-            const test = line + char;
-            if (ctx.measureText(test).width > maxWidth) {
-                result.push(line);
-                line = char;
-            } else {
-                line = test;
-            }
-        }
-        if (line) result.push(line);
-    }
-    return result;
+    return wrapCardText(text, maxWidth, value => ctx.measureText(value).width);
 }
 
 function newCanvas(w: number, h: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
@@ -274,8 +256,9 @@ function xhsStyleSerif(note: HighlightNote): void {
 
     // Drop cap (first character, large)
     const padX = 90;
-    const firstChar = note.text.charAt(0);
-    const restText = note.text.slice(1);
+    const startsWithLatin = /^[A-Za-z0-9\u00c0-\u024f]/.test(note.text);
+    const firstChar = startsWithLatin ? '“' : Array.from(note.text)[0] ?? '';
+    const restText = startsWithLatin ? note.text : note.text.slice(firstChar.length);
 
     ctx.fillStyle = accent;
     ctx.font = '120px "Songti SC", "STSong", "Georgia", serif';
