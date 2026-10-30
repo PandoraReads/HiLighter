@@ -47,6 +47,22 @@ function allLeaves(node: MindMapNode): MindMapNode[] {
 }
 
 describe('buildMindMapTree', () => {
+    it('keeps same-level card ordering when importing a flat mind map', () => {
+        const a = note({ id: 'a', lineIndex: 1 });
+        const b = note({ id: 'b', lineIndex: 2 });
+        const c = note({ id: 'c', lineIndex: 3, links: [{ targetId: 'a', relation: 'hierarchy_after' }] });
+        const tree = buildMindMapTree([a, b, c], [], { ...OPTIONS, mode: 'flat' });
+        expect(tree.children!.map(item => item.data.highlightId)).toEqual(['a', 'c', 'b']);
+    });
+    it('imports the saved three-level card hierarchy', () => {
+        const parent = note({ id: 'p', lineIndex: 1 });
+        const child = note({ id: 'c', lineIndex: 2, links: [{ targetId: 'p', relation: 'hierarchy_parent' }] });
+        const detail = note({ id: 'd', lineIndex: 3, links: [{ targetId: 'c', relation: 'hierarchy_parent' }] });
+        const tree = buildMindMapTree([detail, parent, child], [], { ...OPTIONS, mode: 'flat' });
+        expect(tree.children![0]!.data.highlightId).toBe('p');
+        expect(tree.children![0]!.children![0]!.data.highlightId).toBe('c');
+        expect(tree.children![0]!.children![0]!.children![0]!.data.highlightId).toBe('d');
+    });
     it('returns a bare root for an empty note list', () => {
         const tree = buildMindMapTree([], [], OPTIONS);
         expect(tree.data.text).toBe('My Book');

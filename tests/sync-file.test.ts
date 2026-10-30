@@ -63,6 +63,15 @@ describe('parseSyncPayload', () => {
 describe('sanitizeHighlights', () => {
     const settings: HiLighterSettings = { ...DEFAULT_SETTINGS };
 
+    it('preserves parent links when importing synced cards', () => {
+        const [out] = sanitizeHighlights([note({ links: [{ targetId: 'parent', relation: 'hierarchy_parent' }] })], settings);
+        expect(out?.links).toEqual([{ targetId: 'parent', relation: 'hierarchy_parent' }]);
+    });
+    it('preserves sibling order and its existing card relation during sync', () => {
+        const [out] = sanitizeHighlights([note({ links: [{ targetId: 'other', relation: 'hierarchy_after:related' }] })], settings);
+        expect(out?.links).toEqual([{ targetId: 'other', relation: 'hierarchy_after:related' }]);
+    });
+
     it('drops rows missing required string fields', () => {
         const rows = [null, {}, { id: 1, text: 'a', color: 'b' }, { id: 'x', text: 'a' }, { id: 'x', color: 'a' }];
         expect(sanitizeHighlights(rows, settings)).toEqual([]);

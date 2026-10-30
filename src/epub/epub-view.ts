@@ -510,7 +510,7 @@ export class EpubView extends FileView {
         try {
             await this.rendition.display(bm.cfi);
         } catch {
-            new Notice(t('epub.openError'));
+            new Notice(t('epub.bookmarkJumpError'));
         }
     }
 
@@ -598,7 +598,6 @@ export class EpubView extends FileView {
             if (seq !== this.loadSeq) return;
             console.error('[HiLighter] EPUB open failed', err);
             this.showError(err);
-            new Notice(t('epub.openError'));
         }
     }
 

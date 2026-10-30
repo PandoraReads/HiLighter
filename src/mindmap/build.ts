@@ -7,6 +7,7 @@
 // this stays vitest-testable like studio/grouping.ts.
 
 import type { HighlightNote, MindMapBuildMode } from '../models';
+import { orderHierarchy, parentId } from '../studio/card-hierarchy';
 
 /** A document heading, distilled from Obsidian's metadataCache. */
 export interface HeadingLine {
@@ -67,7 +68,7 @@ function makeLeaf(note: HighlightNote, options: BuildOptions): MindMapNode {
     return {
         data: {
             uid: uid(),
-            text: truncate(note.text || '…'),
+            text: truncate(note.text || note.title || '…'),
             expand: true,
             note: buildNodeNote(note.text || '', note.note || ''),
             borderColor: options.colorHex(note.color),
@@ -182,7 +183,20 @@ export function buildMindMapTree(
         return root;
     }
 
-    const sorted = [...notes].sort((a, b) => (a.lineIndex ?? 0) - (b.lineIndex ?? 0));
+    const sorted = orderHierarchy([...notes].sort((a, b) => (a.lineIndex ?? 0) - (b.lineIndex ?? 0))).map(item => item.card);
+
+    if (sorted.some(note => parentId(note) && sorted.some(parent => parent.id === parentId(note)))) {
+        const nodes = new Map(sorted.map(note => [note.id, makeLeaf(note, options)]));
+        for (const { card, depth } of orderHierarchy(sorted)) {
+            const leaf = nodes.get(card.id)!;
+            const parent = parentId(card);
+            const parentNode = depth > 0 && parent ? nodes.get(parent) : undefined;
+            if (parentNode) parentNode.children!.push(leaf);
+            else root.children!.push(leaf);
+        }
+        applyExpandDepths(root, 0);
+        return root;
+    }
 
     if (options.mode === 'headings') {
         const usableHeadings = headings.filter(h => h.text.trim().length > 0);
@@ -221,7 +235,7 @@ export function buildMindMapTree(
 
     if (options.mode === 'color') {
         const byColor = new Map<string, HighlightNote[]>();
-        for (const note of notes) {
+        for (const note of sorted) {
             const list = byColor.get(note.color) ?? [];
             list.push(note);
             byColor.set(note.color, list);
@@ -243,7 +257,7 @@ export function buildMindMapTree(
 
     if (options.mode === 'tag') {
         const byTag = new Map<string, HighlightNote[]>();
-        for (const note of notes) {
+        for (const note of sorted) {
             const tags = note.tags && note.tags.length > 0 ? note.tags : ['__uncategorized__'];
             for (const tag of tags) {
                 const list = byTag.get(tag) ?? [];
@@ -297,11 +311,11 @@ export function syncTreeWithCards(
             if (card) {
                 const full = card.text || '';
                 const userNote = card.note || '';
-                if (node.data.highlightText !== full || node.data.highlightNote !== userNote) {
+                if (node.data.highlightText !== full || node.data.highlightNote !== userNote || node.data.text !== truncate(full || card.title || '…')) {
                     node.data.highlightText = full;
                     node.data.highlightNote = userNote;
                     node.data.note = buildNodeNote(full, userNote);
-                    node.data.text = truncate(full || '…');
+                    node.data.text = truncate(full || card.title || '…');
                     changed = true;
                 }
                 const hex = options.colorHex(card.color);

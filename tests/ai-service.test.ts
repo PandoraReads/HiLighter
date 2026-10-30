@@ -82,11 +82,13 @@ describe('queryOpenAICompat temperature', () => {
         });
 
         await serviceWithModel('m', 'https://t1.example.com/v1/chat/completions', 1).processAction('hi', 'translate');
-        const body1 = JSON.parse(requestUrlMock.mock.calls[0]![0]!.body);
+        const request1 = requestUrlMock.mock.calls[0]![0] as { body: string };
+        const body1 = JSON.parse(request1.body) as { temperature: number };
         expect(body1.temperature).toBe(1);
 
         await serviceWithModel('m', 'https://t2.example.com/v1/chat/completions').processAction('hi', 'translate');
-        const body2 = JSON.parse(requestUrlMock.mock.calls[1]![0]!.body);
+        const request2 = requestUrlMock.mock.calls[1]![0] as { body: string };
+        const body2 = JSON.parse(request2.body) as { temperature: number };
         expect(body2.temperature).toBe(0.7);
     });
 });
@@ -120,5 +122,22 @@ describe('queryOpenAICompat error enrichment', () => {
         requestUrlMock.mockRejectedValue(new Error('Request failed, status 400'));
         await expect(serviceWithModel('bad-model', 'https://e.example.com/v1/chat/completions').processAction('hello', 'translate'))
             .rejects.toThrow('status 400');
+    });
+});
+
+describe('card chat', () => {
+    it('sends selected conversation history to the chosen configured model', async () => {
+        requestUrlMock.mockResolvedValue({ status: 200, json: { choices: [{ message: { content: 'answer' } }] } });
+        const settings: HiLighterSettings = { ...DEFAULT_SETTINGS, aiModels: [{ id: 'one', name: 'test', baseUrl: 'https://example.invalid/chat', model: 'model-a', apiKey: 'test-key' }], activeModelId: 'one' };
+        const service = new AIService(settings);
+        expect(await service.chat([{ role: 'user', content: 'question and card context' }, { role: 'assistant', content: 'earlier answer' }, { role: 'user', content: 'follow up' }])).toBe('answer');
+        const request = requestUrlMock.mock.calls[0]![0] as { body: string };
+        const body = JSON.parse(request.body) as { messages: unknown[] };
+        expect(body.messages.slice(1)).toEqual([{ role: 'user', content: 'question and card context' }, { role: 'assistant', content: 'earlier answer' }, { role: 'user', content: 'follow up' }]);
+    });
+    it('rejects empty conversations before any request', async () => {
+        const service = new AIService({ ...DEFAULT_SETTINGS });
+        await expect(service.chat([])).rejects.toThrow();
+        expect(requestUrlMock).not.toHaveBeenCalled();
     });
 });

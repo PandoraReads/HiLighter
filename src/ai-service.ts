@@ -72,6 +72,7 @@ export async function fetchAvailableModels(baseUrl: string, apiKey: string, cach
 }
 
 export type AIAction = 'translate' | 'annotate' | 'research' | 'explain';
+export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
 const DEFAULT_RESEARCH_PROMPT = `你是一位充满智慧且言简意赅的哲学家朋友。请对以下文本进行深度解析，并按以下三层结构组织：
 
@@ -95,8 +96,8 @@ export class AIService {
         this.settings = settings;
     }
 
-    private getActiveModel(): AIModelConfig {
-        const model = this.settings.aiModels.find(m => m.id === this.settings.activeModelId);
+    private getActiveModel(modelId = this.settings.activeModelId): AIModelConfig {
+        const model = this.settings.aiModels.find(m => m.id === modelId);
         if (!model) {
             throw new Error(t('ai.error.noActiveModel'));
         }
@@ -110,6 +111,12 @@ export class AIService {
         const model = this.getActiveModel();
         const prompt = this.getPrompt(text, action, promptId);
         return await this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, prompt, model.temperature);
+    }
+
+    async chat(messages: readonly ChatMessage[], modelId?: string): Promise<string> {
+        if (!messages.length || messages.some(message => !message.content.trim())) throw new Error('Empty chat message');
+        const model = this.getActiveModel(modelId);
+        return this.queryOpenAICompat(model.baseUrl, model.model, model.apiKey, '', model.temperature, messages);
     }
 
     /**
@@ -222,7 +229,7 @@ ${fullText}`;
      * Unified OpenAI-compatible API caller
      * Works with DeepSeek, Gemini (OpenAI mode), Kimi, Qwen, Doubao, OpenAI, Ollama, etc.
      */
-    private async queryOpenAICompat(url: string, model: string, apiKey: string, prompt: string, temperature?: number): Promise<string> {
+    private async queryOpenAICompat(url: string, model: string, apiKey: string, prompt: string, temperature?: number, conversation?: readonly ChatMessage[]): Promise<string> {
         if (!url) {
             throw new Error(t('ai.error.noUrl'));
         }
@@ -236,7 +243,7 @@ ${fullText}`;
             model: resolved.id,
             messages: [
                 { role: 'system', content: 'You are a helpful assistant specialized in text analysis, translation, and research.' },
-                { role: 'user', content: prompt }
+                ...(conversation ?? [{ role: 'user' as const, content: prompt }])
             ],
             temperature: temperature ?? DEFAULT_TEMPERATURE
         };

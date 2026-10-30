@@ -7,6 +7,7 @@ import type { HighlightNote } from '../models';
 import { t } from '../i18n';
 import { getColors } from '../colors';
 import { db } from '../db';
+import { visibleRelation } from './card-hierarchy';
 import { deckGroups, planGroupDrop, dropEnabled } from './grouping';
 import type { NoteGroup } from './studio-state';
 import type { DropPlan } from './grouping';
@@ -344,9 +345,9 @@ function renderStudioCard(view: HighlightManagerView, parent: HTMLElement, note:
     // clipped to the card like the old plain-text preview was.
     const presentation = cardPreviewMarkdown(note);
     const preview = extractNotePreview(presentation);
-    const noteBlock = card.createDiv('hl-studio-card-note');
-    const noteText = noteBlock.createDiv('hl-studio-card-note-text');
     if (presentation.trim()) {
+        const noteBlock = card.createDiv('hl-studio-card-note');
+        const noteText = noteBlock.createDiv('hl-studio-card-note-text');
         // Links inside the preview should open the link, not the card editor.
         noteText.addEventListener('click', (e) => {
             if ((e.target as HTMLElement).closest('a, .internal-link')) e.stopPropagation();
@@ -360,12 +361,11 @@ function renderStudioCard(view: HighlightManagerView, parent: HTMLElement, note:
             void renderMarkdownPreview(view.app, presentation, noteText, note.sourcePath, view)
                 .catch(err => console.error('[HiLighter] card note render failed', err));
         }
+        if (preview.images.length > 0) {
+            noteBlock.createDiv({ cls: 'hl-studio-card-image-count', text: t('manager.card.imageCount', { count: preview.images.length }) });
+        }
     } else {
-        noteText.addClass('is-empty');
-        noteText.setText(t('manager.card.emptyNote'));
-    }
-    if (preview.images.length > 0) {
-        noteBlock.createDiv({ cls: 'hl-studio-card-image-count', text: t('manager.card.imageCount', { count: preview.images.length }) });
+        card.addClass('has-no-note');
     }
 
     const footer = card.createDiv('hl-studio-card-foot');
@@ -373,7 +373,8 @@ function renderStudioCard(view: HighlightManagerView, parent: HTMLElement, note:
     footer.createSpan({ cls: 'hl-studio-card-source', text: source });
     footer.createSpan({ cls: 'hl-studio-card-date', text: new Date(note.createdAt).toLocaleDateString() });
     (note.tags || []).slice(0, 2).forEach(tag => footer.createSpan({ cls: 'hl-studio-card-tag', text: tag }));
-    if ((note.links ?? []).length > 0) footer.createSpan({ cls: 'hl-card-link-count', text: `↗ ${note.links!.length}` });
+    const linkCount = (note.links ?? []).filter(link => visibleRelation(link.relation)).length;
+    if (linkCount) footer.createSpan({ cls: 'hl-card-link-count', text: `↗ ${linkCount}` });
 }
 
 function renderListRow(view: HighlightManagerView, parent: HTMLElement, note: HighlightNote): void {

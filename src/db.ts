@@ -11,6 +11,7 @@ import {
     TOMBSTONE_TTL_MS,
 } from './sync/merge';
 import { cardSearchText } from './card-templates';
+import { planCardMoves } from './studio/card-hierarchy';
 
 export class HiLighterDatabase extends Dexie {
     highlightNotes!: Table<HighlightNote, string>;
@@ -158,6 +159,21 @@ export class HiLighterDatabase extends Dexie {
             ? { ...changes, updatedAt: changes.updatedAt ?? Date.now() }
             : changes);
         this.notify();
+    }
+
+    async moveCardHierarchy(ids: readonly string[], targetId: string | null, placement: 'child' | 'after' = 'child'): Promise<number> {
+        const count = await this.transaction('rw', this.highlightNotes, async () => {
+            const cards = await this.highlightNotes.toArray();
+            const changes = planCardMoves(cards, ids, targetId, placement);
+            const updatedAt = Date.now();
+            for (const change of changes) {
+                const updated = await this.highlightNotes.update(change.id, { links: change.links, updatedAt });
+                if (updated !== 1) throw new Error('Card not found');
+            }
+            return changes.filter(change => ids.includes(change.id)).length;
+        });
+        if (count) this.notify();
+        return count;
     }
 
     /** Delete a highlight and record a tombstone so auto-import cannot resurrect it. */

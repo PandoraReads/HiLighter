@@ -1,5 +1,6 @@
 import type { CardTemplateId, CurrentCardTemplateId, HighlightNote } from './models';
 import { getLang } from './i18n';
+import { HIERARCHY_AFTER, HIERARCHY_PARENT, isAfterRelation, visibleRelation } from './studio/card-hierarchy';
 
 interface TextLabel { zh: string; en: string }
 export interface CardFieldSpec { id: string; label: TextLabel; hint: TextLabel }
@@ -100,23 +101,24 @@ export function cardSearchText(card: HighlightNote): string {
 export function linkCards(card: HighlightNote, targetId: string, relation: string): HighlightNote {
     const target = targetId.trim();
     if (!target || target === card.id) return card;
-    const links = [...(card.links ?? []).filter(link => link.targetId !== target),
-        { targetId: target, relation: relation.trim() }];
+    const previous = (card.links ?? []).find(link => link.targetId === target);
+    const value = previous && isAfterRelation(previous.relation) ? `hierarchy_after:${relation.trim()}` : relation.trim();
+    const links = [...(card.links ?? []).filter(link => link.targetId !== target), { targetId: target, relation: value }];
     return { ...card, links, updatedAt: Date.now() };
 }
 
 export function unlinkCards(card: HighlightNote, targetId: string): HighlightNote {
-    return { ...card, links: (card.links ?? []).filter(link => link.targetId !== targetId), updatedAt: Date.now() };
+    return { ...card, links: (card.links ?? []).flatMap(link => link.targetId !== targetId ? [link] : isAfterRelation(link.relation) ? [{ ...link, relation: HIERARCHY_AFTER }] : []), updatedAt: Date.now() };
 }
 
 export function incomingLinks(cards: readonly HighlightNote[], targetId: string): HighlightNote[] {
-    return cards.filter(card => (card.links ?? []).some(link => link.targetId === targetId));
+    return cards.filter(card => (card.links ?? []).some(link => link.targetId === targetId && visibleRelation(link.relation) !== null));
 }
 
 export function relatedCandidates(card: HighlightNote, cards: readonly HighlightNote[]): HighlightNote[] {
     const tags = new Set(card.tags ?? []);
     return cards
-        .filter(candidate => candidate.id !== card.id && !(card.links ?? []).some(link => link.targetId === candidate.id))
+        .filter(candidate => candidate.id !== card.id && !(card.links ?? []).some(link => link.targetId === candidate.id && (link.relation === HIERARCHY_PARENT || visibleRelation(link.relation) !== null)))
         .map(candidate => ({
             candidate,
             score: (card.sourcePath && candidate.sourcePath === card.sourcePath ? 2 : 0)
@@ -136,10 +138,11 @@ export function cardRelationMarkdown(card: HighlightNote, cards: readonly Highli
     if (sources.length) {
         lines.push(`- ${getLang() === 'zh' ? '来源卡片' : 'Source cards'}: ${sources.map(item => `${cardTitle(item)} (\`${item.id}\`)`).join('；')}`);
     }
-    if (card.links?.length) {
-        const related = card.links.map(link => {
+    const visibleLinks = (card.links ?? []).filter(link => visibleRelation(link.relation) !== null);
+    if (visibleLinks.length) {
+        const related = visibleLinks.map(link => {
             const target = cards.find(item => item.id === link.targetId);
-            return `${cardRelationLabel(link.relation) || (getLang() === 'zh' ? '相关' : 'Related')} → ${target ? cardTitle(target) : link.targetId} (\`${link.targetId}\`)`;
+            return `${cardRelationLabel(visibleRelation(link.relation) ?? '') || (getLang() === 'zh' ? '相关' : 'Related')} → ${target ? cardTitle(target) : link.targetId} (\`${link.targetId}\`)`;
         });
         lines.push(`- ${getLang() === 'zh' ? '关联卡片' : 'Linked cards'}: ${related.join('；')}`);
     }

@@ -5,7 +5,7 @@
 // tree building in build.ts, exports in exporters.ts. Follows the
 // studio view's "thin ItemView + sibling modules" architecture.
 
-import { ItemView, WorkspaceLeaf, Notice, Modal, FuzzySuggestModal, TFile, setIcon, type App } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, Modal, FuzzySuggestModal, TFile, setIcon, MarkdownRenderer, type App } from 'obsidian';
 import { db } from '../db';
 import type { HighlightNote, MindMapBuildMode, MindMapDoc } from '../models';
 import { t } from '../i18n';
@@ -21,6 +21,8 @@ import { exportCanvasFile, exportMarkdownFile } from './exporters';
 import { importXmindFile } from './import';
 import { jumpToSource } from '../studio/actions';
 import { randomUUID } from '../mocks/crypto';
+import { cardLabel, cardPreviewMarkdown, cardTemplate } from '../card-templates';
+import type { MindMapInteraction } from './interaction';
 
 const SAVE_DEBOUNCE_MS = 800;
 
@@ -42,6 +44,8 @@ export class HighlightMindMapView extends ItemView {
     private currentDoc: MindMapDoc | null = null;
     private layout: MindMapLayout = 'logicalStructure';
     private spacing: MindMapSpacing = 'spread';
+    private interaction: MindMapInteraction = 'select';
+    private cardsCompact = false;
     private themeId = 'classic';
     private paletteId = 'default';
     private sidebarOpen = false;
@@ -121,6 +125,19 @@ export class HighlightMindMapView extends ItemView {
         this.sidebarEl = layout.createDiv('hl-mindmap-sidebar');
         layout.createDiv('hl-mindmap-resizer');
         this.canvasEl = layout.createDiv('hl-mindmap-canvas');
+        this.canvasEl.toggleClass('is-pan', this.interaction === 'pan');
+        this.registerDomEvent(this.canvasEl, 'click', (event: MouseEvent) => {
+            const target = event.target instanceof Element ? event.target.closest<HTMLElement>('.hl-mindmap-node-jump') : null;
+            const id = target?.dataset.cardId;
+            if (!id) return;
+            event.preventDefault();
+            event.stopPropagation();
+            void (async () => {
+                const note = this.cardsByIdCache.get(id) ?? await db.getHighlightNote(id);
+                if (note) await jumpToSource(this.app, note);
+                else new Notice(t('mindmap.panel.lost'));
+            })().catch(() => new Notice(t('mobileRecent.openFailed')));
+        }, true);
 
         this.renderTopbar(container);
         this.renderSidebar();
@@ -145,7 +162,6 @@ export class HighlightMindMapView extends ItemView {
         this.docTitleEl = identity.createSpan({ text: this.currentDoc?.title ?? '', cls: 'hl-mindmap-doc-title' });
 
         const actions = bar.createDiv('hl-mindmap-actions');
-
         this.iconButton(actions, 'import', t('mindmap.toolbar.import'), () => this.openImportFlow());
         this.iconButton(actions, 'list', t('mindmap.toolbar.docs'), (btn) => {
             this.sidebarOpen = !this.sidebarOpen;
@@ -352,6 +368,7 @@ export class HighlightMindMapView extends ItemView {
                     paletteId: this.paletteId,
                     dark: this.isDark(),
                     accent: this.accent(),
+                    cardPrototypes: this.cardPrototypes,
                     callbacks: {
                         onDataChange: (tree) => this.scheduleSave(tree),
                         onNodeActive: (node, activeCount) => this.renderNodePanel(node, activeCount),
@@ -395,6 +412,58 @@ export class HighlightMindMapView extends ItemView {
 
     // Filled before openDoc; avoids an async walk inside sync.
     private cardsByIdCache = new Map<string, HighlightNote>();
+    private cardPrototypes = new Map<string, HTMLElement>();
+
+    private async prepareCardPrototypes(tree: MindMapNode): Promise<Map<string, HTMLElement>> {
+        const ids = new Set<string>();
+        const branches: MindMapNode[] = [];
+        const collect = (node: MindMapNode) => {
+            if (node.data.highlightId) ids.add(node.data.highlightId);
+            else if (node.data.uid) branches.push(node);
+            (node.children ?? []).forEach(collect);
+        };
+        collect(tree);
+        const entries = await Promise.all([...ids].map(async id => {
+            const card = this.cardsByIdCache.get(id);
+            if (!card) return null;
+            const container = document.createElement('div');
+            container.className = 'hl-mindmap-node-card';
+            container.style.setProperty('--hl-map-card-color', resolveHex(this.plugin.settings, card.color));
+            const jump = container.createEl('button', { cls: 'hl-mindmap-node-jump', attr: { type: 'button', 'aria-label': t('mindmap.panel.jump'), title: t('mindmap.panel.jump'), 'data-card-id': card.id } });
+            setIcon(jump, 'external-link');
+            const excerpt = container.createDiv('hl-mindmap-node-excerpt');
+            try { await MarkdownRenderer.render(this.app, card.text || card.title || '…', excerpt, card.sourcePath, this); }
+            catch { excerpt.setText(card.text || card.title || '…'); }
+            const content = cardPreviewMarkdown(card);
+            if (content.trim()) {
+                const note = container.createDiv('hl-mindmap-node-note');
+                try { await MarkdownRenderer.render(this.app, content, note, card.sourcePath, this); }
+                catch { note.setText(content); }
+            }
+            const labels = [
+                ...(card.templateId && card.templateId !== 'excerpt' ? [cardLabel(cardTemplate(card).label)] : []),
+                (this.plugin.settings.colorLabels as Record<string, string> | undefined)?.[card.color] ?? '',
+                ...(card.tags ?? []),
+            ].filter(Boolean);
+            if (labels.length) {
+                const footer = container.createDiv('hl-mindmap-node-footer');
+                labels.forEach(label => footer.createSpan({ text: label }));
+            }
+            return [id, container] as const;
+        }));
+        const result: Map<string, HTMLElement> = new Map(entries.filter((entry): entry is readonly [string, HTMLDivElement] => entry !== null));
+        await Promise.all(branches.map(async node => {
+            const container = document.createElement('div');
+            container.className = 'hl-mindmap-node-card';
+            container.dataset.hlNodeText = node.data.text || '';
+            container.style.setProperty('--hl-map-card-color', node.data.borderColor || 'var(--interactive-accent)');
+            const excerpt = container.createDiv('hl-mindmap-node-excerpt');
+            try { await MarkdownRenderer.render(this.app, node.data.text || '', excerpt, node.data.sourcePath || '', this); }
+            catch { excerpt.setText(node.data.text || ''); }
+            result.set(`node:${node.data.uid}`, container);
+        }));
+        return result;
+    }
 
     // ── Document operations ───────────────────────────────────
 
@@ -405,6 +474,9 @@ export class HighlightMindMapView extends ItemView {
         this.cardsByIdCache.clear();
         const all = await db.getAllHighlights();
         for (const note of all) this.cardsByIdCache.set(note.id, note);
+        ensureUids(doc.tree as MindMapNode);
+        this.cardPrototypes = await this.prepareCardPrototypes(doc.tree as MindMapNode);
+        if (this.currentDoc !== doc) return;
         if (this.docTitleEl) this.docTitleEl.setText(doc.title);
         this.renderSidebar();
         this.mountEngine();
@@ -469,7 +541,7 @@ export class HighlightMindMapView extends ItemView {
             try {
                 const all = await db.getAllHighlights();
                 const byPath = new Map<string, number>();
-                for (const note of all.filter(item => item.kind !== 'idea')) {
+                for (const note of all.filter(item => item.sourcePath)) {
                     byPath.set(note.sourcePath, (byPath.get(note.sourcePath) ?? 0) + 1);
                 }
                 const highlightFiles = [...byPath.keys()]
@@ -506,7 +578,7 @@ export class HighlightMindMapView extends ItemView {
 
     private async importFromFile(file: TFile, mode: MindMapBuildMode): Promise<void> {
         try {
-            const notes = await db.getHighlightsByPath(file.path);
+            const notes = (await db.getAllHighlights()).filter(note => note.sourcePath === file.path);
             if (notes.length === 0) {
                 new Notice(t('mindmap.notice.noHighlights'));
                 return;
@@ -608,6 +680,20 @@ export class HighlightMindMapView extends ItemView {
 
         const divider = () => actions.createDiv('hl-mindmap-toolbar-divider');
         divider();
+        const modeLabel = t(this.interaction === 'pan' ? 'mindmap.switchToSelect' : 'mindmap.switchToPan');
+        const mode = createButton(this.interaction === 'pan' ? 'hand' : 'mouse-pointer-2', modeLabel, () => {
+            this.interaction = this.interaction === 'select' ? 'pan' : 'select';
+            this.engine.setInteraction(this.interaction);
+            this.canvasEl?.toggleClass('is-pan', this.interaction === 'pan');
+            const label = t(this.interaction === 'pan' ? 'mindmap.switchToSelect' : 'mindmap.switchToPan');
+            mode.setAttribute('aria-label', label);
+            mode.setAttribute('title', label);
+            mode.setAttribute('aria-pressed', String(this.interaction === 'pan'));
+            setIcon(mode, this.interaction === 'pan' ? 'hand' : 'mouse-pointer-2');
+        }, !this.currentDoc);
+        mode.addClass('hl-mindmap-interaction-toggle');
+        mode.setAttribute('aria-pressed', String(this.interaction === 'pan'));
+        createButton('scan', t('mindmap.toolbar.fit'), () => this.engine.fit(), !this.currentDoc);
         const spacingLabel = this.spacing === 'spread' ? t('mindmap.spacing.spread') : t('mindmap.spacing.compact');
         const spacingBtn = createButton('unfold-horizontal', spacingLabel, () => {}, !this.currentDoc);
         spacingBtn.onclick = (event) => {
@@ -621,7 +707,13 @@ export class HighlightMindMapView extends ItemView {
             this.engine.refreshTheme(this.isDark(), this.accent(), this.spacing);
         };
         spacingBtn.toggleClass('is-active', this.spacing === 'compact');
-        createButton('scan', t('mindmap.toolbar.fit'), () => this.engine.fit(), !this.currentDoc);
+        const cards = createButton('fold-vertical', t('mindmap.toggleCards'), () => {
+            this.cardsCompact = this.engine.toggleCardDetails();
+            cards.setAttribute('aria-pressed', String(this.cardsCompact));
+            cards.toggleClass('is-active', this.cardsCompact);
+        }, !this.currentDoc);
+        cards.setAttribute('aria-pressed', String(this.cardsCompact));
+        cards.toggleClass('is-active', this.cardsCompact);
         divider();
         const undoBtn = createButton('undo-2', t('mindmap.toolbar.undo'), () => this.engine.undo(), !this.currentDoc || !this.canUndo);
         const redoBtn = createButton('redo-2', t('mindmap.toolbar.redo'), () => this.engine.redo(), !this.currentDoc || !this.canRedo);
@@ -656,10 +748,10 @@ export class HighlightMindMapView extends ItemView {
             detail.createDiv('hl-mindmap-panel-lost').setText(t('mindmap.panel.lost'));
         }
         if (node.data.highlightText) {
-            detail.createDiv('hl-mindmap-panel-quote').setText(node.data.highlightText);
+            void MarkdownRenderer.render(this.app, node.data.highlightText, detail.createDiv('hl-mindmap-panel-quote'), node.data.sourcePath || '', this);
         }
         if (node.data.highlightNote) {
-            detail.createDiv('hl-mindmap-panel-note').setText(node.data.highlightNote);
+            void MarkdownRenderer.render(this.app, node.data.highlightNote, detail.createDiv('hl-mindmap-panel-note'), node.data.sourcePath || '', this);
         }
         if (!isLinked) {
             detail.createDiv('hl-mindmap-panel-hint').setText(t('mindmap.panel.freeNode'));

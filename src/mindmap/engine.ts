@@ -21,6 +21,7 @@ import Select from 'simple-mind-map/src/plugins/Select.js';
 import type { MindMapNode } from './build';
 import { composeTheme, type MindMapSpacing } from './themes';
 import { resolveLeafBorderMode, resolvePalette, tintedBorder } from './palettes';
+import { interactionOptions, type MindMapInteraction } from './interaction';
 
 export type { MindMapSpacing };
 
@@ -56,6 +57,7 @@ export interface EngineInit {
     paletteId: string;
     dark: boolean;
     accent: string;
+    cardPrototypes?: ReadonlyMap<string, HTMLElement>;
     callbacks: EngineCallbacks;
 }
 
@@ -91,6 +93,8 @@ interface SmmInstance {
     resize(): void;
     setThemeConfig(config: unknown): void;
     render(): void;
+    reRender(): void;
+    updateConfig(config: Record<string, unknown>): void;
     renderer?: {
         activeNodeList?: Array<{ getData?: () => Record<string, unknown> }>;
         nodes?: Array<{
@@ -118,6 +122,9 @@ export class MindMapEngine {
     private paletteId = 'default';
     private dark = false;
     private accent = '#7c6cf2';
+    private cardPrototypes: ReadonlyMap<string, HTMLElement> = new Map();
+    private compactCards = false;
+    private interaction: MindMapInteraction = 'select';
 
     get instance(): unknown {
         return this.mindMap;
@@ -133,6 +140,7 @@ export class MindMapEngine {
         this.paletteId = init.paletteId;
         this.dark = init.dark;
         this.accent = init.accent;
+        this.cardPrototypes = init.cardPrototypes ?? new Map();
 
         this.applyLeafBorders(init.tree);
         this.mindMap = new MindMap({
@@ -143,6 +151,25 @@ export class MindMapEngine {
             // through `themeConfig` (deep-merged over the default theme).
             theme: 'default',
             themeConfig: this.buildThemeConfig(init.dark, init.accent, init.spacing),
+            isUseCustomNodeContent: true,
+            customCreateNodeContent: (node: { getData: () => Record<string, unknown> }) => {
+                const data = node.getData();
+                const id = data?.highlightId;
+                const uid = data?.uid;
+                const saved = typeof id === 'string' ? this.cardPrototypes.get(id) : typeof uid === 'string' ? this.cardPrototypes.get(`node:${uid}`) : undefined;
+                const prototype = typeof id !== 'string' && saved?.dataset.hlNodeText !== data?.text ? undefined : saved;
+                const card = prototype ? prototype.cloneNode(true) as HTMLElement : document.createElement('div');
+                if (!prototype) {
+                    card.className = 'hl-mindmap-node-card';
+                    card.style.setProperty('--hl-map-card-color', typeof data?.borderColor === 'string' ? data.borderColor : 'var(--interactive-accent)');
+                    const excerpt = document.createElement('div');
+                    excerpt.className = 'hl-mindmap-node-excerpt';
+                    excerpt.textContent = typeof data?.text === 'string' ? data.text : '';
+                    card.appendChild(excerpt);
+                }
+                card.classList.toggle('is-compact', this.compactCards);
+                return card;
+            },
             // Chat-bubble glyph for node notes (data.note).
             // Small & translucent: fill-opacity rides on the path; the library only
             // overrides fill, so the color still follows the node text.
@@ -172,7 +199,7 @@ export class MindMapEngine {
             enableAutoMoveIntoDrag: true,
             autoMoveWhenMouseInEdgeOnDrag: true,
             enableFreeDrag: true,
-            useLeftKeySelectionRightKeyDrag: true,
+            ...interactionOptions(this.interaction),
         }) as unknown as SmmInstance;
 
         this.mindMap.on('data_change', (data: MindMapNode) => {
@@ -235,6 +262,17 @@ export class MindMapEngine {
     setThemeId(themeId: string): void {
         this.themeId = themeId;
         this.mindMap?.setThemeConfig(this.buildThemeConfig(this.dark, this.accent, this.spacing));
+    }
+
+    toggleCardDetails(): boolean {
+        this.compactCards = !this.compactCards;
+        this.mindMap?.reRender();
+        return this.compactCards;
+    }
+
+    setInteraction(mode: MindMapInteraction): void {
+        this.interaction = mode;
+        this.mindMap?.updateConfig(interactionOptions(mode));
     }
 
     /** Switches the color palette and re-renders. */

@@ -6,8 +6,8 @@
 import { App, ItemView, WorkspaceLeaf, Notice, setIcon, MarkdownView, TFile, MarkdownRenderer, Modal, Platform } from 'obsidian';
 import { db } from './db';
 import type HiLighterPlugin from './main';
-import type { HighlightNote, ResearchPrompt } from './models';
-import { AIService, AIAction } from './ai-service';
+import type { HighlightNote } from './models';
+import { AIService, AIAction, type ChatMessage } from './ai-service';
 import { HIGHLIGHT_VIEW_TYPE, HIGHLIGHT_MANAGER_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE } from './view-types';
 import { t } from './i18n';
 import { deriveCardBandColor, getColors } from './colors';
@@ -16,65 +16,42 @@ import { jumpToPdfNote } from './pdf/pdf-anchors';
 import { jumpToEpubNote } from './epub/epub-jump';
 import { compareEpubCfi } from './epub/cfi-order';
 import { locateHighlightMark } from './locate';
-import { changeNoteColor } from './studio/actions';
+import { changeNoteColor, removeHighlightFromVault } from './studio/actions';
 import { renderAddColorForm } from './color-add';
 import { applyAppearance } from './appearance';
 import { randomUUID } from './mocks/crypto';
 import { cardLabel, cardPreviewMarkdown, cardSearchText, cardTemplate } from './card-templates';
+import { cardReferenceMarkdown } from './studio/card-reference-format';
+import { makeChatIdea } from './studio/chat-idea';
+import { shouldSubmitChat } from './studio/chat-submit';
+import { sortArticlePaths } from './studio/article-sort';
+import { orderHierarchy, visibleRelation } from './studio/card-hierarchy';
+import { CARD_DRAG_MIME, CARD_DRAG_BATCH_MIME, dragCardIds, parseDraggedCardIds } from './studio/card-drag-selection';
 import { renderCardLayout, renderSidebarCardLayout } from './card-layout';
 import { HighlightDetailModal } from './studio/modals';
+import { SidebarBatchTagModal } from './studio/sidebar-batch-modal';
+import { editCardTags, type BatchTagOperation } from './studio/sidebar-batch-tags';
+import { ConfirmModal } from './ui/confirm-modal';
+import { scrollRestoreDecision, type SidebarScrollSnapshot } from './studio/sidebar-scroll-restore';
 
 export { HIGHLIGHT_VIEW_TYPE };
-
-// ── Prompt Selection Modal ──────────────────────────────
-class PromptSelectModal extends Modal {
-    private prompts: ResearchPrompt[];
-    private onSelect: (prompt: ResearchPrompt) => void;
-
-    constructor(app: App, prompts: ResearchPrompt[], onSelect: (prompt: ResearchPrompt) => void) {
-        super(app);
-        this.prompts = prompts;
-        this.onSelect = onSelect;
-    }
-
-    onOpen() {
-        const { contentEl } = this;
-        contentEl.empty();
-        this.titleEl.setText(t('modal.promptSelect.title'));
-        this.modalEl.addClass('hl-glass-modal');
-
-        const container = contentEl.createDiv('hl-glass-modal-body');
-
-        container.createDiv({ cls: 'hl-prompt-select-hint', text: t('modal.promptSelect.hint') });
-
-        this.prompts.forEach(prompt => {
-            const item = container.createDiv('hl-prompt-select-item');
-            item.onclick = () => {
-                this.onSelect(prompt);
-                this.close();
-            };
-
-            const nameEl = item.createDiv('hl-prompt-select-name');
-            setIcon(nameEl.createSpan({ cls: 'hl-prompt-select-icon' }), 'sparkles');
-            nameEl.createSpan({ text: prompt.name });
-
-            item.createDiv({ cls: 'hl-prompt-select-desc', text: prompt.prompt.length > 100 ? prompt.prompt.substring(0, 100) + '...' : prompt.prompt });
-        });
-
-        const cancelWrap = container.createDiv('hl-glass-modal-actions');
-        const cancelBtn = cancelWrap.createEl('button', { text: t('btn.cancel'), cls: 'hl-glass-btn-cancel' });
-        cancelBtn.onclick = () => this.close();
-    }
-
-    onClose() {
-        this.contentEl.empty();
-    }
-}
 
 export class HighlightView extends ItemView {
     private plugin: HiLighterPlugin;
     private aiService: AIService;
-    private currentFilter: 'active' | 'all' = 'active';
+    private currentFilter: 'active' | 'all' | 'article' = 'all';
+    private articlePath = '';
+    private articleRequest = 0;
+    private selectedChatCards = new Set<string>();
+    private chatMessages: ChatMessage[] = [];
+    private readonly chatResponseSources = new Map<number, HighlightNote[]>();
+    private readonly savedChatResponses = new Set<number>();
+    private chatModelId = '';
+    private chatBusy = false;
+    private sidebarBatchBusy = false;
+    private cardDepths = new Map<string, number>();
+    private chatCollapsed = false;
+    private chatHistoryOpen = true;
     private searchQuery: string = '';
     private isSidebarPinned: boolean = false;
     private isRenderingFlag: boolean = false;
@@ -89,6 +66,8 @@ export class HighlightView extends ItemView {
     private pendingCardHighlights: HighlightNote[] = [];
     private renderedCardCount = 0;
     private cardBatchFrame: number | null = null;
+    private pendingScrollRestore: (SidebarScrollSnapshot & { loadedCount: number }) | null = null;
+    private lastScrollScope = '';
     private cardRenderGeneration = 0;
     private readonly cardBatchSize = 12;
     private readonly recentPageSize = 50;
@@ -118,6 +97,11 @@ export class HighlightView extends ItemView {
 
     async onOpen() {
         void this.render();
+        this.registerEvent(this.app.workspace.on('file-open', (file) => {
+            if (!file) return;
+            this.currentFilter = 'active';
+            this.scheduleRender(120);
+        }));
         // Register events for dynamic updates
         this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
             if (this.currentFilter === 'active' && leaf?.view instanceof MarkdownView) {
@@ -139,6 +123,15 @@ export class HighlightView extends ItemView {
             });
         });
 
+        this.registerDomEvent(document, 'pointerdown', (event: PointerEvent) => {
+            const target = event.target as Node | null;
+            const dropdown = this.contentEl.querySelector('.hl-article-dropdown');
+            const trigger = this.contentEl.querySelector('.hl-article-tab-wrap');
+            if (target && (dropdown?.contains(target) || trigger?.contains(target))) return;
+            this.articleRequest += 1;
+            dropdown?.remove();
+        }, true);
+
         this.registerEvent(this.app.workspace.on('layout-change', () => {
             if (this.currentFilter === 'active') {
                 const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -152,6 +145,7 @@ export class HighlightView extends ItemView {
         this.markdownObserver = null;
         this.cardRenderGeneration += 1;
         this.pendingCardHighlights = [];
+        this.pendingScrollRestore = null;
         this.resetRecentPage();
         this.lastCardSig = null;
         if (this.cardBatchFrame !== null) {
@@ -205,6 +199,8 @@ export class HighlightView extends ItemView {
             }
             this.renderedCardCount = batchEnd;
 
+            if (this.restoreScrollAfterBatch(container)) return;
+
             // Keep roughly one viewport of cards ready ahead of the user's scroll.
             // This bounds startup work while avoiding a pause at the end of each batch.
             if (this.renderedCardCount < this.pendingCardHighlights.length && container.clientHeight > 0) {
@@ -228,6 +224,45 @@ export class HighlightView extends ItemView {
                 void this.loadMoreRecent(container);
             }
         }
+    }
+
+    private snapshotScroll(container: HTMLElement): (SidebarScrollSnapshot & { loadedCount: number }) | null {
+        if (container.scrollTop <= 0) return null;
+        const top = container.getBoundingClientRect().top;
+        const anchor = Array.from(container.querySelectorAll<HTMLElement>('.hl-highlight-card[data-hl-card-id]'))
+            .find(card => card.getBoundingClientRect().bottom > top);
+        return {
+            anchorId: anchor?.dataset.hlCardId ?? null,
+            offset: anchor ? anchor.getBoundingClientRect().top - top : 0,
+            previousTop: container.scrollTop,
+            loadedCount: this.recentHighlights.length,
+        };
+    }
+
+    private restoreScrollAfterBatch(container: HTMLElement): boolean {
+        const snapshot = this.pendingScrollRestore;
+        if (!snapshot) return false;
+        const anchor = snapshot.anchorId
+            ? Array.from(container.querySelectorAll<HTMLElement>('.hl-highlight-card[data-hl-card-id]')).find(card => card.dataset.hlCardId === snapshot.anchorId)
+            : undefined;
+        const moreBatches = this.renderedCardCount < this.pendingCardHighlights.length;
+        const morePages = this.currentFilter === 'all' && this.recentHasMore && this.recentHighlights.length < snapshot.loadedCount;
+        const decision = scrollRestoreDecision({
+            anchorTop: anchor ? container.scrollTop + anchor.getBoundingClientRect().top - container.getBoundingClientRect().top : null,
+            offset: snapshot.offset,
+            previousTop: snapshot.previousTop,
+            maxScroll: Math.max(0, container.scrollHeight - container.clientHeight),
+            more: moreBatches || morePages,
+        });
+        if (decision.kind === 'load') {
+            if (moreBatches) this.scheduleNextCardBatch(container);
+            else if (morePages) void this.loadMoreRecent(container);
+            return true;
+        }
+        this.pendingScrollRestore = null;
+        container.scrollTop = decision.top;
+        this.backToTopBtn?.toggleClass('is-hidden', container.scrollTop < 300);
+        return false;
     }
 
     private resetRecentPage() {
@@ -262,7 +297,8 @@ export class HighlightView extends ItemView {
                 ...this.pendingCardHighlights,
                 ...page.notes.filter(note => !this.pendingDeleteIds.has(note.id)),
             ];
-            this.scheduleNextCardBatch(container);
+            if (page.notes.length) this.scheduleNextCardBatch(container);
+            else this.restoreScrollAfterBatch(container);
         } catch {
             new Notice(t('recent.loadFailed'));
         } finally {
@@ -323,37 +359,49 @@ export class HighlightView extends ItemView {
 
             // The legacy "all" setting now denotes the recent, paged sidebar.
             // Keep the stored value so existing users retain their selected tab.
-            this.currentFilter = this.plugin.settings.sidebarScope;
             contentEl.setAttribute('data-hl-scope', this.currentFilter);
 
             // 1. Preserve Scroll Position
             const containerEl = contentEl.querySelector('.hl-highlight-container');
-            const scrollPos = containerEl ? containerEl.scrollTop : 0;
+            const scope = JSON.stringify([this.currentFilter, this.articlePath, this.colorFilter, this.searchQuery]);
+            const scrollSnapshot = containerEl && scope === this.lastScrollScope
+                ? this.pendingScrollRestore ?? this.snapshotScroll(containerEl as HTMLElement) : null;
+            this.lastScrollScope = scope;
 
             // 2. Persistent Toolbar & Container
             let toolbar = contentEl.querySelector('.hl-highlight-toolbar') as HTMLElement;
             if (!toolbar) {
                 toolbar = this.renderToolbar(contentEl);
             }
+            const modeTab = toolbar.querySelector<HTMLElement>('.tab-expand');
+            modeTab?.toggleClass('is-active', this.cardViewMode === 'expanded');
+            const scopeTab = toolbar.querySelector<HTMLElement>('.tab-scope');
+            scopeTab?.toggleClass('is-active', this.currentFilter === 'active');
+            if (scopeTab) scopeTab.setText(this.currentFilter === 'active' ? t('toolbar.scope.active') : t('toolbar.scope.all'));
+            toolbar.querySelector<HTMLElement>('.tab-article')?.toggleClass('is-active', this.currentFilter === 'article');
 
             let container = contentEl.querySelector('.hl-highlight-container') as HTMLElement;
             if (!container) {
                 container = contentEl.createDiv('hl-highlight-container');
+                this.registerDomEvent(container, 'wheel', () => { this.pendingScrollRestore = null; }, { passive: true });
+                this.registerDomEvent(container, 'touchstart', () => { this.pendingScrollRestore = null; }, { passive: true });
             }
+            if (!contentEl.querySelector('.hl-sidebar-chat')) this.renderChatPanel(contentEl);
 
             let highlights: HighlightNote[] = [];
             const activeFile = this.app.workspace.getActiveFile();
 
-            if (this.currentFilter === 'active') {
+            if (this.currentFilter === 'active' || this.currentFilter === 'article') {
                 if (this.recentPageLoaded || this.recentLoading) this.resetRecentPage();
-                if (activeFile) {
-                    highlights = await db.getHighlightsByPath(activeFile.path);
+                const selectedFile = this.currentFilter === 'article' ? this.app.vault.getAbstractFileByPath(this.articlePath) : activeFile;
+                if (selectedFile instanceof TFile) {
+                    highlights = await db.getHighlightsByPath(selectedFile.path);
 
-                    if (!Platform.isMobile && activeFile.extension === 'md') {
+                    if (!Platform.isMobile && selectedFile.extension === 'md') {
                         // Desktop can afford a full-file rescan to refresh line order.
                         // (Markdown only — other anchors have no in-file marks to find,
                         // and reading a binary epub/pdf as text is pure waste.)
-                        const content = await this.app.vault.read(activeFile);
+                        const content = await this.app.vault.read(selectedFile);
                         const lines = content.split('\n');
                         const idToLine = new Map<string, number>();
 
@@ -408,7 +456,7 @@ export class HighlightView extends ItemView {
 
             // The current note follows its document order; recent keeps the
             // createdAt-descending order supplied by the IndexedDB index.
-            if (this.currentFilter === 'active') {
+            if (this.currentFilter === 'active' || this.currentFilter === 'article') {
                 highlights.sort((a, b) => {
                     const pathSort = a.sourcePath.localeCompare(b.sourcePath);
                     if (pathSort !== 0) return pathSort;
@@ -423,6 +471,10 @@ export class HighlightView extends ItemView {
                 });
             }
 
+            const hierarchy = orderHierarchy(highlights);
+            highlights = hierarchy.map(item => item.card);
+            this.cardDepths = new Map(hierarchy.map(item => [item.card.id, item.depth]));
+
             // Skip the expensive card rebuild when nothing affecting the cards has
             // changed since the last render. layout-change fires very often; without
             // this guard, many cards cause a visible empty→rebuild flicker every time.
@@ -436,6 +488,7 @@ export class HighlightView extends ItemView {
 
             const cardSig = [
                 this.currentFilter,
+                this.articlePath,
                 this.cardViewMode,
                 this.colorFilter,
                 this.searchQuery,
@@ -462,18 +515,27 @@ export class HighlightView extends ItemView {
 
                 this.pendingCardHighlights = highlights.filter(h => !this.pendingDeleteIds.has(h.id));
                 this.renderedCardCount = 0;
+                this.pendingScrollRestore = scrollSnapshot;
                 container.onscroll = () => this.handleCardContainerScroll(container);
+                container.ondragover = event => {
+                    if (!event.dataTransfer?.types.includes(CARD_DRAG_MIME) || (event.target as Element).closest('.hl-highlight-card')) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'link';
+                };
+                container.ondrop = event => {
+                    if ((event.target as Element).closest('.hl-highlight-card')) return;
+                    const ids = parseDraggedCardIds(event.dataTransfer?.getData(CARD_DRAG_MIME) ?? '', event.dataTransfer?.getData(CARD_DRAG_BATCH_MIME) ?? '');
+                    if (!ids.length) return;
+                    event.preventDefault();
+                    void this.moveDraggedCards(ids, null);
+                };
 
                 if (this.pendingCardHighlights.length === 0) {
                     this.renderEmpty(container);
+                    this.pendingScrollRestore = null;
                 } else {
                     this.scheduleNextCardBatch(container);
                 }
-            }
-
-            // Restore Scroll Position
-            if (scrollPos > 0) {
-                container.scrollTop = scrollPos;
             }
 
             // 3. Floating Action Button(s): Full-text AI Analysis
@@ -481,6 +543,7 @@ export class HighlightView extends ItemView {
             if (!fabStack) {
                 fabStack = contentEl.createDiv('hl-fab-stack');
             }
+            contentEl.querySelector('.hl-sidebar-chat')?.appendChild(fabStack);
             fabStack.empty();
 
             // Back-to-top: shown after the list has scrolled down a bit.
@@ -499,7 +562,7 @@ export class HighlightView extends ItemView {
                     cls: 'hl-fab hl-fab--headings',
                     attr: { title: t('analysis.headings.btn'), 'aria-label': t('analysis.headings.btn') }
                 });
-                setIcon(headingsBtn, 'heading');
+                setIcon(headingsBtn, 'list');
 
                 headingsBtn.onclick = () => {
                     void this.handleHeadingsToHighlights(activeFile);
@@ -633,6 +696,201 @@ export class HighlightView extends ItemView {
         await changeNoteColor(this.app, this.plugin.settings, note, newColor);
     }
 
+    private updateChatSelection(): void {
+        const label = this.contentEl.querySelector<HTMLElement>('.hl-chat-selection-count');
+        if (label) label.setText(t('chat.selected', { count: this.selectedChatCards.size }));
+        const actions = this.contentEl.querySelector<HTMLElement>('.hl-sidebar-batch-actions');
+        actions?.toggleClass('is-hidden', this.selectedChatCards.size === 0);
+        actions?.querySelectorAll('button').forEach(button => { button.disabled = this.sidebarBatchBusy; });
+    }
+
+    private async batchEditTags(ids: readonly string[], tag: string, operation: BatchTagOperation): Promise<void> {
+        if (this.sidebarBatchBusy) return;
+        this.sidebarBatchBusy = true;
+        this.updateChatSelection();
+        let updated = 0;
+        let failed = 0;
+        for (const id of ids) {
+            try {
+                const note = await db.getHighlightNote(id);
+                if (!note) { failed += 1; continue; }
+                const tags = editCardTags(note.tags ?? [], tag, operation);
+                if (JSON.stringify(tags) === JSON.stringify(note.tags ?? [])) continue;
+                await db.updateHighlightNote(id, { tags });
+                updated += 1;
+            } catch { failed += 1; }
+        }
+        this.sidebarBatchBusy = false;
+        this.updateChatSelection();
+        this.plugin.refreshAllViews();
+        new Notice(t(failed ? 'sidebar.batchPartial' : 'sidebar.batchTagsDone', { count: updated, failed }));
+    }
+
+    private confirmBatchDelete(): void {
+        const ids = [...this.selectedChatCards];
+        if (!ids.length || this.sidebarBatchBusy) return;
+        new ConfirmModal(this.app, t('manager.confirm.batchDelete', { count: ids.length }), async () => {
+            if (this.sidebarBatchBusy) return;
+            this.sidebarBatchBusy = true;
+            this.updateChatSelection();
+            let deleted = 0;
+            let failed = 0;
+            for (const id of ids) {
+                try {
+                    const note = await db.getHighlightNote(id);
+                    if (!note) { this.selectedChatCards = new Set([...this.selectedChatCards].filter(item => item !== id)); continue; }
+                    await removeHighlightFromVault(this.app, note);
+                    await db.deleteHighlightNote(id);
+                    this.selectedChatCards = new Set([...this.selectedChatCards].filter(item => item !== id));
+                    deleted += 1;
+                } catch { failed += 1; }
+            }
+            this.sidebarBatchBusy = false;
+            this.updateChatSelection();
+            this.plugin.refreshAllViews();
+            new Notice(t(failed ? 'sidebar.batchPartial' : 'manager.notice.batchDeleted', { count: deleted, failed }));
+        }, { confirmText: t('btn.delete'), warning: true }).open();
+    }
+
+    private renderChatPanel(parent: HTMLElement): void {
+        const panel = parent.createDiv('hl-sidebar-chat');
+        const selection = panel.createDiv('hl-chat-selection');
+        selection.createSpan('hl-chat-selection-count');
+        const clearSelection = selection.createEl('button', { text: t('chat.clearSelection') });
+        const batchActions = selection.createDiv('hl-sidebar-batch-actions is-hidden');
+        const tagAction = batchActions.createEl('button', { attr: { type: 'button', title: t('sidebar.batchTags'), 'aria-label': t('sidebar.batchTags') } });
+        setIcon(tagAction, 'tags');
+        tagAction.onclick = () => {
+            if (this.sidebarBatchBusy || !this.selectedChatCards.size) return;
+            const ids = [...this.selectedChatCards];
+            new SidebarBatchTagModal(this.app, (tag, operation) => { void this.batchEditTags(ids, tag, operation); }).open();
+        };
+        const deleteAction = batchActions.createEl('button', { attr: { type: 'button', title: t('manager.mode.deleteSelected'), 'aria-label': t('manager.mode.deleteSelected') } });
+        setIcon(deleteAction, 'trash-2');
+        deleteAction.onclick = () => this.confirmBatchDelete();
+        const showHistory = selection.createEl('button', { cls: 'hl-chat-show-history', attr: { type: 'button', title: t('chat.showHistory'), 'aria-label': t('chat.showHistory') } });
+        setIcon(showHistory, 'messages-square');
+        const toggle = selection.createEl('button', { cls: 'hl-chat-toggle', attr: { type: 'button' } });
+        const updateCollapse = () => {
+            panel.toggleClass('is-collapsed', this.chatCollapsed);
+            toggle.setAttribute('aria-expanded', String(!this.chatCollapsed));
+            toggle.setAttribute('aria-label', t(this.chatCollapsed ? 'chat.expand' : 'chat.collapse'));
+            toggle.setAttribute('title', t(this.chatCollapsed ? 'chat.expand' : 'chat.collapse'));
+            setIcon(toggle, this.chatCollapsed ? 'chevron-up' : 'chevron-down');
+        };
+        toggle.onclick = () => { this.chatCollapsed = !this.chatCollapsed; updateCollapse(); };
+        updateCollapse();
+        const historyWindow = panel.createDiv('hl-chat-history-window');
+        const historyHeader = historyWindow.createDiv('hl-chat-history-header');
+        historyHeader.createSpan({ text: t('chat.title') });
+        const closeHistory = historyHeader.createEl('button', { attr: { type: 'button', title: t('chat.closeHistory'), 'aria-label': t('chat.closeHistory') } });
+        setIcon(closeHistory, 'x');
+        const history = historyWindow.createDiv('hl-chat-history');
+        const updateHistoryVisibility = () => {
+            const hasMessages = this.chatMessages.length > 0;
+            historyWindow.toggleClass('is-hidden', !hasMessages || !this.chatHistoryOpen);
+            showHistory.toggleClass('is-hidden', !hasMessages || this.chatHistoryOpen);
+        };
+        closeHistory.onclick = () => { this.chatHistoryOpen = false; updateHistoryVisibility(); };
+        showHistory.onclick = () => { this.chatHistoryOpen = true; this.chatCollapsed = false; updateCollapse(); updateHistoryVisibility(); };
+        const drawHistory = () => {
+            history.empty();
+            this.chatMessages.forEach((message, index) => {
+                const block = history.createDiv({ cls: `hl-chat-message is-${message.role}` });
+                block.createDiv({ text: message.content });
+                if (message.role === 'assistant') {
+                    const save = block.createEl('button', { cls: 'hl-chat-save-idea', text: this.savedChatResponses.has(index) ? t('chat.ideaSaved') : t('chat.saveIdea') });
+                    save.disabled = this.savedChatResponses.has(index);
+                    save.onclick = () => {
+                        if (save.disabled) return;
+                        save.disabled = true;
+                        void (async () => {
+                            try {
+                                const card = makeChatIdea(randomUUID(), t('chat.ideaTitle'), message.content, this.chatResponseSources.get(index) ?? [], Date.now());
+                                await db.addHighlightNote(card);
+                                this.savedChatResponses.add(index);
+                                save.setText(t('chat.ideaSaved'));
+                                this.plugin.refreshAllViews();
+                                new Notice(t('chat.ideaSaved'));
+                            } catch { save.disabled = false; new Notice(t('chat.ideaSaveFailed')); }
+                        })();
+                    };
+                }
+            });
+            updateHistoryVisibility();
+            history.scrollTop = history.scrollHeight;
+        };
+        drawHistory();
+        clearSelection.onclick = () => {
+            this.selectedChatCards = new Set();
+            panel.parentElement?.querySelectorAll<HTMLInputElement>('.hl-chat-card-select input').forEach(element => { element.checked = false; });
+            this.updateChatSelection();
+        };
+        this.updateChatSelection();
+        const composer = panel.createDiv('hl-chat-composer');
+        const input = composer.createEl('textarea', { cls: 'hl-chat-input', attr: { placeholder: t('chat.placeholder'), 'aria-label': t('chat.placeholder'), rows: '3' } });
+        const controls = composer.createDiv('hl-chat-controls');
+        const modelWrap = controls.createDiv('hl-chat-model-wrap');
+        const modelIcon = modelWrap.createSpan('hl-chat-control-icon');
+        setIcon(modelIcon, 'bot');
+        const model = modelWrap.createEl('select', { cls: 'hl-chat-model', attr: { 'aria-label': t('chat.model') } });
+        const addModel = modelWrap.createEl('button', { cls: 'hl-chat-add-model', text: t('chat.addModel') });
+        addModel.onclick = () => {
+            const setting = (this.app as unknown as { setting?: { open(): void; openTabById(id: string): void } }).setting;
+            setting?.open(); setting?.openTabById('hilighter');
+        };
+        model.onchange = () => { this.chatModelId = model.value; };
+        const presetsWrap = controls.createDiv('hl-chat-presets-wrap');
+        const presetsIcon = presetsWrap.createSpan('hl-chat-control-icon');
+        setIcon(presetsIcon, 'sparkles');
+        const presets = presetsWrap.createEl('select', { cls: 'hl-chat-presets-select', attr: { 'aria-label': t('chat.presets') } });
+        presets.onchange = () => {
+            const prompt = this.plugin.settings.researchPrompts.find(item => item.id === presets.value);
+            if (prompt) { input.value = input.value.trim() ? `${prompt.prompt}\n\n${input.value.trim()}` : prompt.prompt; input.focus(); }
+            presets.value = '';
+        };
+        const send = controls.createEl('button', { cls: 'hl-chat-send', attr: { type: 'button', title: t('chat.send'), 'aria-label': t('chat.send') } });
+        setIcon(send, 'arrow-up');
+        const refreshConfig = () => {
+            const models = this.plugin.settings.aiModels;
+            model.empty();
+            models.forEach(item => model.createEl('option', { value: item.id, text: item.name }));
+            if (!models.some(item => item.id === this.chatModelId)) this.chatModelId = models.find(item => item.id === this.plugin.settings.activeModelId)?.id || models[0]?.id || '';
+            model.value = this.chatModelId;
+            model.toggleClass('is-hidden', models.length === 0);
+            addModel.toggleClass('is-hidden', models.length > 0);
+            presets.empty();
+            presets.createEl('option', { value: '', text: t('chat.presets') });
+            this.plugin.settings.researchPrompts.forEach(prompt => presets.createEl('option', { value: prompt.id, text: prompt.name }));
+        };
+        refreshConfig();
+        let configSignature = JSON.stringify([this.plugin.settings.aiModels.map(item => [item.id, item.name]), this.plugin.settings.researchPrompts]);
+        panel.addEventListener('focusin', () => {
+            const signature = JSON.stringify([this.plugin.settings.aiModels.map(item => [item.id, item.name]), this.plugin.settings.researchPrompts]);
+            if (signature !== configSignature) { configSignature = signature; refreshConfig(); }
+        });
+        const submit = async () => {
+            const prompt = input.value.trim();
+            if (!prompt || this.chatBusy) return;
+            this.chatBusy = true; send.disabled = true; composer.setAttribute('aria-busy', 'true');
+            try {
+                const cards = (await Promise.all([...this.selectedChatCards].map(id => db.getHighlightNote(id)))).filter((item): item is HighlightNote => !!item);
+                const context = cards.map((item, i) => `${i + 1}. ${item.title || ''}\n${item.text}\n${cardPreviewMarkdown(item)}`).join('\n\n');
+                const userMessage: ChatMessage = { role: 'user', content: context ? `${prompt}\n\n${t('chat.cardContext')}\n${context}` : prompt };
+                const next = [...this.chatMessages, userMessage];
+                this.aiService.updateSettings(this.plugin.settings);
+                const answer = await this.aiService.chat(next, this.chatModelId || undefined);
+                this.chatMessages = [...next, { role: 'assistant', content: answer }];
+                this.chatResponseSources.set(next.length, cards);
+                this.chatHistoryOpen = true;
+                input.value = ''; drawHistory();
+            } catch (error) { new Notice(error instanceof Error ? error.message : t('chat.failed')); }
+            finally { this.chatBusy = false; send.disabled = false; composer.removeAttribute('aria-busy'); }
+        };
+        send.onclick = () => { void submit(); };
+        input.onkeydown = event => { if (shouldSubmitChat(event)) { event.preventDefault(); void submit(); } };
+    }
+
     private renderToolbar(parent: HTMLElement): HTMLElement {
         const toolbar = parent.createDiv('hl-highlight-toolbar');
 
@@ -640,48 +898,40 @@ export class HighlightView extends ItemView {
         // All tabs share one uniform style; the active option stays 伸出 (is-active: raised).
         const tabsRow = toolbar.createDiv('hl-sidebar-tabs-row');
 
-        // Toggle pair: Expand / Collapse (card view mode)
-        const expandTab = tabsRow.createDiv({
-            cls: `hl-sidebar-tab tab-expand ${this.cardViewMode === 'expanded' ? 'is-active' : ''}`,
-            text: t('toolbar.expand')
-        });
-        const collapseTab = tabsRow.createDiv({
-            cls: `hl-sidebar-tab tab-collapse ${this.cardViewMode === 'collapsed' ? 'is-active' : ''}`,
-            text: t('toolbar.collapse')
-        });
-        expandTab.onclick = (e) => {
-            e.stopPropagation();
-            this.cardViewMode = 'expanded';
-            expandTab.addClass('is-active');
-            collapseTab.removeClass('is-active');
-            void this.render();
-        };
-        collapseTab.onclick = (e) => {
-            e.stopPropagation();
-            this.cardViewMode = 'collapsed';
-            collapseTab.addClass('is-active');
-            expandTab.removeClass('is-active');
+        const modeTab = tabsRow.createDiv({ cls: `hl-sidebar-tab tab-expand ${this.cardViewMode === 'expanded' ? 'is-active' : ''}`, text: t('toolbar.expand') });
+        modeTab.setAttribute('role', 'button');
+        modeTab.onclick = event => {
+            event.stopPropagation();
+            this.cardViewMode = this.cardViewMode === 'expanded' ? 'collapsed' : 'expanded';
             void this.render();
         };
 
-        // Toggle pair: current file vs recently added notes.
-        const scopeActive = tabsRow.createDiv({
-            cls: `hl-sidebar-tab tab-scope ${this.currentFilter === 'active' ? 'is-active' : ''}`,
-            text: t('toolbar.scope.active')
-        });
-        const scopeAll = tabsRow.createDiv({
-            cls: `hl-sidebar-tab tab-scope-all ${this.currentFilter === 'all' ? 'is-active' : ''}`,
-            text: t('toolbar.scope.all')
-        });
-        const setScope = async (scope: 'active' | 'all') => {
-            this.plugin.settings.sidebarScope = scope;
-            await this.plugin.saveSettings();
-            scopeActive.toggleClass('is-active', scope === 'active');
-            scopeAll.toggleClass('is-active', scope === 'all');
+        const scopeTab = tabsRow.createDiv({ cls: 'hl-sidebar-tab tab-scope', text: t('toolbar.scope.all') });
+        scopeTab.setAttribute('role', 'button');
+        scopeTab.onclick = event => {
+            event.stopPropagation();
+            this.currentFilter = this.currentFilter === 'active' ? 'all' : 'active';
             void this.render();
         };
-        scopeActive.onclick = (e) => { e.stopPropagation(); void setScope('active'); };
-        scopeAll.onclick = (e) => { e.stopPropagation(); void setScope('all'); };
+
+        const articleWrap = tabsRow.createDiv('hl-article-tab-wrap');
+        const articleTab = articleWrap.createEl('button', { cls: 'hl-sidebar-tab tab-article', text: t('sidebar.articles') });
+        articleTab.onclick = event => {
+            event.stopPropagation();
+            const request = ++this.articleRequest;
+            const existing = toolbar.querySelector('.hl-article-dropdown');
+            if (existing) { existing.remove(); return; }
+            void (async () => {
+                const notes = await db.getAllHighlights();
+                if (!articleWrap.isConnected || request !== this.articleRequest) return;
+                const paths = sortArticlePaths(notes.map(note => note.sourcePath));
+                const dropdown = toolbar.createDiv('hl-article-dropdown');
+                paths.forEach(path => {
+                    const btn = dropdown.createEl('button', { text: path.split('/').pop() || path, attr: { title: path } });
+                    btn.onclick = e => { e.stopPropagation(); this.articlePath = path; this.currentFilter = 'article'; dropdown.remove(); void this.render(); };
+                });
+            })();
+        };
 
         // Tab: Studio (Navigate) — standalone
         const studioTab = tabsRow.createDiv({
@@ -759,15 +1009,79 @@ export class HighlightView extends ItemView {
         return text.replace(/^(--- \[.*\] ---\n?|AI\s*(翻译|注释|研究|结果|Translation|Annotation|Research|Result)\s*[:：]\s*\n?)/g, '').trim();
     }
 
+    private async moveDraggedCards(ids: readonly string[], targetId: string | null, placement: 'child' | 'after' = 'child'): Promise<void> {
+        try {
+            const count = await db.moveCardHierarchy(ids, targetId, placement);
+            if (!count) return;
+            new Notice(t(!targetId ? 'card.hierarchyMovedRoot' : placement === 'after' ? 'card.hierarchyMovedAfter' : 'card.hierarchyMoved', { count }));
+            await this.render();
+        } catch { new Notice(t('card.hierarchyInvalid')); }
+    }
+
+    private wireCardDrag(card: HTMLElement, handle: HTMLElement, note: HighlightNote): void {
+        const dragTarget = this.cardViewMode === 'collapsed' ? card : handle;
+        dragTarget.setAttribute('draggable', 'true');
+        dragTarget.setAttribute('title', t('card.dragHandle'));
+        dragTarget.ondragstart = event => {
+            if (!event.dataTransfer) return;
+            event.stopPropagation();
+            event.dataTransfer.effectAllowed = 'copyLink';
+            event.dataTransfer.setData(CARD_DRAG_MIME, note.id);
+            event.dataTransfer.setData(CARD_DRAG_BATCH_MIME, JSON.stringify(dragCardIds(note.id, this.selectedChatCards)));
+            event.dataTransfer.setData('text/plain', cardReferenceMarkdown(note.id));
+        };
+        card.ondragover = event => {
+            if (!event.dataTransfer?.types.includes(CARD_DRAG_MIME)) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'link';
+            const rect = card.getBoundingClientRect();
+            const after = event.clientY >= rect.top + rect.height * 0.7;
+            card.toggleClass('hl-card-drop-after', after);
+            card.toggleClass('hl-card-drop-target', !after);
+            card.dataset.hlDropHint = t(after ? 'card.dropAfter' : 'card.dropChild');
+        };
+        card.ondragleave = event => {
+            if (!card.contains(event.relatedTarget as Node | null)) { card.removeClass('hl-card-drop-target'); card.removeClass('hl-card-drop-after'); }
+        };
+        card.ondrop = event => {
+            const ids = parseDraggedCardIds(event.dataTransfer?.getData(CARD_DRAG_MIME) ?? '', event.dataTransfer?.getData(CARD_DRAG_BATCH_MIME) ?? '');
+            if (!ids.length) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const rect = card.getBoundingClientRect();
+            const placement = event.clientY >= rect.top + rect.height * 0.7 ? 'after' : 'child';
+            card.removeClass('hl-card-drop-target');
+            card.removeClass('hl-card-drop-after');
+            void this.moveDraggedCards(ids, note.id, placement);
+        };
+    }
+
+    private wireChatSelection(card: HTMLElement, note: HighlightNote): void {
+        card.dataset.hlCardId = note.id;
+        card.style.setProperty('--hl-hierarchy-depth', String(this.cardDepths.get(note.id) ?? 0));
+        const label = card.createEl('label', { cls: 'hl-chat-card-select', attr: { title: t('chat.selectCard') } });
+        const input = label.createEl('input', { type: 'checkbox', attr: { 'aria-label': t('chat.selectCard') } });
+        input.checked = this.selectedChatCards.has(note.id);
+        label.onclick = event => event.stopPropagation();
+        input.onchange = () => {
+            this.selectedChatCards = input.checked
+                ? new Set([...this.selectedChatCards, note.id])
+                : new Set([...this.selectedChatCards].filter(id => id !== note.id));
+            this.updateChatSelection();
+        };
+    }
+
     private renderCard(parent: HTMLElement, note: HighlightNote) {
         if (note.kind === 'idea') {
-            const idea = parent.createDiv('hl-highlight-card hl-idea-card');
+            const idea = parent.createDiv(`hl-highlight-card hl-idea-card ${this.cardViewMode === 'collapsed' ? 'is-collapsed' : ''}`);
+            this.wireChatSelection(idea, note);
             const ideaBand = getColors(this.plugin.settings).find(color => color.id === note.color)?.hex || note.colorHex || '#8c79a5';
             idea.style.setProperty('--hl-card-band', deriveCardBandColor(ideaBand, note.color));
             const ideaTitleBand = idea.createDiv('hl-card-color-band');
             ideaTitleBand.createSpan({ text: note.title || t('card.ideaHeader') });
             ideaTitleBand.setAttribute('title', t('card.doubleClickTitle'));
-            if (note.text) idea.createDiv({ cls: 'hl-h-card-text', text: note.text });
+            this.wireCardDrag(idea, ideaTitleBand, note);
+            idea.createDiv({ cls: 'hl-h-card-text', text: note.text || note.title || t('card.ideaHeader') });
             const summary = cardPreviewMarkdown(note);
             if (summary) {
                 const content = idea.createDiv('hl-h-card-note-rendered');
@@ -783,7 +1097,8 @@ export class HighlightView extends ItemView {
             }
             const ideaMeta = idea.createDiv('hl-card-idea-meta');
             ideaMeta.createSpan({ cls: 'hl-card-template-badge', text: cardLabel(cardTemplate(note).label) });
-            if (note.links?.length) ideaMeta.createSpan({ cls: 'hl-card-link-count', text: `↗ ${note.links.length}` });
+            const ideaLinkCount = (note.links ?? []).filter(link => visibleRelation(link.relation)).length;
+            if (ideaLinkCount) ideaMeta.createSpan({ cls: 'hl-card-link-count', text: `↗ ${ideaLinkCount}` });
             let clickTimer: number | null = null;
             idea.onclick = () => {
                 if (clickTimer) window.clearTimeout(clickTimer);
@@ -806,11 +1121,14 @@ export class HighlightView extends ItemView {
         const card = parent.createDiv(
             `hl-highlight-card ${isAnchorNote ? 'hl-anchor-card' : `border-${note.color}`} ${this.cardViewMode === 'collapsed' ? 'is-collapsed' : ''}`
         );
+        this.wireChatSelection(card, note);
         const cardBand = getColors(this.plugin.settings).find(color => color.id === note.color)?.hex || note.colorHex || '#8c79a5';
         card.style.setProperty('--hl-card-band', deriveCardBandColor(cardBand, note.color));
+        card.style.setProperty('--hl-card-highlight', cardBand);
         const titleBand = card.createDiv('hl-card-color-band');
         titleBand.createSpan({ text: note.title || t('card.excerptHeader') });
         titleBand.setAttribute('title', t('card.doubleClickTitle'));
+        this.wireCardDrag(card, titleBand, note);
 
         // --- Full Card Navigation ---
         let clickTimer: number | null = null;
@@ -818,7 +1136,7 @@ export class HighlightView extends ItemView {
             if (clickTimer) window.clearTimeout(clickTimer);
             clickTimer = window.setTimeout(() => {
                 clickTimer = null;
-                this.jumpToHighlight(note);
+                void this.jumpToHighlight(note);
             }, 240);
         };
         card.ondblclick = (event) => {
@@ -839,12 +1157,13 @@ export class HighlightView extends ItemView {
             if (note.text) anchorBadge.createSpan({ cls: 'hl-anchor-badge-word', text: note.text });
         }
         textEl.createSpan({ text: note.text });
-        if ((note.links ?? []).length > 0) textEl.createSpan({ cls: 'hl-card-link-count hl-card-inline-links', text: `↗ ${note.links!.length}` });
+        const visibleLinkCount = (note.links ?? []).filter(link => visibleRelation(link.relation)).length;
+        if (visibleLinkCount) textEl.createSpan({ cls: 'hl-card-link-count hl-card-inline-links', text: `↗ ${visibleLinkCount}` });
 
         // Note part
         const presentation = cardPreviewMarkdown(note);
         const hasMethodTemplate = cardTemplate(note).id !== 'excerpt';
-        const noteArea = card.createDiv(`hl-h-card-note ${hasMethodTemplate ? 'hl-method-note-area' : ''} ${!presentation ? 'is-hidden' : ''}`);
+        const noteArea = card.createDiv(`hl-h-card-note ${hasMethodTemplate ? 'hl-method-note-area' : ''}`);
 
         // AI Preview Area (Conditional)
         const preview = this.aiPreviews.get(note.id);
@@ -902,6 +1221,16 @@ export class HighlightView extends ItemView {
 
         const isExpanded = this.expandedNotes.has(note.id);
         const renderedNote = noteArea.createDiv(`hl-h-card-note-rendered ${!isExpanded && !hasMethodTemplate ? 'is-collapsed-note' : ''}`);
+        if (!presentation) {
+            renderedNote.setText(t('note.placeholder'));
+            renderedNote.addClass('hl-empty-note-placeholder');
+            renderedNote.onclick = event => {
+                event.stopPropagation();
+                noteArea.addClass('is-editing');
+                textarea.removeClass('is-hidden');
+                textarea.focus();
+            };
+        }
         if (presentation) {
             if (hasMethodTemplate) {
                 renderSidebarCardLayout(renderedNote, note);
@@ -958,9 +1287,14 @@ export class HighlightView extends ItemView {
             if (this.pendingDeleteIds.has(note.id)) return;
             if (textarea.value !== note.note) {
                 await db.updateHighlightNote(note.id, { note: textarea.value });
-                note.note = textarea.value;
+                this.lastCardSig = null;
+                void this.render();
+                return;
             }
-            void this.render(); // Always re-render to switch back to renderer
+            noteArea.removeClass('is-editing');
+            textarea.addClass('is-hidden');
+            if (!isExpanded && !hasMethodTemplate) renderedNote.addClass('is-collapsed-note');
+            noteArea.querySelector('.hl-note-toggle-wrap')?.removeClass('is-hidden');
         };
 
         textarea.onkeydown = (e) => {
@@ -997,41 +1331,6 @@ export class HighlightView extends ItemView {
         const footerActions = footerRow1.createDiv('hl-footer-actions');
 
         // --- Priority Actions (Always Visible) ---
-
-        // 1. Edit Button (Pencil)
-        const editBtn = footerActions.createDiv('hl-footer-icon-btn');
-        setIcon(editBtn, 'pencil-line');
-        editBtn.setAttribute('aria-label', t('aria.editNote'));
-        editBtn.onclick = (e) => {
-            e.stopPropagation();
-            noteArea.removeClass('is-hidden');
-            noteArea.addClass('is-editing');
-            renderedNote.removeClass('is-collapsed-note');
-            textarea.removeClass('is-hidden');
-            // If toggleWrap exists, hide it
-            const toggleWrap = noteArea.querySelector('.hl-note-toggle-wrap');
-            if (toggleWrap) toggleWrap.addClass('is-hidden');
-
-            // Allow native OS to focus and start keyboard animation first
-            textarea.focus();
-
-            // Scroll card into view with a longer timeout to accommodate mobile keyboard animation
-            window.setTimeout(() => {
-                const container = card.closest('.hl-highlight-container') as HTMLElement;
-                if (container) {
-                    const containerRect = container.getBoundingClientRect();
-                    const cardRect = card.getBoundingClientRect();
-
-                    let offset;
-                    if (Platform.isMobile || Platform.isTablet) {
-                        offset = cardRect.top - containerRect.top + container.scrollTop - 20;
-                    } else {
-                        offset = cardRect.top - containerRect.top + container.scrollTop - (containerRect.height / 2) + (cardRect.height / 2);
-                    }
-                    container.scrollTo({ top: offset, behavior: 'smooth' });
-                }
-            }, 400);
-        };
 
         // 2. Translate Button (AI)
         const translateBtn = footerActions.createDiv('hl-footer-icon-btn');
@@ -1131,46 +1430,6 @@ export class HighlightView extends ItemView {
                 };
                 document.addEventListener('pointerdown', handler, true);
             }, 0);
-        };
-
-        // 3. Research Button (AI - Hidden in More)
-        const researchBtn = moreMenu.createDiv('hl-footer-icon-btn');
-        setIcon(researchBtn, 'microscope');
-        researchBtn.setAttribute('aria-label', t('aria.aiResearch'));
-        researchBtn.onclick = async (e) => {
-            e.stopPropagation();
-            moreMenu.removeClass('is-open');
-            const prompts = this.plugin.settings.researchPrompts;
-            if (prompts.length === 0) {
-                new Notice(t('modal.promptSelect.noPrompts'));
-                return;
-            }
-            new PromptSelectModal(this.app, prompts, (selected) => {
-                void (async () => {
-                    researchBtn.addClass('is-loading');
-                    try {
-                        const result = await this.aiService.processAction(note.text, 'research', selected.id);
-                        const cleaned = this.cleanAIResult(result);
-                        this.aiPreviews.set(note.id, cleaned);
-                        void this.render();
-                        new Notice(t('notice.researchComplete'));
-                        if (this.app.workspace.rightSplit) {
-                            this.app.workspace.rightSplit.expand();
-                        }
-                        const modal = new Modal(this.app);
-                        modal.titleEl.setText(t('research.modal.title'));
-                        modal.contentEl.createEl('p', { text: t('research.modal.body') });
-                        const btnWrap = modal.contentEl.createDiv({ style: 'text-align: right; margin-top: 20px;' });
-                        const btnOk = btnWrap.createEl('button', { text: t('btn.ok'), cls: 'mod-cta' });
-                        btnOk.onclick = () => modal.close();
-                        modal.open();
-                    } catch (err) {
-                        new Notice(t('notice.researchError') + err.message);
-                    } finally {
-                        researchBtn.removeClass('is-loading');
-                    }
-                })();
-            }).open();
         };
 
         // 4. Tag Button (Hidden in More)

@@ -1,6 +1,8 @@
 import { db } from '../db';
 import type { CardLink, HighlightNote } from '../models';
-import { cardDisplayTitle, cardRelationLabel, cardSearchText, incomingLinks, linkCards, relatedCandidates, unlinkCards } from '../card-templates';
+import { cardDisplayTitle, cardRelationLabel, incomingLinks, linkCards, unlinkCards } from '../card-templates';
+import { HIERARCHY_AFTER, HIERARCHY_PARENT, isAfterRelation, visibleRelation } from './card-hierarchy';
+import { searchLinkCandidates } from './card-link-search';
 import { t } from '../i18n';
 
 interface RelationOptions {
@@ -28,53 +30,61 @@ export async function renderCardRelations(parent: HTMLElement, options: Relation
 
     let links = [...options.links];
     let sourceIds = [...options.sourceIds];
+    const controls = header.createDiv('hl-card-link-controls');
+    const searchWrap = controls.createDiv('hl-card-link-search');
+    const query = searchWrap.createEl('input', { type: 'search', attr: { placeholder: t('card.searchLink'), 'aria-label': t('card.searchLink') } });
+    const suggestions = searchWrap.createDiv('hl-card-link-suggestions');
     const linked = parent.createDiv('hl-card-linked');
-    const controls = parent.createDiv('hl-card-link-controls');
-    const query = controls.createEl('input', { type: 'search', attr: { placeholder: t('card.searchLink'), 'aria-label': t('card.searchLink') } });
-    const relation = controls.createEl('select', { attr: { 'aria-label': t('card.relationHint') } });
-    for (const value of ['related', 'supports', 'contradicts', 'extends', 'applies', 'example_of', 'based_on']) {
-        relation.createEl('option', { value, text: cardRelationLabel(value) });
-    }
-    relation.createEl('option', { value: 'custom', text: t('card.customRelation') });
-    const customRelation = controls.createEl('input', { type: 'text', attr: { placeholder: t('card.customRelationHint'), 'aria-label': t('card.customRelationHint') } });
-    customRelation.hide();
-    relation.onchange = () => {
-        if (relation.value === 'custom') customRelation.show();
-        else customRelation.hide();
-    };
-    const suggestions = parent.createDiv('hl-card-link-suggestions');
     const sourcesEl = parent.createDiv('hl-card-sources');
 
     const drawLinks = () => {
         linked.empty();
         for (const link of links) {
+            const userRelation = visibleRelation(link.relation);
+            if (!userRelation) continue;
             const target = all.find(item => item.id === link.targetId);
-            const row = linked.createDiv('hl-card-link-row');
-            row.createEl('button', { text: `${target ? cardDisplayTitle(target) : t('card.missing')} · ${cardRelationLabel(link.relation) || t('card.related')}` })
-                .onclick = () => { if (target) options.onOpen(target); };
-            row.createEl('button', { text: '×', attr: { 'aria-label': t('card.removeLink') } }).onclick = () => {
+            const row = linked.createDiv('hl-card-linked-card');
+            const open = row.createEl('button', { cls: 'hl-card-linked-open' });
+            open.createSpan({ cls: 'hl-card-linked-title', text: target ? cardDisplayTitle(target) : t('card.missing') });
+            if (target?.text && target.title) open.createSpan({ cls: 'hl-card-linked-excerpt', text: target.text });
+            open.onclick = () => { if (target) options.onOpen(target); };
+            const relation = row.createEl('select', { cls: 'hl-card-linked-relation', attr: { 'aria-label': t('card.relationHint') } });
+            const relations = ['related', 'supports', 'contradicts', 'extends', 'applies', 'example_of', 'based_on'];
+            if (!relations.includes(userRelation)) relation.createEl('option', { value: userRelation, text: cardRelationLabel(userRelation) });
+            relations.forEach(value => relation.createEl('option', { value, text: cardRelationLabel(value) }));
+            relation.value = userRelation;
+            relation.onchange = () => {
+                links = links.map(item => item.targetId === link.targetId ? { ...item, relation: isAfterRelation(item.relation) ? `hierarchy_after:${relation.value}` : relation.value } : item);
+                options.onChange([...links]);
+                if (options.card.kind === 'idea') {
+                    sourceIds = relation.value === 'based_on' ? [...new Set([...sourceIds, link.targetId])] : sourceIds.filter(id => id !== link.targetId);
+                    options.onSourcesChange([...sourceIds]);
+                    drawSources();
+                }
+            };
+            row.createEl('button', { cls: 'hl-card-linked-remove', text: '×', attr: { 'aria-label': t('card.removeLink'), title: t('card.removeLink') } }).onclick = () => {
                 links = unlinkCards({ ...options.card, links }, link.targetId).links ?? [];
                 options.onChange([...links]);
+                if (sourceIds.includes(link.targetId)) {
+                    sourceIds = sourceIds.filter(id => id !== link.targetId);
+                    options.onSourcesChange([...sourceIds]);
+                    drawSources();
+                }
                 drawLinks();
             };
         }
-        if (links.length === 0) linked.createSpan({ text: t('card.noLinks'), cls: 'hl-card-muted' });
     };
 
     const drawSuggestions = () => {
         suggestions.empty();
-        const term = query.value.trim().toLowerCase();
-        const candidates = term
-            ? all.filter(item => item.id !== options.card.id && cardSearchText(item).includes(term))
-            : relatedCandidates(options.card, all).filter(item => !links.some(link => link.targetId === item.id));
+        const candidates = searchLinkCandidates(all, options.card.id, query.value)
+            .filter(item => !links.some(link => link.targetId === item.id && link.relation === HIERARCHY_PARENT));
         candidates
             .slice(0, 6).forEach(item => {
                 const row = suggestions.createDiv('hl-card-link-row');
                 const button = row.createEl('button', { text: cardDisplayTitle(item) });
                 button.onclick = () => {
-                    const chosen = relation.value === 'custom' ? customRelation.value.trim() : relation.value;
-                    if (!chosen) { customRelation.focus(); return; }
-                    links = linkCards({ ...options.card, links }, item.id, chosen).links ?? [];
+                    links = linkCards({ ...options.card, links }, item.id, 'related').links ?? [];
                     options.onChange([...links]);
                     query.value = '';
                     drawLinks();
@@ -95,7 +105,6 @@ export async function renderCardRelations(parent: HTMLElement, options: Relation
             });
     };
     query.oninput = drawSuggestions;
-    customRelation.oninput = drawSuggestions;
     query.onkeydown = event => {
         if (event.key !== 'Enter') return;
         const first = suggestions.querySelector('button');
@@ -125,7 +134,8 @@ export async function renderCardRelations(parent: HTMLElement, options: Relation
                 .onclick = () => { if (source) options.onOpen(source); };
             row.createEl('button', { text: '×', attr: { 'aria-label': t('card.removeSource') } }).onclick = () => {
                 sourceIds = sourceIds.filter(value => value !== id);
-                links = links.filter(link => link.targetId !== id || link.relation !== 'based_on');
+                links = links.flatMap(link => link.targetId !== id || visibleRelation(link.relation) !== 'based_on'
+                    ? [link] : isAfterRelation(link.relation) ? [{ ...link, relation: HIERARCHY_AFTER }] : []);
                 options.onSourcesChange([...sourceIds]);
                 options.onChange([...links]);
                 drawLinks();
