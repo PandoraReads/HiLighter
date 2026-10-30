@@ -22,6 +22,14 @@ const card = (overrides: Partial<HighlightNote> = {}): HighlightNote => ({
 });
 
 describe('card templates', () => {
+    it('preserves sibling ordering when adding or removing a normal card relation', () => {
+        const ordered = card({ links: [{ targetId: 'b', relation: 'hierarchy_after' }] });
+        const linked = linkCards(ordered, 'b', 'related');
+        expect(linked.links).toEqual([{ targetId: 'b', relation: 'hierarchy_after:related' }]);
+        expect(unlinkCards(linked, 'b').links).toEqual([{ targetId: 'b', relation: 'hierarchy_after' }]);
+        expect(incomingLinks([ordered], 'b')).toEqual([]);
+        expect(cardRelationMarkdown(ordered, [])).not.toContain('hierarchy_after');
+    });
     it('keeps the instant excerpt and defines purposeful fields for each template', () => {
         expect(CARD_TEMPLATES.map(t => t.id)).toEqual(['excerpt', 'cornell', 'onepage', 'zettel']);
         expect(CARD_TEMPLATES.find(t => t.id === 'cornell')?.fields.map(f => f.id))

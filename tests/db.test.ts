@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto';
+import Dexie from 'dexie';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HiLighterDatabase } from '../src/db';
 import { TOMBSTONE_TTL_MS } from '../src/sync/merge';
@@ -25,6 +26,40 @@ function newDb(): HiLighterDatabase {
 
 beforeEach(() => {
     // fake-indexeddb keeps DBs per process; unique names above isolate each test.
+});
+
+describe('batch card hierarchy updates', () => {
+    it('updates multiple parents in one operation and preserves nested children', async () => {
+        const db = newDb();
+        await db.highlightNotes.bulkPut([note({ id: 'p' }), note({ id: 'c', links: [{ targetId: 'p', relation: 'hierarchy_parent' }] }), note({ id: 's' }), note({ id: 't' })]);
+        expect(await db.moveCardHierarchy(['p', 'c', 's'], 't')).toBe(2);
+        expect((await db.getHighlightNote('p'))?.links).toEqual([{ targetId: 't', relation: 'hierarchy_parent' }]);
+        expect((await db.getHighlightNote('c'))?.links).toEqual([{ targetId: 'p', relation: 'hierarchy_parent' }]);
+        expect((await db.getHighlightNote('s'))?.links).toEqual([{ targetId: 't', relation: 'hierarchy_parent' }]);
+        await db.delete();
+    });
+    it('does not update any cards if one move is invalid', async () => {
+        const db = newDb();
+        await db.highlightNotes.bulkPut([note({ id: 'a' }), note({ id: 'b', sourcePath: 'other.md' }), note({ id: 'target' })]);
+        await expect(db.moveCardHierarchy(['a', 'b'], 'target')).rejects.toThrow();
+        expect((await db.getHighlightNote('a'))?.links).toBeUndefined();
+        expect((await db.getHighlightNote('b'))?.links).toBeUndefined();
+        await db.delete();
+    });
+    it('rolls back the entire batch if a write fails', async () => {
+        const db = newDb();
+        await db.highlightNotes.bulkPut([note({ id: 'a' }), note({ id: 'b' }), note({ id: 'target' })]);
+        const update = db.highlightNotes.update.bind(db.highlightNotes);
+        const spy = vi.spyOn(db.highlightNotes, 'update').mockImplementation((...args) => {
+            if (args[0] === 'b') return Dexie.Promise.reject(new Error('write failure'));
+            return update(...args);
+        });
+        await expect(db.moveCardHierarchy(['a', 'b'], 'target')).rejects.toThrow();
+        spy.mockRestore();
+        expect((await db.getHighlightNote('a'))?.links).toBeUndefined();
+        expect((await db.getHighlightNote('b'))?.links).toBeUndefined();
+        await db.delete();
+    });
 });
 
 describe('HiLighterDatabase upsert + merge', () => {
