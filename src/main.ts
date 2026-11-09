@@ -17,9 +17,10 @@ import { DEFAULT_RESEARCH_PROMPTS } from './models';
 import type { AIModelConfig, ThemeId } from './models';
 import { HighlightView } from './highlight-view';
 import { HighlightManagerView, HIGHLIGHT_MANAGER_VIEW_TYPE } from './studio/studio-view';
-import { HIGHLIGHT_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE, MINDMAP_VIEW_TYPE } from './view-types';
+import { HIGHLIGHT_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE, MINDMAP_VIEW_TYPE, BOOKSHELF_VIEW_TYPE } from './view-types';
 import { MobileRecentHighlightsView } from './mobile-recent-view';
 import { HighlightMindMapView } from './mindmap/view';
+import { BookshelfView } from './bookshelf/view';
 import { showHighlightMenu, hideHighlightMenu } from './selection/selection-menu';
 import { AIService } from './ai-service';
 import { openImageNoteCommand } from './selection/click-note';
@@ -150,6 +151,11 @@ export default class HiLighterPlugin extends Plugin {
 		this.registerView(HIGHLIGHT_MANAGER_VIEW_TYPE, (leaf) => new HighlightManagerView(leaf, this));
 		this.registerView(MOBILE_RECENT_VIEW_TYPE, (leaf) => new MobileRecentHighlightsView(leaf, this));
 		this.registerView(MINDMAP_VIEW_TYPE, (leaf) => new HighlightMindMapView(leaf, this));
+		// Bookshelf navigation page: desktop + tablet (phones keep the
+		// original sidebar flows)
+		if (!Platform.isPhone) {
+			this.registerView(BOOKSHELF_VIEW_TYPE, (leaf) => new BookshelfView(leaf, this));
+		}
 
 		// Runtime CSS for user-defined custom highlight colors
 		injectCustomColorStyles(document, this.settings);
@@ -181,8 +187,15 @@ export default class HiLighterPlugin extends Plugin {
 	 * Initialize actual workspace features
 	 */
 	private initializeFeatures() {
-		// 1. Ribbon Icon
+		// 1. Ribbon Icons
 		this.addRibbonIcon('highlighter', t('ribbon.highlight'), () => this.openHighlightEntry());
+		// Bookshelf navigation entry (desktop + tablet): recent reading /
+		// library / cards / mind map / review / stats in one place
+		if (!Platform.isPhone) {
+			this.addRibbonIcon('library', t('bookshelf.open'), () => {
+				void this.activateView(BOOKSHELF_VIEW_TYPE, 'main');
+			});
+		}
 
 		// 2. Commands
 		this.addCommand({
@@ -190,6 +203,13 @@ export default class HiLighterPlugin extends Plugin {
 			name: t('cmd.openHighlight'),
 			callback: () => this.openHighlightEntry(),
 		});
+		if (!Platform.isPhone) {
+			this.addCommand({
+				id: 'open-bookshelf',
+				name: t('bookshelf.open'),
+				callback: () => { void this.activateView(BOOKSHELF_VIEW_TYPE, 'main'); },
+			});
+		}
 		this.addCommand({
 			id: 'open-highlight-manager',
 			name: t('cmd.manageHighlights'),
@@ -366,6 +386,8 @@ export default class HiLighterPlugin extends Plugin {
 				void (leaf.view as HighlightView).render();
 			} else if (leaf.view.getViewType() === HIGHLIGHT_MANAGER_VIEW_TYPE) {
 				(leaf.view as HighlightManagerView).render();
+			} else if (leaf.view.getViewType() === BOOKSHELF_VIEW_TYPE) {
+				(leaf.view as BookshelfView).render();
 			}
 		});
 	}

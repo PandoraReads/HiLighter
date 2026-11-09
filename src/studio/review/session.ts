@@ -17,10 +17,10 @@ import {
     emptyStats,
     type Grade,
 } from '../../fsrs';
-import type { HighlightManagerView } from '../studio-view';
+import type { ReviewHost } from '../studio-state';
 import { cardSearchText, currentTemplateId } from '../../card-templates';
 
-export function startFsrsSession(view: HighlightManagerView, mode: 'due' | 'new'): void {
+export function startFsrsSession(view: ReviewHost, mode: 'due' | 'new'): void {
     const pool = view.highlights.filter(h => {
         // Honor the toolbar search/facet filters like the old shuffle did
         const q = view.searchQuery.toLowerCase();
@@ -60,7 +60,7 @@ export function startFsrsSession(view: HighlightManagerView, mode: 'due' | 'new'
     view.render();
 }
 
-export function exitSession(view: HighlightManagerView): void {
+export function exitSession(view: ReviewHost): void {
     view.reviewSession = {
         active: false,
         mode: 'due',
@@ -74,7 +74,7 @@ export function exitSession(view: HighlightManagerView): void {
 }
 
 /** Skip without rating: card moves to the end of the queue. */
-export function skipCurrent(view: HighlightManagerView): void {
+export function skipCurrent(view: ReviewHost): void {
     const s = view.reviewSession;
     if (!s.active || s.queue.length === 0) return;
     const current = s.queue[0]!;
@@ -84,7 +84,7 @@ export function skipCurrent(view: HighlightManagerView): void {
 }
 
 /** Rates the current card, persists the new schedule and advances. */
-export async function rateCurrent(view: HighlightManagerView, grade: Grade): Promise<void> {
+export async function rateCurrent(view: ReviewHost, grade: Grade): Promise<void> {
     const s = view.reviewSession;
     if (!s.active || s.queue.length === 0) return;
     const current = s.queue[0]!;

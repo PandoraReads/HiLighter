@@ -8,7 +8,7 @@ import { getColors } from '../colors';
 import type { ColorDef } from '../colors';
 import { dayKey } from './grouping';
 import { dueCount } from '../fsrs';
-import type { HighlightManagerView } from './studio-view';
+import type { StatsHost } from './studio-state';
 
 export interface StudioStats {
     total: number;
@@ -62,7 +62,7 @@ export function computeStats(notes: HighlightNote[]): StudioStats {
 }
 
 /** Renders the insights panel into the content body (toolbar stays mounted). */
-export function renderStatsPanel(view: HighlightManagerView, parent: HTMLElement): void {
+export function renderStatsPanel(view: StatsHost, parent: HTMLElement): void {
     parent.empty();
     const container = parent.createDiv('hl-insights');
 

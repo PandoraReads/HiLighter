@@ -7895,3 +7895,903 @@ mark.hl-pdf-flash {
 .hl-highlight-view .hl-highlight-card:has(.hl-card-color-band):not(.is-collapsed) { border-radius: 3px 12px 12px 3px !important; }
 .hl-highlight-view .hl-highlight-card.is-collapsed:has(.hl-card-color-band) { border-radius: 1px 5px 5px 1px !important; }
 .hl-highlight-view .hl-highlight-card .hl-h-card-text { box-sizing: border-box; padding-right: 1em; }
+
+/* ============================================================
+   HiLighter - Bookshelf navigation page (desktop)
+   Root carries .hl-studio too, so every theme variable block and
+   the topbar / control styles apply unchanged.
+   ============================================================ */
+
+.hl-shelf {
+    display: flex;
+    flex-direction: column;
+}
+
+.hl-shelf-layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+/* Header rides on the plain page background: no themed band, no
+   divider — brand, tab pills and actions share one row, and the
+   content below continues on the same surface. */
+.hl-shelf-topbar {
+    background: transparent;
+    border-bottom: none;
+    min-height: 52px;
+    gap: 10px;
+}
+
+.hl-shelf-topbar .hl-studio-topbar-button,
+.hl-shelf-topbar .hl-studio-theme-select,
+.hl-shelf-topbar .hl-studio-mode-toggle {
+    background: var(--background-secondary);
+    border-color: var(--background-modifier-border);
+    color: var(--text-normal);
+}
+
+/* Icon-only variant (light/dark toggle): compact square, no label */
+.hl-shelf-topbar .hl-studio-icon-btn {
+    width: 34px;
+    padding: 0;
+}
+
+/* ── Tab pills: inline between the brand and the header actions ── */
+
+.hl-shelf-tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.hl-shelf-tabs::-webkit-scrollbar { display: none; }
+
+.hl-shelf-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    padding: 7px 13px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: .84em;
+    font-weight: 650;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color .15s, background .15s;
+}
+
+.hl-shelf-tab:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.hl-shelf-tab.is-active {
+    color: var(--hl-accent);
+    background: rgba(var(--hl-accent-rgb, 255, 143, 183), 0.13);
+}
+
+.hl-shelf-tab-icon { display: inline-flex; }
+.hl-shelf-tab-icon svg { width: 15px; height: 15px; }
+
+/* ── Page body ───────────────────────────────────────── */
+
+.hl-shelf-page {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0 clamp(20px, 3.5vw, 44px);
+}
+
+/* The only scrolling area: grid content lives inside it */
+.hl-shelf-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    padding-top: 6px;
+}
+
+.hl-shelf-section-title {
+    margin: 4px 0 6px;
+    color: var(--text-normal);
+    font-family: var(--hl-font-serif);
+    font-size: clamp(1.35em, 2.2vw, 1.7em);
+    font-weight: 600;
+}
+
+.hl-shelf-section-desc {
+    margin: 0 0 16px;
+    color: var(--text-muted);
+    font-size: .9em;
+}
+
+/* ── Library toolbar ─────────────────────────────────── */
+
+/* Toolbar sits in its own non-scrolling zone above the grid: books
+   physically cannot scroll above or behind it. */
+.hl-shelf-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 0 0 auto;
+    padding: 6px 0 10px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* Neutral controls: native surfaces so the shelf blends with the
+   plain page background (theming stays in accent + covers) */
+.hl-shelf-scope-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--hl-control-radius, 7px);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font: inherit;
+    font-size: .8em;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.hl-shelf-scope-btn:hover,
+.hl-shelf-select:hover { border-color: var(--hl-accent); color: var(--hl-accent); }
+
+.hl-shelf-select {
+    min-height: 34px;
+    padding: 0 9px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--hl-control-radius, 7px);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font: inherit;
+    font-size: .8em;
+    cursor: pointer;
+}
+
+.hl-shelf-size-toggle {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 9px;
+    background: var(--background-secondary);
+}
+
+.hl-shelf-size-toggle .hl-view-btn { padding: 4px 6px; }
+
+/* Title search: body-only re-render keeps focus while typing */
+.hl-shelf-search {
+    flex: 0 1 210px;
+    min-width: 130px;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--hl-control-radius, 7px);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font: inherit;
+    font-size: .8em;
+}
+
+.hl-shelf-search:focus {
+    outline: none;
+    border-color: var(--hl-accent);
+}
+
+.hl-shelf-search::placeholder { color: var(--text-faint); }
+
+/* Book count, right-aligned next to the view switcher */
+.hl-shelf-count {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: .78em;
+    font-weight: 650;
+    letter-spacing: .02em;
+    white-space: nowrap;
+}
+
+.hl-shelf-count:empty { display: none; }
+
+/* ── Cover grid ──────────────────────────────────────── */
+
+.hl-shelf-grid {
+    display: grid;
+    gap: 22px 18px;
+    grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+}
+
+.hl-shelf-grid[data-size="small"] {
+    gap: 16px 14px;
+    grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
+}
+
+/* List view: one book per row */
+.hl-shelf-grid[data-size="list"] {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hl-book {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    font: inherit;
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.hl-book:focus-visible {
+    outline: 2px solid var(--hl-accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+}
+
+.hl-book-cover {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: 6px;
+    border: 1px solid var(--hl-ui-soft-line);
+    box-shadow: var(--hl-card-shadow);
+    background: var(--hl-ui-surface);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.hl-book:hover .hl-book-cover {
+    transform: translateY(-3px);
+    box-shadow: var(--hl-card-hover-shadow);
+}
+
+.hl-book-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Placeholder shimmer while metadata loads */
+.hl-book-cover-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg,
+        transparent 20%,
+        rgba(var(--hl-accent-rgb, 255, 143, 183), .10) 45%,
+        transparent 70%);
+    background-color: var(--hl-ui-surface);
+    background-size: 220% 100%;
+    animation: hl-shelf-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes hl-shelf-shimmer {
+    0% { background-position: 130% 0; }
+    100% { background-position: -90% 0; }
+}
+
+/* Generated covers (markdown, pdf without render) */
+.hl-book-cover-gen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 13px 12px;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}
+
+.hl-book-cover-gen[data-variant="0"] { background: linear-gradient(150deg, #6a8caf, #33506e); }
+.hl-book-cover-gen[data-variant="1"] { background: linear-gradient(150deg, #b0836d, #6e4633); }
+.hl-book-cover-gen[data-variant="2"] { background: linear-gradient(150deg, #7d9c6c, #40573a); }
+.hl-book-cover-gen[data-variant="3"] { background: linear-gradient(150deg, #9b7cab, #57406b); }
+.hl-book-cover-gen[data-variant="4"] { background: linear-gradient(150deg, #6fa3a1, #356160); }
+.hl-book-cover-gen[data-variant="5"] { background: linear-gradient(150deg, #ab7b7b, #683c3c); }
+
+/* Centered open-book mark on generated covers */
+.hl-cover-gen-mark {
+    position: absolute;
+    top: 0;
+    bottom: 38%;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+}
+
+.hl-cover-gen-mark svg {
+    width: 36%;
+    height: auto;
+    max-width: 50px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .25));
+}
+
+/* Too small to read on list thumbnails: gradient only */
+.hl-shelf-grid[data-size="list"] .hl-cover-gen-mark { display: none; }
+
+.hl-cover-gen-title {
+    font-family: var(--hl-font-serif);
+    font-size: .95em;
+    font-weight: 650;
+    line-height: 1.32;
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Badges over the cover: format pill sits top-right */
+.hl-book-kind {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(15, 18, 22, .55);
+    color: #fff;
+    backdrop-filter: blur(4px);
+    font-size: .6em;
+    font-weight: 700;
+    letter-spacing: .06em;
+}
+
+.hl-book-kind svg { width: 11px; height: 11px; }
+
+/* Title rides on the cover: bottom scrim over raster images */
+.hl-book-cover-caption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 30px 10px 9px;
+    background: linear-gradient(180deg, transparent, rgba(0, 0, 0, .78));
+    color: #fff;
+    font-size: .72em;
+    font-weight: 650;
+    line-height: 1.32;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .4);
+}
+
+/* Grid modes: the title lives on the cover, only meta below the card */
+.hl-shelf-grid:not([data-size="list"]) .hl-book-title { display: none; }
+.hl-shelf-grid:not([data-size="list"]) .hl-book-info { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+
+.hl-book-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: .86em;
+    font-weight: 650;
+    line-height: 1.35;
+    color: var(--text-normal);
+}
+
+.hl-book-sub {
+    font-size: .74em;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hl-book-sub:empty { display: none; }
+
+/* List layout: horizontal rows with a thumbnail */
+.hl-shelf-grid[data-size="list"] .hl-book {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 12px 8px 8px;
+    border: 1px solid var(--hl-ui-soft-line);
+    border-radius: 7px;
+    background: var(--hl-ui-card);
+}
+
+.hl-shelf-grid[data-size="list"] .hl-book:hover {
+    border-color: var(--hl-accent);
+    box-shadow: var(--hl-card-shadow);
+}
+
+.hl-shelf-grid[data-size="list"] .hl-book:hover .hl-book-cover {
+    transform: none;
+    box-shadow: none;
+}
+
+.hl-shelf-grid[data-size="list"] .hl-book-cover {
+    flex: 0 0 auto;
+    width: 42px;
+    aspect-ratio: 2 / 3;
+    box-shadow: none;
+}
+
+/* List rows keep the inline title; cover scrim + badge label hidden */
+.hl-shelf-grid[data-size="list"] .hl-book-kind {
+    top: 4px;
+    right: 4px;
+    padding: 2px 4px;
+}
+
+.hl-shelf-grid[data-size="list"] .hl-book-kind-label { display: none; }
+.hl-shelf-grid[data-size="list"] .hl-book-kind svg { width: 10px; height: 10px; }
+.hl-shelf-grid[data-size="list"] .hl-book-cover-caption { display: none; }
+.hl-shelf-grid[data-size="list"] .hl-cover-gen-title { display: none; }
+
+.hl-shelf-grid[data-size="list"] .hl-book-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.hl-shelf-grid[data-size="list"] .hl-book-title {
+    -webkit-line-clamp: 1;
+    font-size: .88em;
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+
+.hl-shelf-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 11vh 24px 6vh;
+    text-align: center;
+}
+
+.hl-shelf-empty-text {
+    max-width: 460px;
+    color: var(--text-muted);
+    font-size: .92em;
+    line-height: 1.6;
+}
+
+.hl-shelf-empty-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 0 16px;
+    border: 1px solid var(--hl-accent);
+    border-radius: var(--hl-control-radius);
+    background: var(--hl-accent);
+    color: #fff;
+    font: inherit;
+    font-size: .84em;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.hl-shelf-empty-action:hover { filter: brightness(1.06); }
+
+/* ── Scope modal (include / exclude folders) ─────────── */
+
+.hl-scope-modal { max-width: 520px; }
+
+.hl-scope-title { margin: 0 0 14px; font-family: var(--hl-font-serif); font-size: 1.3em; }
+
+.hl-scope-section { margin-bottom: 16px; }
+
+.hl-scope-heading {
+    margin-bottom: 8px;
+    color: var(--text-muted);
+    font-size: .78em;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.hl-scope-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.hl-scope-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 8px 8px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    background: var(--background-secondary);
+}
+
+.hl-scope-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .88em;
+}
+
+.hl-scope-remove {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.hl-scope-remove:hover { background: var(--background-modifier-error); color: var(--text-on-accent); }
+.hl-scope-remove svg { width: 13px; height: 13px; }
+
+.hl-scope-empty {
+    padding: 10px 12px;
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: 8px;
+    color: var(--text-faint);
+    font-size: .84em;
+    margin-bottom: 8px;
+}
+
+.hl-scope-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: .84em;
+    cursor: pointer;
+}
+
+.hl-scope-add:hover { border-color: var(--hl-accent); color: var(--hl-accent); }
+.hl-scope-add-icon svg { width: 13px; height: 13px; }
+
+@media (max-width: 700px) {
+    .hl-shelf-page { padding: 0 16px; }
+    .hl-shelf-tab { padding: 7px 9px; }
+    .hl-shelf-tab-label { display: none; }
+    .hl-shelf-tab-icon svg { width: 17px; height: 17px; }
+    .hl-shelf-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
+}
+
+/* Bookshelf review start: disabled start buttons (nothing due / new) */
+.hl-shelf-review-actions button[disabled] {
+    cursor: not-allowed;
+    opacity: .55;
+    filter: saturate(.6);
+}
+
+/* ── Multi-select (书籍 batch mode) ──────────────────── */
+
+.hl-book.is-selectable { cursor: pointer; }
+
+.hl-book-check {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, .85);
+    background: rgba(15, 18, 22, .45);
+    color: transparent;
+    backdrop-filter: blur(3px);
+}
+
+.hl-book.is-selectable .hl-book-check { display: flex; }
+.hl-book-check svg { width: 13px; height: 13px; }
+
+.hl-book.is-selected .hl-book-check {
+    border-color: var(--hl-accent);
+    background: var(--hl-accent);
+    color: #fff;
+}
+
+.hl-book.is-selected .hl-book-cover {
+    outline: 2px solid var(--hl-accent);
+    outline-offset: 2px;
+}
+
+/* Floating batch stack: lower right of the view, icon-only buttons */
+.hl-shelf-batch {
+    position: absolute;
+    right: 22px;
+    bottom: 24px;
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 14px;
+    background: var(--background-primary);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+}
+
+.hl-shelf-batch-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--hl-accent);
+    color: #fff;
+    font-size: .74em;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.hl-shelf-batch-btn {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 50%;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: transform .12s ease, border-color .12s ease, color .12s ease;
+}
+
+.hl-shelf-batch-btn:hover {
+    border-color: var(--hl-accent);
+    color: var(--hl-accent);
+    transform: translateY(-2px);
+}
+
+.hl-shelf-batch-btn svg { width: 16px; height: 16px; }
+
+.hl-shelf-batch-btn.is-danger { color: var(--text-error); }
+.hl-shelf-batch-btn.is-danger:hover { border-color: var(--text-error); color: var(--text-error); }
+
+.hl-shelf-batch-btn[disabled] {
+    opacity: .45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ── External-file drop overlay ──────────────────────── */
+
+.hl-shelf-dropzone {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(var(--hl-accent-rgb, 255, 143, 183), .12);
+    backdrop-filter: blur(2px);
+    pointer-events: none;
+}
+
+.hl-shelf.is-drag-over .hl-shelf-dropzone { display: flex; }
+
+.hl-shelf-dropzone-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 26px 40px;
+    border: 2px dashed var(--hl-accent);
+    border-radius: 14px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.hl-shelf-dropzone-icon svg { width: 28px; height: 28px; color: var(--hl-accent); }
+.hl-shelf-dropzone-text { font-size: .9em; font-weight: 650; }
+
+/* ── Tag modal rows ──────────────────────────────────── */
+
+.hl-scope-hint {
+    margin: -6px 0 12px;
+    color: var(--text-muted);
+    font-size: .82em;
+    line-height: 1.5;
+}
+
+.hl-tag-row { cursor: pointer; }
+
+.hl-tag-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 5px;
+    color: #fff;
+}
+
+.hl-tag-row.is-checked .hl-tag-box {
+    border-color: var(--hl-accent);
+    background: var(--hl-accent);
+}
+
+.hl-tag-box svg { width: 12px; height: 12px; }
+
+.hl-tag-count {
+    color: var(--text-faint);
+    font-size: .78em;
+    white-space: nowrap;
+}
+
+.hl-tag-new-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.hl-tag-new-row .hl-scope-add { margin: 0; }
+
+.hl-tag-new-input {
+    flex: 1;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font: inherit;
+    font-size: .86em;
+}
+
+.hl-tag-new-input:focus {
+    outline: none;
+    border-color: var(--hl-accent);
+}
+
+.hl-shelf-scope-btn.is-active {
+    border-color: var(--hl-accent);
+    color: var(--hl-accent);
+    background: rgba(var(--hl-accent-rgb, 255, 143, 183), 0.12);
+}
+
+/* ── Pagination bar (书籍) ────────────────────────────── */
+
+.hl-shelf-pager {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    padding: 6px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 10px;
+    background: var(--background-primary);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+}
+
+/* Chromeless inner controls: arrows and the size select ride on the
+   row's background without their own boxes */
+.hl-shelf-pager .hl-shelf-pager-btn {
+    border: none;
+    background: transparent;
+}
+
+.hl-shelf-pager .hl-shelf-select {
+    border: none;
+    background: transparent;
+    min-height: 30px;
+}
+
+/* Back-to-top: semi-transparent, lower right; fades in after scrolling */
+.hl-shelf-scroll-top {
+    position: absolute;
+    right: 22px;
+    bottom: 24px;
+    z-index: 24;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--background-primary) 60%, transparent);
+    backdrop-filter: blur(6px);
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(6px);
+    transition: opacity .18s ease, transform .18s ease, color .12s ease;
+}
+
+.hl-shelf-scroll-top.is-visible {
+    opacity: .62;
+    pointer-events: auto;
+    transform: none;
+}
+
+.hl-shelf-scroll-top.is-visible:hover {
+    opacity: 1;
+    color: var(--hl-accent);
+}
+
+.hl-shelf-scroll-top svg { width: 16px; height: 16px; }
+
+/* The batch stack owns the corner while selecting */
+.hl-shelf.is-selecting .hl-shelf-scroll-top { display: none; }
+
+/* Keep the last grid row scrollable clear above the floating pager */
+.hl-shelf-library.has-pager { padding-bottom: 70px; }
+
+.hl-shelf-pager-btn {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 7px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.hl-shelf-pager-btn:hover { border-color: var(--hl-accent); color: var(--hl-accent); }
+.hl-shelf-pager-btn[disabled] { opacity: .45; cursor: not-allowed; }
+.hl-shelf-pager-btn svg { width: 15px; height: 15px; }
+
+.hl-shelf-pager-status {
+    padding: 0 6px;
+    color: var(--text-muted);
+    font-size: .8em;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.hl-shelf-pager .hl-shelf-select { min-height: 30px; }

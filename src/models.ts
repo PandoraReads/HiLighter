@@ -137,6 +137,18 @@ export const AI_MODEL_PRESETS: (Omit<AIModelConfig, 'id' | 'apiKey'> & { label: 
     { name: 'OpenAI', label: 'GPT-4o mini', baseUrl: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' },
 ];
 
+/** Bookshelf (desktop navigation page) cover density */
+export type ShelfCoverSize = 'large' | 'small' | 'list';
+
+/** Bookshelf library tab sort orders */
+export type ShelfSortBy = 'title' | 'recent' | 'mtime';
+
+/** Bookshelf format filter (近期阅读 + 书籍) */
+export type ShelfFormatFilter = 'all' | 'epub' | 'pdf' | 'markdown';
+
+/** Bookshelf 近期阅读 tab sort orders */
+export type ShelfRecentSortBy = 'recent' | 'count' | 'title';
+
 /**
  * Plugin settings stored in data.json
  */
@@ -172,6 +184,15 @@ export interface HiLighterSettings {
     fsrs: FsrsSettings;
     notePopup: NotePopupSettings;
     pdfOverlay: boolean;            // best-effort PDF textLayer highlight overlay
+    // Bookshelf (desktop navigation page)
+    bookshelfIncludeFolders?: string[];   // vault folders scanned by the 书籍 tab; empty = unset
+    bookshelfExcludeFolders?: string[];   // folders subtracted from the scan scope
+    bookshelfCoverSize?: ShelfCoverSize;  // cover grid density on the 书籍 tab
+    bookshelfSortBy?: ShelfSortBy;        // 书籍 tab sort order
+    bookshelfRecentSortBy?: ShelfRecentSortBy;  // 近期阅读 tab sort order
+    bookshelfFormatFilter?: ShelfFormatFilter;  // shared format filter (近期阅读 + 书籍)
+    bookshelfTags?: Record<string, string[]>;   // vault path -> shelf tags (all formats)
+    bookshelfPageSize?: number;                 // library pagination size (20/50/100/200)
     epubProgress: Record<string, string>;   // epub path -> last-read CFI
     epubBookmarks: Record<string, EpubBookmark[]>;  // epub path -> bookmarks
     epubReadingMode: 'page' | 'scroll';     // horizontal pages vs vertical scroll
@@ -251,6 +272,14 @@ export const DEFAULT_SETTINGS: HiLighterSettings = {
     epubProgress: {},
     epubBookmarks: {},
     epubReadingMode: 'page',
+    bookshelfIncludeFolders: [],
+    bookshelfExcludeFolders: [],
+    bookshelfCoverSize: 'large',
+    bookshelfSortBy: 'title',
+    bookshelfRecentSortBy: 'recent',
+    bookshelfFormatFilter: 'all',
+    bookshelfTags: {},
+    bookshelfPageSize: 20,
     language: 'zh',
     translationTargetLang: '中文',
     highlightShortcut: '',

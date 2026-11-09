@@ -1,16 +1,15 @@
 // ============================================================
 // HiLighter - Studio database-style top toolbar
 // ============================================================
-// App bar: review | statistics | theme | light/dark mode
+// App bar: review only (theme / mind map / stats entries moved to the
+// desktop bookshelf navigation page).
 // Toolbar: search | group | sort | filter | view | batch
 // The header is persistent across body re-renders (search keeps focus).
 
 import { setIcon } from 'obsidian';
 import { t } from '../i18n';
 import { getColors } from '../colors';
-import type { ThemeId } from '../models';
 import { dueCount, newCount } from '../fsrs';
-import { MINDMAP_VIEW_TYPE } from '../view-types';
 import { collectFilterItems, groupByLabel, deckGroups } from './grouping';
 import { toggleBatchMode } from './batch';
 import { startFsrsSession } from './review/session';
@@ -41,59 +40,6 @@ export function buildStudioTopbar(view: HighlightManagerView, parent: HTMLElemen
     const reviewWrap = actions.createDiv('hl-tool-wrap');
     view.reviewWrap = reviewWrap;
     renderReviewControl(view, reviewWrap);
-
-    const mindMapLabel = t('mindmap.viewName');
-    const mindMapBtn = actions.createEl('button', {
-        cls: 'hl-tool-btn hl-studio-topbar-button',
-        attr: { 'aria-label': mindMapLabel, title: mindMapLabel },
-    });
-    setIcon(mindMapBtn, 'git-fork');
-    mindMapBtn.createSpan({ text: mindMapLabel, cls: 'hl-tool-stats-label' });
-    mindMapBtn.onclick = () => {
-        void view.plugin.activateView(MINDMAP_VIEW_TYPE, 'main');
-    };
-
-    const statsLabel = t('manager.toolbar.statsEntry');
-    const statsBtn = actions.createEl('button', {
-        cls: `hl-tool-btn hl-tool-stats hl-studio-topbar-button ${view.statsOpen ? 'is-active' : ''}`,
-        attr: { 'aria-label': statsLabel, title: statsLabel },
-    });
-    setIcon(statsBtn, 'bar-chart-3');
-    statsBtn.createSpan({ text: statsLabel, cls: 'hl-tool-stats-label' });
-    statsBtn.onclick = () => {
-        view.statsOpen = !view.statsOpen;
-        view.render();
-    };
-
-    const themeWrap = actions.createDiv('hl-studio-theme-wrap');
-    const themeIcon = themeWrap.createDiv('hl-studio-theme-icon');
-    setIcon(themeIcon, 'palette');
-    const themeSelect = themeWrap.createEl('select', {
-        cls: 'hl-studio-theme-select',
-        attr: { 'aria-label': t('settings.appearance.theme'), title: t('settings.appearance.theme') },
-    });
-    const themes: ThemeId[] = ['editorial', 'native', 'paper', 'ocean', 'forest', 'galaxy', 'cyber', 'sunset', 'rose'];
-    themes.forEach(theme => themeSelect.createEl('option', { text: t(`settings.theme.${theme}`), value: theme }));
-    themeSelect.value = view.plugin.settings.theme;
-    themeSelect.onchange = () => {
-        view.plugin.settings.theme = themeSelect.value as ThemeId;
-        void view.plugin.saveSettings().then(() => view.plugin.refreshAllViews());
-    };
-
-    const currentMode = view.plugin.settings.studioColorMode || 'auto';
-    const isDark = currentMode === 'dark' || (currentMode === 'auto' && document.body.classList.contains('theme-dark'));
-    const nextMode = isDark ? 'light' : 'dark';
-    const modeLabel = t(nextMode === 'dark' ? 'manager.theme.switchDark' : 'manager.theme.switchLight');
-    const modeBtn = actions.createEl('button', {
-        cls: 'hl-tool-btn hl-studio-mode-toggle',
-        attr: { 'aria-label': modeLabel, title: modeLabel },
-    });
-    setIcon(modeBtn, nextMode === 'dark' ? 'moon' : 'sun');
-    modeBtn.createSpan({ text: modeLabel, cls: 'hl-studio-mode-label' });
-    modeBtn.onclick = () => {
-        view.plugin.settings.studioColorMode = nextMode;
-        void view.plugin.saveSettings().then(() => view.render());
-    };
 
     return bar;
 }
