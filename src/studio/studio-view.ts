@@ -30,7 +30,6 @@ export class HighlightManagerView extends ItemView {
     collapsedGroups: Set<string> = new Set();
     batchMode = false;
     selectedNotes: Set<string> = new Set();
-    statsOpen = false;
     reviewSession: ReviewSession = {
         active: false,
         mode: 'due',

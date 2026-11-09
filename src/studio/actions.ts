@@ -96,7 +96,7 @@ export async function togglePin(view: HighlightManagerView, note: HighlightNote)
     refreshSidebarViews(view.app);
 }
 
-export async function addTagToNote(view: HighlightManagerView, note: HighlightNote, newTag: string): Promise<void> {
+export async function addTagToNote(view: { render(): void }, note: HighlightNote, newTag: string): Promise<void> {
     try {
         if (note.tags && note.tags.includes(newTag)) {
             new Notice(t('manager.notice.tagExists', { tag: newTag }));

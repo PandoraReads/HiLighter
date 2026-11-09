@@ -12,7 +12,6 @@ import { deckGroups, planGroupDrop, dropEnabled } from './grouping';
 import type { NoteGroup } from './studio-state';
 import type { DropPlan } from './grouping';
 import { buildStudioTopbar, buildToolbar } from './toolbar';
-import { renderStatsPanel } from './stats';
 import { handleBatchDelete, handleBatchTag } from './batch';
 import { togglePin, refreshSidebarViews, changeNoteColor } from './actions';
 import { HighlightDetailModal } from './modals';
@@ -58,12 +57,6 @@ export function renderMainContent(view: HighlightManagerView, parentProp?: HTMLE
         void view.loadHighlights().then(() => view.render());
         refreshSidebarViews(view.app);
     }, undefined, view.plugin.settings.noteImageFolder, view.plugin.settings.groupExportFolder || '');
-
-    // Stats panel expands over the grouped body while the toolbar stays mounted
-    if (view.statsOpen) {
-        renderStatsPanel(view, body);
-        return;
-    }
 
     const groups = deckGroups(view);
 

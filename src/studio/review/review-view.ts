@@ -4,7 +4,7 @@ import { getLang, t } from '../../i18n';
 import { dueCount, newCount, nextDueAt, scheduleNote, type Grade } from '../../fsrs';
 import { addTagToNote, jumpToSource } from '../actions';
 import { rateCurrent, exitSession, skipCurrent, startFsrsSession } from './session';
-import type { HighlightManagerView } from '../studio-view';
+import type { ReviewHost } from '../studio-state';
 import { extractNotePreview } from '../card-presentation';
 import { cardPreviewMarkdown, cardTitle } from '../../card-templates';
 
@@ -17,7 +17,7 @@ function intervalLabel(due: number, now: number): string {
     return getLang() === 'zh' ? `${days} 天` : `${days} days`;
 }
 
-export function renderReview(view: HighlightManagerView, parent: HTMLElement): void {
+export function renderReview(view: ReviewHost, parent: HTMLElement): void {
     parent.removeClass('is-gallery-mode');
     parent.empty();
     const session = view.reviewSession;
@@ -128,13 +128,13 @@ export function renderReview(view: HighlightManagerView, parent: HTMLElement): v
     archive.onclick = () => { void addTagToNote(view, note, t('tag.archive')); };
 }
 
-function flip(view: HighlightManagerView): void {
+function flip(view: ReviewHost): void {
     if (!view.reviewSession.active || view.reviewSession.queue.length === 0) return;
     view.reviewSession.flipped = !view.reviewSession.flipped;
     view.render();
 }
 
-function renderSummary(view: HighlightManagerView, parent: HTMLElement): void {
+function renderSummary(view: ReviewHost, parent: HTMLElement): void {
     const session = view.reviewSession;
     const summary = parent.createDiv('hl-review-summary');
     summary.createEl('h2', { text: t('fsrs.summary.title'), cls: 'hl-review-summary-title' });
@@ -163,7 +163,7 @@ function renderSummary(view: HighlightManagerView, parent: HTMLElement): void {
     };
 }
 
-export function handleReviewKey(view: HighlightManagerView, event: KeyboardEvent): void {
+export function handleReviewKey(view: ReviewHost, event: KeyboardEvent): void {
     const session = view.reviewSession;
     if (!session.active) return;
     const target = event.target instanceof HTMLElement ? event.target : null;

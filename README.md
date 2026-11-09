@@ -69,6 +69,13 @@
 *   **Focused Review Session**: Flip cards with Space, rate recall 1–4 (Again/Hard/Good/Easy), skip or archive — all keyboard-driven.
 *   **Review Insights**: Due/new counts on the studio toolbar, plus review statistics in the stats dashboard.
 
+### 📚 Bookshelf Navigation (Desktop & Tablet)
+*   **One home for everything**: A new bookshelf icon in the ribbon opens the HiLighter bookshelf — a navigation page with six tabs: **Recent reading**, **Books**, **Cards**, **Mind Map**, **Review**, and **Stats**. Theme switching and the light/dark toggle live here too; the card studio stays focused on card management. Phones keep the original sidebar flows.
+*   **Recent reading**: Files that recently received highlights — markdown, PDF, and EPUB — as a cover grid with per-file highlight counts, newest activity first. Click a book to open it where you left off.
+*   **Books**: A calibre-style shelf of every EPUB / PDF / Markdown file inside your scan scope. Configure any number of include folders plus exclusions; switch between large covers, small covers, and a list view, and sort by title, recent highlights, or file modification.
+*   **Covers everywhere**: EPUB covers and titles/authors are read straight from the book files (including `cover.xhtml` wrapper pages); PDFs render their first page; markdown notes use a `cover` / `image` / `banner` / `featured` / `thumbnail` frontmatter property — a vault image in any link spelling or a network URL — and fall back to a generated cover. Everything loads lazily and is cached.
+*   **Review without leaving the shelf**: The review tab starts an FSRS session right inside the bookshelf with the same keyboard-driven flow, and the stats tab shows the full statistics dashboard.
+
 ---
 
 ## 🚀 Quick Start
@@ -167,6 +174,13 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 ---
 
 ## Changelog
+
+### v2.8.0 (2026-11-10)
+
+- Added the Bookshelf navigation page (desktop & tablet): a ribbon bookshelf icon opens one home for the plugin — Recent reading, Books, Mind Map and Stats tabs, a card-studio entry in the top bar, plus theme and light/dark controls (the card-studio topbar now focuses on reviewing).
+- Recent reading lists every file that recently received highlights — markdown, PDF and EPUB — with per-file counts and one-click open. The Books tab scans configurable include/exclude folders in a calibre-style cover grid with large/small/list views, title search, format and tag filters, sorting, and pagination (20/50/100/200 per page).
+- Covers come from the books themselves: EPUB built-in covers with titles/authors (epub.js first, zip-level parsing as fallback), PDF first pages (pdf.js warmed on demand), and markdown frontmatter `cover`/`image` properties or network URLs. Everything loads lazily with caching; books without covers get a generated gradient card.
+- Books support tags with tag filtering, multi-select batch tagging, and batch trash-delete; external EPUB/PDF/Markdown files can be dragged straight into the shelf and are copied into the vault.
 
 ### v2.7.0 (2026-10-30)
 

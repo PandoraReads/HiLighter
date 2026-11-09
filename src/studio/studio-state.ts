@@ -2,6 +2,8 @@
 // HiLighter - Studio view state types
 // ============================================================
 
+import type { App, Component } from 'obsidian';
+import type HiLighterPlugin from '../main';
 import type { HighlightNote } from '../models';
 
 /** Gallery grouping dimension (was derived from the old sidebar tab) */
@@ -43,4 +45,27 @@ export interface ReviewSession {
         good: number;
         easy: number;
     };
+}
+
+/**
+ * Minimal host surface the FSRS review modules need. Both the studio view
+ * and the desktop bookshelf view satisfy it structurally, so the review
+ * UI can run inside either page.
+ */
+export interface ReviewHost extends Component {
+    app: App;
+    plugin: HiLighterPlugin;
+    highlights: HighlightNote[];
+    searchQuery: string;
+    selectedGroups: Set<string>;
+    groupBy: StudioGroupBy;
+    reviewSession: ReviewSession;
+    render(): void;
+    loadHighlights(): Promise<void>;
+}
+
+/** Minimal host surface the stats panel needs (reused by the bookshelf page). */
+export interface StatsHost {
+    plugin: HiLighterPlugin;
+    highlights: HighlightNote[];
 }
