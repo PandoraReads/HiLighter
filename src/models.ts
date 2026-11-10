@@ -185,8 +185,11 @@ export interface HiLighterSettings {
     notePopup: NotePopupSettings;
     pdfOverlay: boolean;            // best-effort PDF textLayer highlight overlay
     // Bookshelf (desktop navigation page)
-    bookshelfIncludeFolders?: string[];   // vault folders scanned by the 书籍 tab; empty = unset
-    bookshelfExcludeFolders?: string[];   // folders subtracted from the scan scope
+    // Include entries: legacy plain strings (recursive) or
+    // { path, recursive } refs. Empty/absent list = scope unset, the
+    // 书籍 tab scans nothing until folders are configured.
+    bookshelfIncludeFolders?: Array<string | { path: string; recursive: boolean }>;
+    bookshelfExcludeFolders?: string[];   // folders subtracted from the scan scope (whole subtrees)
     bookshelfCoverSize?: ShelfCoverSize;  // cover grid density on the 书籍 tab
     bookshelfSortBy?: ShelfSortBy;        // 书籍 tab sort order
     bookshelfRecentSortBy?: ShelfRecentSortBy;  // 近期阅读 tab sort order

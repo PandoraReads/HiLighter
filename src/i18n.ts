@@ -286,6 +286,8 @@ const zh: Record<string, string> = {
 	'bookshelf.library.empty.action': '设置扫描范围',
 	'bookshelf.library.noFiles': '扫描范围内没有找到 EPUB / PDF / Markdown 文件',
 	'bookshelf.library.noFilesFiltered': '扫描范围内没有 ${format} 文件',
+	'bookshelf.library.capWarning': '扫描范围过大：已截断为前 ${max} 个文件，书架只显示了部分书籍。请缩小范围，或把包含文件夹切换为“仅本层”。',
+	'bookshelf.library.capAction': '调整扫描范围',
 	'bookshelf.library.sort.label': '排序方式',
 	'bookshelf.library.sort.title': '按书名',
 	'bookshelf.library.sort.recent': '按最近高亮',
@@ -327,6 +329,10 @@ const zh: Record<string, string> = {
 	'bookshelf.scope.remove': '移除',
 	'bookshelf.scope.empty': '尚未添加文件夹',
 	'bookshelf.scope.duplicate': '该文件夹已在列表中',
+	'bookshelf.scope.recursive': '含子文件夹',
+	'bookshelf.scope.topOnly': '仅本层',
+	'bookshelf.scope.rootConfirm': '“整个仓库”会把扫描范围扩大到库内全部 EPUB / PDF / Markdown 文件，库较大时书架会明显变慢。确定要以整个仓库作为扫描范围吗？',
+	'bookshelf.scope.excludeRootDenied': '不能排除整个仓库（书架会变为空）',
 
 	// ── Main Notices ──────────────────────────────────────
 	'sidebar.backToTop': '回到顶部',
@@ -1080,6 +1086,8 @@ const en: Record<string, string> = {
 	'bookshelf.library.empty.action': 'Configure scan folders',
 	'bookshelf.library.noFiles': 'No EPUB / PDF / Markdown files found inside the scan folders',
 	'bookshelf.library.noFilesFiltered': 'No ${format} files found inside the scan folders',
+	'bookshelf.library.capWarning': 'Scan scope too large: truncated to the first ${max} files, so only part of the shelf is shown. Narrow the scope or switch include folders to top-level only.',
+	'bookshelf.library.capAction': 'Adjust scan folders',
 	'bookshelf.library.sort.label': 'Sort by',
 	'bookshelf.library.sort.title': 'Title',
 	'bookshelf.library.sort.recent': 'Recently highlighted',
@@ -1121,6 +1129,10 @@ const en: Record<string, string> = {
 	'bookshelf.scope.remove': 'Remove',
 	'bookshelf.scope.empty': 'No folders yet',
 	'bookshelf.scope.duplicate': 'That folder is already listed',
+	'bookshelf.scope.recursive': 'With subfolders',
+	'bookshelf.scope.topOnly': 'Top level only',
+	'bookshelf.scope.rootConfirm': 'The entire vault scans every EPUB / PDF / Markdown file in the vault and can make the shelf very slow on large vaults. Use the entire vault as the scan scope?',
+	'bookshelf.scope.excludeRootDenied': 'The entire vault cannot be excluded (the shelf would be empty)',
 
 	// ── Main Notices ──────────────────────────────────────
 	'sidebar.backToTop': 'Back to top',

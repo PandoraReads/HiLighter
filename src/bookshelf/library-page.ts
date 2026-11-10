@@ -16,7 +16,7 @@ import {
 } from 'obsidian';
 import { t } from '../i18n';
 import type { HighlightNote, ShelfCoverSize, ShelfFormatFilter, ShelfSortBy } from '../models';
-import { matchShelfFiles, normalizeFolderList, shelfKind } from './scope';
+import { matchShelfFiles, MAX_SHELF_SCAN_FILES, normalizeFolderList, normalizeIncludeFolders, shelfKind } from './scope';
 import { renderBookGrid, type BookEntry, type GridHost } from './book-card';
 import type { ShelfCoverCache } from './covers';
 import { appendFormatFilter } from './shelf-toolbar';
@@ -213,7 +213,18 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	return toolbar;
 }
 
-/** Re-renders the grid body + count label from current settings. */
+/**
+ * Re-renders the grid body + count label from current settings.
+ *
+ * Refreshes are idempotent: the visible outcome (view size, selection
+ * mode, cap banner, pager state, and the exact page of paths — or the
+ * empty-state text) is summarized into a signature. When a vault event
+ * re-runs this function but the signature is unchanged, the DOM is
+ * left completely untouched — no teardown, no cover re-mounts, no
+ * scroll reset. Sync-churn storms (iCloud materializing files inside
+ * the scope fire in-scope create/delete events) therefore cannot
+ * flicker the shelf: same content, zero repaint.
+ */
 function renderBody(
 	host: GridHost,
 	toolbar: HTMLElement,
@@ -224,7 +235,7 @@ function renderBody(
 ): void {
 	const plugin = host.plugin;
 	const settings = plugin.settings;
-	const include = normalizeFolderList(settings.bookshelfIncludeFolders);
+	const include = normalizeIncludeFolders(settings.bookshelfIncludeFolders);
 	const size = settings.bookshelfCoverSize || 'large';
 	const sortBy = settings.bookshelfSortBy || 'title';
 	const format: ShelfFormatFilter = settings.bookshelfFormatFilter || 'all';
@@ -232,21 +243,16 @@ function renderBody(
 	const bookTags = settings.bookshelfTags ?? {};
 	const tagFilter = ctx.getTagFilter();
 
-	body.empty();
 	const countEl = toolbar.querySelector<HTMLElement>('.hl-shelf-count');
 	if (countEl) countEl.empty();
 	refreshTagOptions(toolbar, bookTags, ctx);
-
-	// Drop any stale floating widgets (batch stack / pager) from a
-	// previous render; they are rebuilt as needed below.
-	const staleRoot = body.closest<HTMLElement>('.hl-studio');
-	staleRoot?.querySelector('.hl-shelf-batch')?.remove();
-	staleRoot?.querySelector('.hl-shelf-pager')?.remove();
 
 	const subtitle = (entry: BookEntry): string =>
 		entry.count > 0 ? t('bookshelf.library.subtitle', { count: entry.count }) : '';
 
 	if (include.length === 0) {
+		body.empty();
+		body.setAttribute('data-render-sig', 'scope-unset');
 		renderBookGrid(host, body, [], cache, {
 			size,
 			subtitle,
@@ -257,14 +263,19 @@ function renderBody(
 		return;
 	}
 
+	// One vault listing feeds both the scope match and the entry build
+	// (the old code walked getFiles() twice, doubling the scan cost on
+	// large vaults).
+	const files = host.app.vault.getFiles();
 	const paths = new Set(matchShelfFiles(
-		host.app.vault.getFiles(),
+		files,
 		settings.bookshelfIncludeFolders,
 		settings.bookshelfExcludeFolders,
 	));
+	const capped = paths.size >= MAX_SHELF_SCAN_FILES;
 	const activity = activityByPath(highlights);
 
-	const allEntries: BookEntry[] = host.app.vault.getFiles()
+	const allEntries: BookEntry[] = files
 		.filter(file => paths.has(file.path))
 		.filter(file => format === 'all' || shelfKind(file.extension) === format)
 		.map(file => {
@@ -285,7 +296,19 @@ function renderBody(
 			return a.file.basename.localeCompare(b.file.basename, undefined, { numeric: true });
 		});
 
+	// Pagination: slices the filtered + sorted list
+	const pageSize = validPageSize(settings.bookshelfPageSize);
+	const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
+	const page = Math.min(Math.max(1, ctx.getPage()), totalPages);
+	if (page !== ctx.getPage()) ctx.setPage(page);
+	const pageEntries = entries.length > pageSize
+		? entries.slice((page - 1) * pageSize, page * pageSize)
+		: entries;
+	const hasPager = entries.length > pageSize;
+
 	// Count line: filtered view shows visible / total in scope
+	// (updated even when the grid body is skipped — totals may shift
+	// while the visible page stays the same).
 	if (countEl) {
 		if (entries.length !== allEntries.length || query.trim()) {
 			countEl.setText(t('bookshelf.library.countFiltered', {
@@ -297,18 +320,50 @@ function renderBody(
 		}
 	}
 
-	// Pagination: slices the filtered + sorted list
-	const pageSize = validPageSize(settings.bookshelfPageSize);
-	const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
-	const page = Math.min(Math.max(1, ctx.getPage()), totalPages);
-	if (page !== ctx.getPage()) ctx.setPage(page);
-	const pageEntries = entries.length > pageSize
-		? entries.slice((page - 1) * pageSize, page * pageSize)
-		: entries;
+	const emptyText = query.trim()
+		? t('bookshelf.library.noMatches', { query: query.trim() })
+		: format === 'all'
+			? t('bookshelf.library.noFiles')
+			: t('bookshelf.library.noFilesFiltered', { format: t(`bookshelf.kind.${format}`) });
+
+	// Idempotence gate: identical visible outcome -> no DOM work at all.
+	const sig = [
+		size,
+		ctx.isSelectMode() ? 'sel' : '',
+		capped ? 'cap' : '',
+		hasPager ? `pager:${page}/${totalPages}/${pageSize}` : '',
+		entries.length === 0 ? `empty:${emptyText}` : pageEntries.map(e => e.file.path).join('|'),
+	].join('::');
+	if (body.getAttribute('data-render-sig') === sig) return;
+	body.setAttribute('data-render-sig', sig);
+
+	body.empty();
+
+	// Drop any stale floating widgets (batch stack / pager) from a
+	// previous render; they are rebuilt as needed below.
+	const root = body.closest<HTMLElement>('.hl-studio');
+	root?.querySelector('.hl-shelf-batch')?.remove();
+	root?.querySelector('.hl-shelf-pager')?.remove();
+
+	// Defense: an oversized scope (nested archives, the vault root of a
+	// big vault) is truncated by matchShelfFiles — surface that instead
+	// of silently showing a partial shelf.
+	if (capped) {
+		const warn = body.createDiv('hl-shelf-cap-warn');
+		setIcon(warn.createSpan({ cls: 'hl-shelf-cap-warn-icon' }), 'alert-triangle');
+		warn.createSpan({
+			cls: 'hl-shelf-cap-warn-text',
+			text: t('bookshelf.library.capWarning', { max: MAX_SHELF_SCAN_FILES }),
+		});
+		const fix = warn.createEl('button', {
+			cls: 'hl-shelf-cap-warn-action',
+			text: t('bookshelf.library.capAction'),
+		});
+		fix.onclick = () => new ShelfScopeModal(host.app, plugin, ctx.onScopeChange).open();
+	}
 
 	// Multi-select: the batch action stack floats at the view root's
 	// lower right (does not scroll with the grid).
-	const root = body.closest<HTMLElement>('.hl-studio');
 	if (ctx.isSelectMode() && root) {
 		buildBatchBar(host, root, ctx);
 	}
@@ -325,11 +380,7 @@ function renderBody(
 				},
 			}
 			: undefined,
-		emptyText: query.trim()
-			? t('bookshelf.library.noMatches', { query: query.trim() })
-			: format === 'all'
-				? t('bookshelf.library.noFiles')
-				: t('bookshelf.library.noFilesFiltered', { format: t(`bookshelf.kind.${format}`) }),
+		emptyText,
 	});
 
 	// Pagination floats bottom-center at the view root (does not scroll
@@ -566,20 +617,103 @@ export class ShelfScopeModal extends Modal {
 		contentEl.addClass('hl-scope-modal');
 		contentEl.createEl('h2', { text: t('bookshelf.scope.title'), cls: 'hl-scope-title' });
 
-		this.renderList(contentEl, 'include');
-		this.renderList(contentEl, 'exclude');
+		this.renderIncludeList(contentEl);
+		this.renderExcludeList(contentEl);
 	}
 
-	private renderList(container: HTMLElement, kind: 'include' | 'exclude'): void {
-		const settings = this.plugin.settings;
-		const folders = normalizeFolderList(
-			kind === 'include' ? settings.bookshelfIncludeFolders : settings.bookshelfExcludeFolders,
-		);
+	// ── Include folders: path + per-folder recursion toggle ──
+
+	private renderIncludeList(container: HTMLElement): void {
+		const folders = normalizeIncludeFolders(this.plugin.settings.bookshelfIncludeFolders);
 
 		const section = container.createDiv('hl-scope-section');
 		section.createDiv({
 			cls: 'hl-scope-heading',
-			text: t(kind === 'include' ? 'bookshelf.scope.include' : 'bookshelf.scope.exclude'),
+			text: t('bookshelf.scope.include'),
+		});
+
+		if (folders.length === 0) {
+			section.createDiv({ cls: 'hl-scope-empty', text: t('bookshelf.scope.empty') });
+		} else {
+			const list = section.createDiv('hl-scope-list');
+			folders.forEach(folder => {
+				const row = list.createDiv('hl-scope-row');
+				const pathCol = row.createDiv('hl-scope-row-main');
+				pathCol.createSpan({
+					text: folder.path === '' ? t('bookshelf.scope.root') : folder.path,
+					cls: 'hl-scope-path',
+				});
+
+				// Recursion toggle: top-level only (default for new
+				// folders) or include nested subfolders.
+				const toggleLabel = t(folder.recursive
+					? 'bookshelf.scope.recursive'
+					: 'bookshelf.scope.topOnly');
+				const toggle = pathCol.createEl('button', {
+					cls: `hl-scope-recursive ${folder.recursive ? 'is-recursive' : ''}`,
+					attr: {
+						'aria-label': toggleLabel,
+						title: toggleLabel,
+						'aria-pressed': String(folder.recursive),
+					},
+				});
+				setIcon(toggle.createSpan({ cls: 'hl-scope-recursive-icon' }),
+					folder.recursive ? 'folder-tree' : 'folder');
+				toggle.createSpan({ text: toggleLabel, cls: 'hl-scope-recursive-label' });
+				toggle.onclick = () => {
+					this.persistInclude(folders.map(item => item.path === folder.path
+						? { path: item.path, recursive: !item.recursive }
+						: item));
+					this.renderContent();
+				};
+
+				this.appendRemoveButton(row, () => {
+					this.persistInclude(folders.filter(item => item.path !== folder.path));
+					this.renderContent();
+				});
+			});
+		}
+
+		const add = section.createEl('button', { cls: 'hl-scope-add', text: t('bookshelf.scope.add') });
+		setIcon(add.createSpan({ cls: 'hl-scope-add-icon' }), 'plus');
+		add.onclick = () => {
+			new FolderPickerModal(this.app, (folder) => {
+				const normalized = folder.isRoot() ? '' : folder.path;
+				if (folders.some(item => item.path === normalized)) {
+					new Notice(t('bookshelf.scope.duplicate'));
+					return;
+				}
+				// Defense: the vault root means a whole-vault scan —
+				// confirm before that can ever enter the scope.
+				if (normalized === '') {
+					new ConfirmModal(
+						this.app,
+						t('bookshelf.scope.rootConfirm'),
+						() => {
+							this.persistInclude([...folders, { path: '', recursive: true }]);
+							this.renderContent();
+						},
+						{ warning: true, confirmText: t('btn.confirm') },
+					).open();
+					return;
+				}
+				// New folders start top-level only; nested archives can
+				// be pulled in explicitly with the recursion toggle.
+				this.persistInclude([...folders, { path: normalized, recursive: false }]);
+				this.renderContent();
+			}).open();
+		};
+	}
+
+	// ── Exclude folders: plain subtree prunes ──
+
+	private renderExcludeList(container: HTMLElement): void {
+		const folders = normalizeFolderList(this.plugin.settings.bookshelfExcludeFolders);
+
+		const section = container.createDiv('hl-scope-section');
+		section.createDiv({
+			cls: 'hl-scope-heading',
+			text: t('bookshelf.scope.exclude'),
 		});
 
 		if (folders.length === 0) {
@@ -592,15 +726,10 @@ export class ShelfScopeModal extends Modal {
 					text: folder === '' ? t('bookshelf.scope.root') : folder,
 					cls: 'hl-scope-path',
 				});
-				const remove = row.createEl('button', {
-					cls: 'hl-scope-remove',
-					attr: { 'aria-label': t('bookshelf.scope.remove'), title: t('bookshelf.scope.remove') },
-				});
-				setIcon(remove, 'x');
-				remove.onclick = () => {
-					this.persist(kind, folders.filter(f => f !== folder));
+				this.appendRemoveButton(row, () => {
+					this.persistExclude(folders.filter(f => f !== folder));
 					this.renderContent();
-				};
+				});
 			});
 		}
 
@@ -609,22 +738,38 @@ export class ShelfScopeModal extends Modal {
 		add.onclick = () => {
 			new FolderPickerModal(this.app, (folder) => {
 				const normalized = folder.isRoot() ? '' : folder.path;
+				if (normalized === '') {
+					// Excluding the root would empty the shelf entirely.
+					new Notice(t('bookshelf.scope.excludeRootDenied'));
+					return;
+				}
 				if (folders.includes(normalized)) {
 					new Notice(t('bookshelf.scope.duplicate'));
 					return;
 				}
-				this.persist(kind, [...folders, normalized]);
+				this.persistExclude([...folders, normalized]);
 				this.renderContent();
 			}).open();
 		};
 	}
 
-	private persist(kind: 'include' | 'exclude', folders: string[]): void {
-		if (kind === 'include') {
-			this.plugin.settings.bookshelfIncludeFolders = folders;
-		} else {
-			this.plugin.settings.bookshelfExcludeFolders = folders;
-		}
+	private appendRemoveButton(row: HTMLElement, onRemove: () => void): void {
+		const remove = row.createEl('button', {
+			cls: 'hl-scope-remove',
+			attr: { 'aria-label': t('bookshelf.scope.remove'), title: t('bookshelf.scope.remove') },
+		});
+		setIcon(remove, 'x');
+		remove.onclick = onRemove;
+	}
+
+	private persistInclude(folders: Array<{ path: string; recursive: boolean }>): void {
+		this.plugin.settings.bookshelfIncludeFolders = folders;
+		void this.plugin.saveSettings();
+		this.onChange();
+	}
+
+	private persistExclude(folders: string[]): void {
+		this.plugin.settings.bookshelfExcludeFolders = folders;
 		void this.plugin.saveSettings();
 		this.onChange();
 	}

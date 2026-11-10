@@ -7,7 +7,8 @@
 // topbar); FSRS review keeps its entry in the card studio. Phones
 // keep the original sidebar flows.
 
-import { ItemView, WorkspaceLeaf, Notice, setIcon } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, setIcon, TFile, TFolder } from 'obsidian';
+import type { TAbstractFile } from 'obsidian';
 import type { ThemeId } from '../models';
 import { t } from '../i18n';
 import { db } from '../db';
@@ -23,7 +24,7 @@ import { renderStatsPanel } from '../studio/stats';
 import { renderRecentPage } from './recent-page';
 import { renderLibraryPage } from './library-page';
 import { ShelfCoverCache } from './covers';
-import { normalizeFolderList, shelfKind } from './scope';
+import { isShelfRelevantPath, normalizeIncludeFolders, shelfKind } from './scope';
 
 export type BookshelfTab = 'recent' | 'library' | 'cards' | 'mindmap' | 'stats';
 
@@ -42,6 +43,9 @@ export class BookshelfView extends ItemView {
 
 	/** Deck snapshot for the recent page + stats panel. */
 	highlights: HighlightNote[] = [];
+
+	/** Source-path index of `highlights` for cheap event filtering. */
+	private highlightPaths: ReadonlySet<string> = new Set();
 
 	private coverCache = new ShelfCoverCache();
 	private pageEl: HTMLElement | null = null;
@@ -77,14 +81,43 @@ export class BookshelfView extends ItemView {
 		await this.loadHighlights();
 		this.render();
 
-		// Vault changes refresh the visible shelf pages, debounced.
-		const schedule = () => this.scheduleRefresh();
-		this.registerEvent(this.app.vault.on('create', schedule));
-		this.registerEvent(this.app.vault.on('delete', schedule));
-		this.registerEvent(this.app.vault.on('rename', schedule));
-		this.registerEvent(this.app.vault.on('modify', schedule));
+		// Vault changes refresh the visible shelf pages, debounced —
+		// but only changes that can actually affect them. Sync churn
+		// (iCloud placeholder downloads, unrelated note edits) fires
+		// these events in bursts; without a relevance gate every burst
+		// tore down and rebuilt the whole view, which showed as
+		// flicker + freezes on large vaults.
+		// 'modify' is intentionally NOT observed: content edits change
+		// neither the shelf listing nor the highlight database.
+		const onChange = (target: TAbstractFile, oldPath?: string) => {
+			if (this.isRelevantChange(target, oldPath)) this.scheduleRefresh();
+		};
+		this.registerEvent(this.app.vault.on('create', onChange));
+		this.registerEvent(this.app.vault.on('delete', onChange));
+		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => onChange(file, oldPath)));
 
 		this.registerDragDrop();
+	}
+
+	/**
+	 * True when a vault change can affect the visible page. Folders
+	 * always count (a rename re-paths whole subtrees); files only when
+	 * the shelf scans them (library tab) or they carry highlights
+	 * (recent tab).
+	 */
+	private isRelevantChange(target: TAbstractFile, oldPath?: string): boolean {
+		if (this.activeTab !== 'recent' && this.activeTab !== 'library') return false;
+		if (target instanceof TFolder) return true;
+		if (!(target instanceof TFile)) return false;
+		const paths = oldPath ? [target.path, oldPath] : [target.path];
+		if (this.activeTab === 'library') {
+			return paths.some(path => isShelfRelevantPath(
+				path,
+				this.plugin.settings.bookshelfIncludeFolders,
+				this.plugin.settings.bookshelfExcludeFolders,
+			));
+		}
+		return paths.some(path => this.highlightPaths.has(path));
 	}
 
 	/** External files (Finder) dropped onto the shelf are imported. */
@@ -120,8 +153,8 @@ export class BookshelfView extends ItemView {
 
 	/** Import destination: the first include folder, else the vault root. */
 	private importDestination(): string {
-		const include = normalizeFolderList(this.plugin.settings.bookshelfIncludeFolders);
-		return include[0] ?? '';
+		const include = normalizeIncludeFolders(this.plugin.settings.bookshelfIncludeFolders);
+		return include[0]?.path ?? '';
 	}
 
 	/** Finds a non-conflicting vault path for an imported file name. */
@@ -186,6 +219,9 @@ export class BookshelfView extends ItemView {
 
 	async loadHighlights(): Promise<void> {
 		this.highlights = await db.getAllHighlights();
+		this.highlightPaths = new Set(
+			this.highlights.map(note => note.sourcePath).filter(Boolean),
+		);
 	}
 
 	render(): void {
@@ -373,13 +409,17 @@ export class BookshelfView extends ItemView {
 		});
 	}
 
-	/** Debounced vault-change refresh for the visible grid pages. */
+	/**
+	 * Debounced vault-change refresh for the visible grid pages.
+	 * Rebuilds only the page body — the header / tab bar stays mounted,
+	 * so a refresh no longer flashes the whole view apart.
+	 */
 	private scheduleRefresh(): void {
 		if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
 		this.refreshTimer = window.setTimeout(() => {
 			this.refreshTimer = null;
 			if (this.activeTab !== 'recent' && this.activeTab !== 'library') return;
-			void this.loadHighlights().then(() => this.render());
-		}, 600);
+			void this.loadHighlights().then(() => this.rerenderPage());
+		}, 1000);
 	}
 }
