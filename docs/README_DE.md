@@ -166,7 +166,7 @@ Wenn dir dieses Plugin gefällt, kannst du es so unterstützen:
 Wenn dir HiLighter Zeit spart, kannst du den Entwickler auf einen Kaffee einladen (per Alipay / WeChat scannen):
 
 <p align="center">
-  <img src="screenshots/buy-me-a-coffee.png" alt="Kaffee ausgeben - Alipay / WeChat QR-Codes" width="640">
+  <img src="../screenshots/buy-me-a-coffee.png" alt="Kaffee ausgeben - Alipay / WeChat QR-Codes" width="640">
 </p>
 
 ---
