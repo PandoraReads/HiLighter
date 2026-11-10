@@ -62,6 +62,17 @@
 *   **Sessão de revisão focada**: Vire os cartões com Espaço, avalie a lembrança de 1 a 4 (Errei/Difícil/Bom/Fácil), pule ou arquive — tudo pelo teclado.
 *   **Dados de revisão**: Contadores de cartões vencidos/novos na barra do estúdio, além de estatísticas de revisão no painel de estatísticas.
 
+### 📚 Navegação pela estante (desktop e tablet)
+*   **Um só lugar para tudo**: um novo ícone de estante na barra lateral (ribbon) abre a estante do HiLighter — uma página de navegação com seis abas: **Leitura recente**, **Livros**, **Cartões**, **Mapa mental**, **Revisão** e **Estatísticas**. A troca de tema e o alternador claro/escuro também ficam aqui; o Card Studio permanece focado no gerenciamento de cartões. Os celulares mantêm os fluxos originais da barra lateral.
+*   **Leitura recente**: arquivos que receberam destaques recentemente — Markdown, PDF e EPUB — em uma grade de capas com a contagem de destaques por arquivo, a atividade mais recente primeiro. Clique em um livro para abri-lo de onde parou.
+*   **Livros**: uma estante ao estilo calibre com todos os arquivos EPUB / PDF / Markdown dentro do seu escopo de varredura. Configure quantas pastas de inclusão quiser, além de exclusões; alterne entre capas grandes, capas pequenas e visualização em lista, e ordene por título, destaques recentes ou modificação do arquivo.
+*   **Gerenciamento de livros e arquivos**: pesquise livros por título, filtre por formato (EPUB / PDF / Markdown) ou tag, e pagine bibliotecas grandes (20/50/100/200 por página). Adicione tags a qualquer livro para classificá-lo, selecione vários para tags em lote e mande para a lixeira os arquivos antigos com um clique.
+*   **Importar arrastando e soltando**: arraste arquivos EPUB / PDF / Markdown externos direto para a estante — o HiLighter os copia automaticamente para o seu vault, prontos para ler e destacar.
+*   **Capas por toda parte**: capas e títulos/autores de EPUB são lidos direto dos arquivos do livro (incluindo páginas `cover.xhtml`); PDFs renderizam a primeira página; notas Markdown usam uma propriedade de frontmatter `cover` / `image` / `banner` / `featured` / `thumbnail` — uma imagem do vault em qualquer sintaxe de link ou uma URL de rede — e, se não houver, uma capa é gerada. Tudo tem carregamento sob demanda e fica em cache.
+*   **Revisar sem sair da estante**: a aba de revisão inicia uma sessão FSRS dentro da estante com o mesmo fluxo orientado por teclado, e a aba de estatísticas mostra o painel completo.
+
+![estante](../screenshots/bookshelf.png)
+
 ---
 
 ## 🚀 Início rápido

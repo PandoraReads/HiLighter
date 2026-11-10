@@ -62,6 +62,17 @@
 *   **Fokussierte Wiederholungssitzung**: Karten mit Leertaste umdrehen, Erinnerung mit 1–4 bewerten (Again/Hard/Good/Easy), überspringen oder archivieren – alles per Tastatur.
 *   **Wiederholungs-Statistiken**: Fällige/neue Karten in der Studio-Symbolleiste sowie Wiederholungsstatistiken im Statistik-Dashboard.
 
+### 📚 Bücherregal-Navigation (Desktop & Tablet)
+*   **Ein Zuhause für alles**: Ein neues Bücherregal-Symbol im Ribbon öffnet das HiLighter-Bücherregal — eine Navigationsseite mit sechs Tabs: **Zuletzt gelesen**, **Bücher**, **Karten**, **Mindmap**, **Wiederholung** und **Statistiken**. Themenwechsel und Hell-/Dunkel-Umschalter leben ebenfalls hier; das Card Studio bleibt auf die Kartenverwaltung fokussiert. Handys behalten die ursprünglichen Seitenleisten-Abläufe.
+*   **Zuletzt gelesen**: Dateien, die kürzlich Markierungen erhalten haben — Markdown, PDF und EPUB — als Cover-Raster mit Markierungsanzahl pro Datei, neueste Aktivität zuerst. Ein Klick auf ein Buch öffnet es an der Stelle, an der du aufgehört hast.
+*   **Bücher**: Ein calibre-artiges Regal mit jeder EPUB-/PDF-/Markdown-Datei innerhalb deines Scan-Bereichs. Konfiguriere beliebig viele Include-Ordner plus Ausschlüsse; wechsle zwischen großen Covern, kleinen Covern und Listenansicht und sortiere nach Titel, letzten Markierungen oder Dateiänderung.
+*   **Bücher- & Dateiverwaltung**: Bücher nach Titel suchen, nach Format (EPUB / PDF / Markdown) oder Tag filtern und große Bibliotheken seitenweise blättern (20/50/100/200 pro Seite). Bücher zum Kategorisieren taggen, mehrere Bücher für Batch-Tagging auswählen und veraltete Dateien mit einem Klick in den Papierkorb verschieben.
+*   **Drag-&-Drop-Import**: Ziehe externe EPUB-/PDF-/Markdown-Dateien direkt ins Regal — HiLighter kopiert sie automatisch in deinen Vault, sofort bereit zum Lesen und Markieren.
+*   **Covers überall**: EPUB-Covers und Titel/Autoren werden direkt aus den Buchdateien gelesen (einschließlich `cover.xhtml`-Wrapper-Seiten); PDFs rendern ihre erste Seite; Markdown-Notizen nutzen eine Frontmatter-Eigenschaft `cover` / `image` / `banner` / `featured` / `thumbnail` — ein Vault-Bild in beliebiger Link-Schreibweise oder eine Netzwerk-URL — ansonsten wird ein Cover generiert. Alles lädt verzögert und wird gecacht.
+*   **Wiederholen ohne das Regal zu verlassen**: Der Wiederholung-Tab startet eine FSRS-Sitzung direkt im Bücherregal mit demselben tastaturgesteuerten Ablauf, und der Statistiken-Tab zeigt das vollständige Statistik-Dashboard.
+
+![Bücherregal](../screenshots/bookshelf.png)
+
 ---
 
 ## 🚀 Schnellstart
