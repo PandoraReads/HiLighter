@@ -62,6 +62,17 @@
 *   **Sesión de repaso enfocada**: Voltea tarjetas con Espacio, valora el recuerdo del 1 al 4 (Otra vez/Difícil/Bien/Fácil), salta o archiva — todo con el teclado.
 *   **Datos de repaso**: Recuentos de pendientes/nuevas en la barra del estudio, además de estadísticas de repaso en el panel de estadísticas.
 
+### 📚 Navegación por la biblioteca (escritorio y tableta)
+*   **Un único inicio**: un nuevo icono de biblioteca en el ribbon abre la biblioteca de HiLighter — una página de navegación con seis pestañas: **Lectura reciente**, **Libros**, **Tarjetas**, **Mapa mental**, **Repaso** y **Estadísticas**. El cambio de tema y el conmutador claro/oscuro también están aquí; el Card Studio se centra en la gestión de tarjetas. Los móviles conservan los flujos originales de la barra lateral.
+*   **Lectura reciente**: los archivos que recibieron resaltados recientemente — Markdown, PDF y EPUB — en una cuadrícula de portadas con el número de resaltados por archivo, la actividad más reciente primero. Haz clic en un libro para abrirlo donde lo dejaste.
+*   **Libros**: un estante al estilo calibre con todos los archivos EPUB / PDF / Markdown de tu ámbito de análisis. Configura cuantas carpetas de inclusión quieras, además de exclusiones; cambia entre portadas grandes, portadas pequeñas y vista de lista, y ordena por título, resaltados recientes o modificación del archivo.
+*   **Gestión de libros y archivos**: busca libros por título, filtra por formato (EPUB / PDF / Markdown) o etiqueta, y pagina bibliotecas grandes (20/50/100/200 por página). Etiqueta cualquier libro para clasificarlo, selecciona varios para el etiquetado por lotes y envía a la papelera los archivos obsoletos con un clic.
+*   **Importar arrastrando y soltando**: arrastra archivos EPUB / PDF / Markdown externos directamente al estante — HiLighter los copia automáticamente en tu bóveda, listos para leer y resaltar.
+*   **Portadas por todas partes**: las portadas y títulos/autores de los EPUB se leen directamente de los archivos del libro (incluidas las páginas envoltorio `cover.xhtml`); los PDF renderizan su primera página; las notas Markdown usan una propiedad de frontmatter `cover` / `image` / `banner` / `featured` / `thumbnail` — una imagen de la bóveda con cualquier sintaxis de enlace o una URL de red — y si no, se genera una portada. Todo se carga de forma diferida y se almacena en caché.
+*   **Repasar sin salir del estante**: la pestaña de repaso inicia una sesión FSRS dentro de la biblioteca con el mismo flujo de teclado, y la pestaña de estadísticas muestra el panel completo.
+
+![biblioteca](../screenshots/bookshelf.png)
+
 ---
 
 ## 🚀 Inicio rápido

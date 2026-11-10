@@ -62,6 +62,17 @@
 *   **Session de révision concentrée** : Retournez les cartes avec Espace, évaluez le rappel de 1 à 4 (Encore/Difficile/Bien/Facile), passez ou archivez — tout au clavier.
 *   **Analyses de révision** : Compteurs de cartes à réviser/nouvelles dans la barre du studio, plus des statistiques de révision dans le tableau de bord.
 
+### 📚 Navigation de la bibliothèque (bureau et tablette)
+*   **Un point d'entrée unique** : une nouvelle icône bibliothèque dans le ruban ouvre la bibliothèque HiLighter — une page de navigation à six onglets : **Lecture récente**, **Livres**, **Cartes**, **Carte mentale**, **Révision** et **Statistiques**. Le changement de thème et le commutateur clair/sombre se trouvent aussi ici ; le Card Studio reste dédié à la gestion des cartes. Les téléphones conservent les flux d'origine de la barre latérale.
+*   **Lecture récente** : les fichiers ayant récemment reçu des surlignages — Markdown, PDF et EPUB — en grille de couvertures avec le nombre de surlignages par fichier, l'activité la plus récente en premier. Cliquez sur un livre pour le rouvrir là où vous vous étiez arrêté.
+*   **Livres** : une étagère façon calibre réunissant tous les fichiers EPUB / PDF / Markdown de votre périmètre d'analyse. Configurez autant de dossiers à inclure que vous voulez, plus des exclusions ; basculez entre grandes couvertures, petites couvertures et vue en liste, et triez par titre, surlignages récents ou date de modification.
+*   **Gestion des livres et fichiers** : recherchez des livres par titre, filtrez par format (EPUB / PDF / Markdown) ou tag, et paginez les grandes bibliothèques (20/50/100/200 par page). Taguez n'importe quel livre pour le classer, sélectionnez-en plusieurs pour un taggage par lots et mettez à la corbeille les fichiers obsolètes en un clic.
+*   **Import par glisser-déposer** : glissez des fichiers EPUB / PDF / Markdown externes directement sur l'étagère — HiLighter les copie automatiquement dans votre coffre, prêts à être lus et surlignés.
+*   **Des couvertures partout** : les couvertures et titres/auteurs des EPUB sont lus directement dans les fichiers du livre (y compris les pages d'enveloppe `cover.xhtml`) ; les PDF affichent leur première page ; les notes Markdown utilisent une propriété frontmatter `cover` / `image` / `banner` / `featured` / `thumbnail` — une image du coffre, quelle que soit la syntaxe du lien, ou une URL réseau — sinon une couverture est générée. Tout est chargé à la demande et mis en cache.
+*   **Réviser sans quitter l'étagère** : l'onglet Révision lance une session FSRS directement dans la bibliothèque avec le même flux au clavier, et l'onglet Statistiques affiche le tableau de bord complet.
+
+![bibliothèque](../screenshots/bookshelf.png)
+
 ---
 
 ## 🚀 Démarrage rapide
