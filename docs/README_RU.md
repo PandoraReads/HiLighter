@@ -166,7 +166,7 @@ HiLighter хранит выделения в IndexedDB на каждом уст�
 Если HiLighter экономит ваше время, можете угостить разработчика кофе (сканируйте через Alipay / WeChat):
 
 <p align="center">
-  <img src="screenshots/buy-me-a-coffee.png" alt="Угостите кофе - QR-коды Alipay / WeChat" width="640">
+  <img src="../screenshots/buy-me-a-coffee.png" alt="Угостите кофе - QR-коды Alipay / WeChat" width="640">
 </p>
 
 ---

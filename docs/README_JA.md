@@ -166,7 +166,7 @@ iOS ショートカットや他のアプリから利用できます。`vault=` �
 HiLighter がお役に立てたなら、開発者にコーヒーをおごっていただけます（Alipay / WeChat でスキャン）:
 
 <p align="center">
-  <img src="screenshots/buy-me-a-coffee.png" alt="コーヒーをおごる - Alipay / WeChat QR コード" width="640">
+  <img src="../screenshots/buy-me-a-coffee.png" alt="コーヒーをおごる - Alipay / WeChat QR コード" width="640">
 </p>
 
 ---

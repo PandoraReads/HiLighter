@@ -166,7 +166,7 @@ iOS 단축어 및 다른 앱에서 유용합니다. `vault=` 파라미터가 없
 HiLighter가 시간을 아껴 주었다면, 개발자에게 커피 한 잔을 사주실 수 있습니다 (Alipay / WeChat 스캔):
 
 <p align="center">
-  <img src="screenshots/buy-me-a-coffee.png" alt="커피 한 잔 사주기 - Alipay / WeChat QR 코드" width="640">
+  <img src="../screenshots/buy-me-a-coffee.png" alt="커피 한 잔 사주기 - Alipay / WeChat QR 코드" width="640">
 </p>
 
 ---

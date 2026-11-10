@@ -170,7 +170,7 @@ HiLighter 的高亮数据按设备存储在本机 IndexedDB 中，可通过仓�
 如果 HiLighter 对你有帮助，欢迎请作者喝杯咖啡（支付宝 / 微信扫码）：
 
 <p align="center">
-  <img src="screenshots/buy-me-a-coffee.png" alt="请我喝杯咖啡 - 支付宝 / 微信二维码" width="640">
+  <img src="../screenshots/buy-me-a-coffee.png" alt="请我喝杯咖啡 - 支付宝 / 微信二维码" width="640">
 </p>
 
 ---
