@@ -2,10 +2,9 @@
 
 **HiLighter - Obsidian 高亮笔记管理工具**
 
-[![Plugin Version](https://img.shields.io/github/v/release/PandoraReads/HiLighter?label=Version&color=blue)](https://github.com/pandorareads/hilighter/releases)
-[![Obsidian Version](https://img.shields.io/badge/Obsidian-v1.7.2%2B-purple)](https://obsidian.md)
-
 **HiLighter** is an Obsidian plugin focused on highlight note management. It transforms highlighted content into manageable note cards with support for multiple color annotations, AI-powered analysis, and intelligent search features, making your note organization more efficient. Works across Markdown, PDF, and EPUB.
+
+**HiLighter** 是一款专注于高亮笔记管理的 Obsidian 插件。它将高亮内容转化为可管理的笔记卡片，支持多色标注、AI 智能分析与智能搜索，让笔记整理更加高效。支持 Markdown、PDF 与 EPUB。
 
 **🌐 Languages / 语言**: **English** | [简体中文](./docs/README_ZH.md) | [日本語](./docs/README_JA.md) | [한국어](./docs/README_KO.md) | [Français](./docs/README_FR.md) | [Deutsch](./docs/README_DE.md) | [Español](./docs/README_ES.md) | [Português](./docs/README_PT.md) | [Русский](./docs/README_RU.md)
 
@@ -73,8 +72,12 @@
 *   **One home for everything**: A new bookshelf icon in the ribbon opens the HiLighter bookshelf — a navigation page with six tabs: **Recent reading**, **Books**, **Cards**, **Mind Map**, **Review**, and **Stats**. Theme switching and the light/dark toggle live here too; the card studio stays focused on card management. Phones keep the original sidebar flows.
 *   **Recent reading**: Files that recently received highlights — markdown, PDF, and EPUB — as a cover grid with per-file highlight counts, newest activity first. Click a book to open it where you left off.
 *   **Books**: A calibre-style shelf of every EPUB / PDF / Markdown file inside your scan scope. Configure any number of include folders plus exclusions; switch between large covers, small covers, and a list view, and sort by title, recent highlights, or file modification.
+*   **Book & File Management**: Search books by title, filter by format (EPUB / PDF / Markdown) or tag, and paginate large libraries (20/50/100/200 per page). Tag any book for categorization, multi-select books for batch tagging, and trash-delete stale files in one click.
+*   **Drag-and-Drop Import**: Drag external EPUB / PDF / Markdown files straight into the shelf — HiLighter copies them into your vault automatically, ready to read and highlight.
 *   **Covers everywhere**: EPUB covers and titles/authors are read straight from the book files (including `cover.xhtml` wrapper pages); PDFs render their first page; markdown notes use a `cover` / `image` / `banner` / `featured` / `thumbnail` frontmatter property — a vault image in any link spelling or a network URL — and fall back to a generated cover. Everything loads lazily and is cached.
 *   **Review without leaving the shelf**: The review tab starts an FSRS session right inside the bookshelf with the same keyboard-driven flow, and the stats tab shows the full statistics dashboard.
+
+![bookshelf](screenshots/bookshelf.png)
 
 ---
 
