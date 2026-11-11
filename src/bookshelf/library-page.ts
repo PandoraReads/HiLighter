@@ -14,6 +14,7 @@ import { renderBookGrid, type BookEntry, type GridHost } from './book-card';
 import type { ShelfCoverCache } from './covers';
 import { appendFormatFilter } from './shelf-toolbar';
 import { ShelfScopeModal } from './shelf-scope-modal';
+import { toggleShelfDropdown } from './shelf-menu';
 import { matchesBookTitle } from './title-match';
 import { collectBookTags, removeTagPaths } from './book-tags';
 import { TagBooksModal } from './book-tags-modal';
@@ -116,7 +117,8 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	const size = settings.bookshelfCoverSize || 'large';
 	const toolbar = parent.createDiv('hl-shelf-toolbar');
 
-	// Custom shelves: saved scope presets + include/exclude editor
+	// Custom shelves: dropdown to switch saved shelves; the scope
+	// modal opens from its "add shelf" row.
 	const scopeLabel = t('bookshelf.library.shelves');
 	const scopeBtn = toolbar.createEl('button', {
 		cls: 'hl-tool-btn hl-shelf-scope-btn',
@@ -125,7 +127,7 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	setIcon(scopeBtn, 'library-big');
 	scopeBtn.createSpan({ text: scopeLabel, cls: 'hl-shelf-btn-label' });
 	scopeBtn.onclick = () => {
-		new ShelfScopeModal(host.app, plugin, ctx.onScopeChange).open();
+		toggleShelfDropdown(scopeBtn, host.app, plugin, ctx.onScopeChange);
 	};
 
 	// Title search (filters the grid body only)

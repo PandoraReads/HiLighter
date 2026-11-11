@@ -75,6 +75,7 @@
 *   **One home for everything**: A new bookshelf icon in the ribbon opens the HiLighter bookshelf — a navigation page with six tabs: **Recent reading**, **Books**, **Cards**, **Mind Map**, **Review**, and **Stats**. Theme switching and the light/dark toggle live here too; the card studio stays focused on card management. Phones keep the original sidebar flows.
 *   **Recent reading**: Files that recently received highlights — markdown, PDF, and EPUB — as a cover grid with per-file highlight counts, newest activity first. Click a book to open it where you left off.
 *   **Books**: A calibre-style shelf of every EPUB / PDF / Markdown file inside your scan scope. Configure any number of include folders plus exclusions; switch between large covers, small covers, and a list view, and sort by title, recent highlights, or file modification.
+*   **Custom shelves**: Save any scan scope under a name — then the toolbar's shelf button opens a dropdown where one click switches the whole library to that shelf. "Add shelf" at the bottom of the dropdown opens the full scope editor (include / exclude folders, per-folder recursion, saved-shelf management).
 *   **Book & File Management**: Search books by title, filter by format (EPUB / PDF / Markdown) or tag, and paginate large libraries (20/50/100/200 per page). Tag any book for categorization, multi-select books for batch tagging, and trash-delete stale files in one click.
 *   **Drag-and-Drop Import**: Drag external EPUB / PDF / Markdown files straight into the shelf — HiLighter copies them into your vault automatically, ready to read and highlight.
 *   **Covers everywhere**: EPUB covers and titles/authors are read straight from the book files (including `cover.xhtml` wrapper pages); PDFs render their first page; markdown notes use a `cover` / `image` / `banner` / `featured` / `thumbnail` frontmatter property — a vault image in any link spelling or a network URL — and fall back to a generated cover. Everything loads lazily and is cached.
@@ -180,6 +181,10 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 ---
 
 ## Changelog
+
+### v2.8.3 (2026-11-11)
+
+- Custom shelves for the library tab: save any scan scope under a name, then switch shelves from a dropdown on the toolbar — one click per shelf, with "Add shelf" at the bottom opening the full scope editor (include / exclude folders, per-folder recursion, saved-shelf management with delete confirmation).
 
 ### v2.8.2 (2026-11-11)
 
