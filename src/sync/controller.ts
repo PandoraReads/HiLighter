@@ -336,9 +336,10 @@ export class SyncController {
 
             const highlightsChanged = this.deps.db.getChangeSeq() !== seqBefore;
 
-            // Merge the shelf collections (shelves / favorites / tags) and
-            // persist them back into settings. Tombstones always persist so a
-            // remote delete is remembered even when nothing visible changed.
+            // Merge the shelf collections (shelves / favorites / tags /
+            // book metadata + reading days) and persist them back into
+            // settings. Tombstones always persist so a remote delete is
+            // remembered even when nothing visible changed.
             const now = this.deps.timers.now();
             const { result: merged, changed: collectionsChanged } = mergeShelfCollections(
                 collectionsFromSettings(settings),
@@ -349,10 +350,13 @@ export class SyncController {
                 settings.bookshelfShelves = merged.shelves;
                 settings.bookshelfFavorites = merged.favorites;
                 settings.bookshelfTags = merged.tags;
+                settings.bookshelfBookMeta = merged.bookMeta;
+                settings.bookshelfReadingDays = merged.readingDays;
             }
             settings.shelfTombstones = merged.shelfTombstones;
             settings.favoriteTombstones = merged.favoriteTombstones;
             settings.tagTombstones = merged.tagTombstones;
+            settings.bookMetaTombstones = merged.bookMetaTombstones;
             this.suppressSettingsDirty = true;
             try {
                 await this.deps.saveSettings();

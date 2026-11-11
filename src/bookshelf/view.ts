@@ -22,18 +22,33 @@ import {
 } from '../view-types';
 import { renderStatsPanel } from '../studio/stats';
 import { renderRecentPage } from './recent-page';
-import { renderLibraryPage } from './library-page';
+import { renderLibraryPage, type ShelfProgressFilter } from './library-page';
 import { ShelfCoverCache } from './covers';
 import { isShelfRelevantPath, normalizeIncludeFolders, shelfKind } from './scope';
 import { withFavoriteDeletion, withoutFavoriteDeletion } from '../sync/shelf-collections';
 
 export type BookshelfTab = 'recent' | 'library' | 'cards' | 'mindmap' | 'stats';
 
-const TABS: Array<{ id: BookshelfTab; labelKey: string; icon: string }> = [
-	{ id: 'recent', labelKey: 'bookshelf.tab.recent', icon: 'history' },
-	{ id: 'library', labelKey: 'bookshelf.tab.library', icon: 'library-big' },
+const TABS: Array<{ id: BookshelfTab; labelKey: string; shortKey?: string; icon: string }> = [
+	{
+		id: 'recent',
+		labelKey: 'bookshelf.tab.recent',
+		shortKey: 'bookshelf.tab.recent.short',
+		icon: 'history',
+	},
+	{
+		id: 'library',
+		labelKey: 'bookshelf.tab.library',
+		shortKey: 'bookshelf.tab.library.short',
+		icon: 'library-big',
+	},
 	{ id: 'mindmap', labelKey: 'bookshelf.tab.mindmap', icon: 'git-fork' },
-	{ id: 'stats', labelKey: 'bookshelf.tab.stats', icon: 'bar-chart-3' },
+	{
+		id: 'stats',
+		labelKey: 'bookshelf.tab.stats',
+		shortKey: 'bookshelf.tab.stats.short',
+		icon: 'bar-chart-3',
+	},
 ];
 
 /** Phones hide the mind-map tab (the mindmap view is desktop/tablet only). */
@@ -64,6 +79,8 @@ export class BookshelfView extends ItemView {
 	private tagFilter: string | null = null;
 	/** Library-page favorites-only filter (transient). */
 	private favoriteOnly = false;
+	/** Library-page reading-progress filter (transient). */
+	private progressFilter: ShelfProgressFilter = 'all';
 	private dragDepth = 0;
 	/** Library pagination (transient page; size persists in settings). */
 	private libraryPage = 1;
@@ -375,6 +392,8 @@ export class BookshelfView extends ItemView {
 			setTagFilter: (tag: string | null) => { this.tagFilter = tag; },
 			getFavoriteOnly: () => this.favoriteOnly,
 			setFavoriteOnly: (on: boolean) => { this.favoriteOnly = on; },
+			getProgressFilter: () => this.progressFilter,
+			setProgressFilter: (filter: ShelfProgressFilter) => { this.progressFilter = filter; },
 			getPage: () => this.libraryPage,
 			setPage: (pageNumber: number) => { this.libraryPage = pageNumber; },
 		});
@@ -406,56 +425,62 @@ export class BookshelfView extends ItemView {
 		cardsBtn.createSpan({ text: cardsLabel, cls: 'hl-tool-stats-label' });
 		cardsBtn.onclick = () => this.openTab('cards');
 
-		// Theme picker: a <select> row is too wide on phones — pop a Menu
-		// from an icon button instead.
+		// Appearance settings: one gear button covering both the theme
+		// (9 presets) and the light/dark mode — opens a Menu popup
+		// instead of the old select + toggle pair.
+		const appearanceLabel = t('bookshelf.appearance.settings');
+		const appearanceBtn = actions.createEl('button', {
+			cls: 'hl-tool-btn hl-studio-mode-toggle hl-studio-icon-btn',
+			attr: { 'aria-label': appearanceLabel, title: appearanceLabel },
+		});
+		setIcon(appearanceBtn, 'settings-2');
+		appearanceBtn.onclick = (event) => this.openAppearanceMenu(event);
+	}
+
+	/** Theme + light/dark quick-settings menu behind the gear button. */
+	private openAppearanceMenu(event: MouseEvent): void {
+		const menu = new Menu();
+		const settings = this.plugin.settings;
+
 		const applyTheme = (theme: string): void => {
 			this.plugin.settings.theme = theme as ThemeId;
 			void this.plugin.saveSettings().then(() => this.plugin.refreshAllViews());
 		};
-		if (Platform.isPhone) {
-			const themeBtn = actions.createEl('button', {
-				cls: 'hl-tool-btn hl-studio-mode-toggle hl-studio-icon-btn',
-				attr: { 'aria-label': t('settings.appearance.theme'), title: t('settings.appearance.theme') },
-			});
-			setIcon(themeBtn, 'palette');
-			themeBtn.onclick = (event) => {
-				const menu = new Menu();
-				THEMES.forEach(theme => menu.addItem(item => {
-					item.setTitle(t(`settings.theme.${theme}`))
-						.setChecked(theme === this.plugin.settings.theme)
-						.onClick(() => applyTheme(theme));
-				}));
-				menu.showAtMouseEvent(event);
-			};
-		} else {
-			const themeWrap = actions.createDiv('hl-studio-theme-wrap');
-			const themeIcon = themeWrap.createDiv('hl-studio-theme-icon');
-			setIcon(themeIcon, 'palette');
-			const themeSelect = themeWrap.createEl('select', {
-				cls: 'hl-studio-theme-select',
-				attr: { 'aria-label': t('settings.appearance.theme'), title: t('settings.appearance.theme') },
-			});
-			THEMES.forEach(theme => themeSelect.createEl('option', {
-				text: t(`settings.theme.${theme}`),
-				value: theme,
-			}));
-			themeSelect.value = this.plugin.settings.theme;
-			themeSelect.onchange = () => applyTheme(themeSelect.value);
-		}
-
-		const currentMode = this.plugin.settings.studioColorMode || 'auto';
-		const isDark = currentMode === 'dark' || (currentMode === 'auto' && document.body.classList.contains('theme-dark'));
-		const nextMode = isDark ? 'light' : 'dark';
-		const modeLabel = t(nextMode === 'dark' ? 'manager.theme.switchDark' : 'manager.theme.switchLight');
-		const modeBtn = actions.createEl('button', {
-			cls: 'hl-tool-btn hl-studio-mode-toggle hl-studio-icon-btn',
-			attr: { 'aria-label': modeLabel, title: modeLabel },
-		});
-		setIcon(modeBtn, nextMode === 'dark' ? 'moon' : 'sun');
-		modeBtn.onclick = () => {
-			this.plugin.settings.studioColorMode = nextMode;
+		const applyMode = (mode: 'auto' | 'light' | 'dark'): void => {
+			this.plugin.settings.studioColorMode = mode;
 			void this.plugin.saveSettings().then(() => this.render());
 		};
+
+		// Theme section
+		menu.addItem(item => item
+			.setTitle(t('settings.appearance.theme'))
+			.setIcon('palette')
+			.setIsLabel(true));
+		THEMES.forEach(theme => menu.addItem(item => item
+			.setTitle(t(`settings.theme.${theme}`))
+			.setChecked(theme === settings.theme)
+			.onClick(() => applyTheme(theme))));
+
+		menu.addSeparator();
+
+		// Light / dark section (auto follows the Obsidian theme)
+		menu.addItem(item => item
+			.setTitle(t('bookshelf.appearance.mode'))
+			.setIcon('sun-moon')
+			.setIsLabel(true));
+		const mode = settings.studioColorMode || 'auto';
+		const MODES: Array<{ id: 'auto' | 'light' | 'dark'; labelKey: string; icon: string }> = [
+			{ id: 'auto', labelKey: 'bookshelf.appearance.mode.auto', icon: 'monitor' },
+			{ id: 'light', labelKey: 'bookshelf.appearance.mode.light', icon: 'sun' },
+			{ id: 'dark', labelKey: 'bookshelf.appearance.mode.dark', icon: 'moon' },
+		];
+		MODES.forEach(entry => menu.addItem(item => item
+			.setTitle(t(entry.labelKey))
+			.setIcon(entry.icon)
+			.setChecked(mode === entry.id)
+			.onClick(() => applyMode(entry.id))));
+
+		menu.showAtMouseEvent(event);
 	}
 
 	// ── Tab pills (rendered inline in the header) ──
@@ -464,12 +489,15 @@ export class BookshelfView extends ItemView {
 		const tabBar = parent;
 		VISIBLE_TABS.forEach(tab => {
 			const active = this.activeTab === tab.id;
+			// Phones squeeze the topbar into one row: short labels keep the
+			// three tabs and the three action icons side by side.
+			const labelKey = Platform.isPhone && tab.shortKey ? tab.shortKey : tab.labelKey;
 			const btn = tabBar.createEl('button', {
 				cls: `hl-shelf-tab ${active ? 'is-active' : ''}`,
 				attr: { role: 'tab', 'aria-selected': String(active), title: t(tab.labelKey) },
 			});
 			setIcon(btn.createSpan({ cls: 'hl-shelf-tab-icon' }), tab.icon);
-			btn.createSpan({ text: t(tab.labelKey), cls: 'hl-shelf-tab-label' });
+			btn.createSpan({ text: t(labelKey), cls: 'hl-shelf-tab-label' });
 			btn.onclick = () => this.openTab(tab.id);
 		});
 	}

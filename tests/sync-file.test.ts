@@ -173,9 +173,12 @@ describe('shelf collections in the payload', () => {
         shelves: [{ id: 's1', name: '英文', include: [{ path: 'books', recursive: true }], exclude: ['books/tmp'], updatedAt: 5 }],
         favorites: ['a.epub'],
         tags: { 'a.epub': ['x'] },
+        bookMeta: { 'a.epub': { progress: 42, updatedAt: 9 } },
+        readingDays: { '2026-11-11': 2 },
         shelfTombstones: [],
         favoriteTombstones: [{ id: 'b.epub', deletedAt: 7 }],
         tagTombstones: [],
+        bookMetaTombstones: [{ id: 'c.epub', deletedAt: 8 }],
     };
 
     it('round-trips shelves / favorites / tags through build + parse', () => {
@@ -187,6 +190,35 @@ describe('shelf collections in the payload', () => {
         expect(parsed.favorites).toEqual(['a.epub']);
         expect(parsed.tags).toEqual({ 'a.epub': ['x'] });
         expect(parsed.favoriteTombstones).toEqual([{ id: 'b.epub', deletedAt: 7 }]);
+    });
+
+    it('round-trips book metadata, reading days and their tombstones', () => {
+        const raw = buildPayload([note()], [], 1, 'me', collections);
+        const parsed = parseSyncPayload(raw);
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok) return;
+        expect(parsed.bookMeta).toEqual({ 'a.epub': { progress: 42, updatedAt: 9 } });
+        expect(parsed.readingDays).toEqual({ '2026-11-11': 2 });
+        expect(parsed.bookMetaTombstones).toEqual([{ id: 'c.epub', deletedAt: 8 }]);
+    });
+
+    it('sanitizes junk book metadata and reading-day entries on parse', () => {
+        const raw = JSON.stringify({
+            version: 2,
+            highlights: [note()],
+            bookMeta: {
+                'ok.epub': { progress: 7, updatedAt: 1 },
+                'bad-progress.epub': { progress: 140, updatedAt: 1 },
+                'no-stamp.epub': { progress: 7 },
+                '': { progress: 7, updatedAt: 1 },
+            },
+            readingDays: { '2026-11-11': 3, 'not-a-day': 1, '2026-11-10': 0 },
+        });
+        const parsed = parseSyncPayload(raw);
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok) return;
+        expect(parsed.bookMeta).toEqual({ 'ok.epub': { progress: 7, updatedAt: 1 } });
+        expect(parsed.readingDays).toEqual({ '2026-11-11': 3 });
     });
 
     it('omits collection fields entirely when there is nothing to carry', () => {

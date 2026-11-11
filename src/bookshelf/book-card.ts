@@ -11,6 +11,7 @@ import type HiLighterPlugin from '../main';
 import { t } from '../i18n';
 import { shelfKind } from './scope';
 import type { ShelfCoverCache } from './covers';
+import { openBookMenu } from './book-actions';
 
 /** One rendered shelf entry (file + highlight stats). */
 export interface BookEntry {
@@ -19,6 +20,8 @@ export interface BookEntry {
 	count: number;
 	/** Timestamp of the newest highlight (0 = none). */
 	lastAt: number;
+	/** Reading progress 0-100 from book metadata; absent = unknown. */
+	progress?: number;
 }
 
 /** Minimal host surface the grid needs. */
@@ -71,6 +74,8 @@ const FALLBACK_INTERVAL_MS = 250;
  * re-applied after metadata arrives. `selection`, when present,
  * switches clicks to multi-select toggling. `favorites`, when present,
  * mounts a heart toggle on each cover (bottom-right, hover-revealed).
+ * `meta`, when present, enables the right-click / long-press context
+ * menu for book metadata and quick actions.
  */
 export function renderBookGrid(
 	host: GridHost,
@@ -90,6 +95,10 @@ export function renderBookGrid(
 		favorites?: {
 			isFavorite: (path: string) => boolean;
 			onToggle: (path: string) => void;
+		};
+		meta?: {
+			onEdit: (file: TFile) => void;
+			onChanged: () => void;
 		};
 	},
 ): void {
@@ -165,12 +174,38 @@ export function renderBookGrid(
 			};
 		}
 
+		// Metadata entry: right-click / long-press opens the context
+		// menu (edit metadata, mark finished, favorite, delete).
+		if (opts.meta) {
+			card.addEventListener('contextmenu', (event) => {
+				event.preventDefault();
+				openBookMenu(host, entry.file, event, {
+					onEditMeta: opts.meta!.onEdit,
+					onChanged: opts.meta!.onChanged,
+					favorites: opts.favorites,
+				});
+			});
+		}
+
 		// Title stays on the cover (caption scrim / generated gradient);
 		// the info line below the card carries only the meta subtitle.
 		// List view keeps the inline title (CSS shows it there).
 		const info = card.createDiv('hl-book-info');
 		info.createDiv({ cls: 'hl-book-title', text: entry.file.basename });
 		info.createDiv({ cls: 'hl-book-sub', text: coverMetaLine(entry, opts.subtitle) });
+		if (typeof entry.progress === 'number') {
+			const bar = info.createDiv('hl-book-progress');
+			if (entry.progress >= 100) bar.setAttribute('data-done', 'true');
+			bar.setAttribute('role', 'progressbar');
+			bar.setAttribute('aria-valuemin', '0');
+			bar.setAttribute('aria-valuemax', '100');
+			bar.setAttribute('aria-valuenow', String(entry.progress));
+			bar.setAttribute('aria-label', t('bookshelf.meta.progressOf', { value: entry.progress }));
+			const track = bar.createDiv('hl-book-progress-track');
+			track.createDiv({ cls: 'hl-book-progress-fill' })
+				.setCssProps({ width: `${entry.progress}%` });
+			bar.createSpan({ cls: 'hl-book-progress-pct', text: `${entry.progress}%` });
+		}
 
 		const open = () => { void openShelfFile(host.app, entry.file.path); };
 		if (opts.selection) {

@@ -8,6 +8,7 @@ import { getColors } from '../colors';
 import type { ColorDef } from '../colors';
 import { dayKey } from './grouping';
 import { dueCount } from '../fsrs';
+import { computeReadingStats, normalizeBookMetaMap, normalizeReadingDays } from '../bookshelf/book-meta';
 import type { StatsHost } from './studio-state';
 
 export interface StudioStats {
@@ -98,10 +99,52 @@ export function renderStatsPanel(view: StatsHost, parent: HTMLElement): void {
         addTile(t('fsrs.stats.avgReps'), avgReps.toFixed(1));
     }
 
-    // Heatmap
+    // Reading tiles: derived from book metadata + the reading-day log
+    // (union with highlight days — see computeReadingStats).
+    const reading = computeReadingStats(
+        normalizeBookMetaMap(view.plugin.settings.bookshelfBookMeta),
+        normalizeReadingDays(view.plugin.settings.bookshelfReadingDays),
+        stats.dayCounts,
+        new Date(),
+    );
+    addTile(t('manager.insights.reading.finishedThisYear'), String(reading.finishedThisYear));
+    addTile(t('manager.insights.reading.streak'), String(reading.streak));
+    addTile(t('manager.insights.reading.daysThisYear'), String(reading.daysThisYear));
+    addTile(t('manager.insights.reading.reading'), String(reading.readingCount));
+    if (reading.finishedPagesThisYear > 0) {
+        addTile(t('manager.insights.reading.pagesThisYear'), String(reading.finishedPagesThisYear));
+    }
+
+    // Heatmap with a data-source toggle: highlight activity (default) or
+    // reading activity (progress updates ∪ highlight creation).
     const heatSection = container.createDiv('hl-insights-section');
-    heatSection.createDiv({ text: t('manager.insights.last6mo'), cls: 'hl-insights-section-title' });
-    renderHeatmap(heatSection, stats.dayCounts);
+    const heatHead = heatSection.createDiv('hl-insights-section-head');
+    heatHead.createDiv({ text: t('manager.insights.last6mo'), cls: 'hl-insights-section-title' });
+    const heatToggle = heatHead.createDiv('hl-heat-source');
+    const heatChart = heatSection.createDiv();
+    const heatSources: Array<{ id: 'highlights' | 'reading'; labelKey: string; map: Map<string, number> }> = [
+        { id: 'highlights', labelKey: 'manager.insights.reading.source.highlights', map: stats.dayCounts },
+        { id: 'reading', labelKey: 'manager.insights.reading.source.reading', map: reading.dayMap },
+    ];
+    const drawHeatmap = (active: 'highlights' | 'reading'): void => {
+        heatChart.empty();
+        heatToggle.empty();
+        heatSources.forEach(source => {
+            const btn = heatToggle.createEl('button', {
+                cls: `hl-heat-source-btn${source.id === active ? ' is-active' : ''}`,
+                text: t(source.labelKey),
+                attr: { 'aria-pressed': String(source.id === active) },
+            });
+            btn.onclick = () => drawHeatmap(source.id);
+        });
+        renderHeatmap(heatChart, heatSources.find(s => s.id === active)!.map);
+    };
+    drawHeatmap('highlights');
+
+    // Books finished per year (finishedAt), last six calendar years.
+    const yearSection = container.createDiv('hl-insights-section');
+    yearSection.createDiv({ text: t('manager.insights.reading.perYear'), cls: 'hl-insights-section-title' });
+    renderYearBars(yearSection, reading.finishedPerYear, new Date().getFullYear());
 
     // Color distribution
     const colorSection = container.createDiv('hl-insights-section');
@@ -154,6 +197,22 @@ function renderHeatmap(parent: HTMLElement, dayCounts: Map<string, number>): voi
         if (l > 0) c.addClass('hl-level-' + l);
     }
     legend.createSpan({ text: t('manager.insights.more'), cls: 'hl-heatmap-legend-label' });
+}
+
+/** Books-finished-per-year columns (last six calendar years). */
+function renderYearBars(parent: HTMLElement, perYear: Array<[number, number]>, thisYear: number): void {
+    const max = Math.max(1, ...perYear.map(([, count]) => count));
+    const grid = parent.createDiv('hl-year-bars');
+    perYear.forEach(([year, count]) => {
+        const col = grid.createDiv(`hl-year-bar-col${year === thisYear ? ' is-current' : ''}`);
+        const bar = col.createDiv('hl-year-bar');
+        bar.createDiv({ cls: 'hl-year-bar-fill' }).setCssProps({
+            height: `${Math.max(count > 0 ? 6 : 2, Math.round((count / max) * 100))}%`,
+        });
+        bar.setAttribute('title', `${year}: ${count}`);
+        col.createDiv({ cls: 'hl-year-bar-count', text: count > 0 ? String(count) : '' });
+        col.createDiv({ cls: 'hl-year-bar-label', text: String(year) });
+    });
 }
 
 function renderColorDist(parent: HTMLElement, byColor: Record<string, number>, colors: ColorDef[]): void {

@@ -6,12 +6,13 @@
 // scope (saved shelves + include / exclude folders) is managed in
 // shelf-scope-modal.ts.
 
-import { Notice, Platform, TFile, setIcon } from 'obsidian';
+import { Menu, Notice, Platform, TFile, setIcon } from 'obsidian';
 import { t } from '../i18n';
 import type { HighlightNote, ShelfCoverSize, ShelfFormatFilter, ShelfSortBy } from '../models';
 import { matchShelfFiles, MAX_SHELF_SCAN_FILES, normalizeIncludeFolders, shelfKind } from './scope';
 import { withFavoriteDeletion, withoutFavoriteDeletion } from '../sync/shelf-collections';
 import { renderBookGrid, type BookEntry, type GridHost } from './book-card';
+import { BookMetaModal } from './book-meta-modal';
 import type { ShelfCoverCache } from './covers';
 import { appendFormatFilter, effectiveCoverSize } from './shelf-toolbar';
 import { ShelfScopeModal } from './shelf-scope-modal';
@@ -33,6 +34,29 @@ const SORT_OPTIONS: Array<{ id: ShelfSortBy; labelKey: string }> = [
 	{ id: 'recent', labelKey: 'bookshelf.library.sort.recent' },
 	{ id: 'mtime', labelKey: 'bookshelf.library.sort.mtime' },
 ];
+
+/** Reading-progress filter states (transient, library page only). */
+export type ShelfProgressFilter = 'all' | 'planned' | 'reading' | 'done';
+
+const PROGRESS_OPTIONS: Array<{ id: ShelfProgressFilter; labelKey: string; icon: string }> = [
+	{ id: 'all', labelKey: 'bookshelf.library.progress.all', icon: 'gauge' },
+	{ id: 'planned', labelKey: 'bookshelf.library.progress.planned', icon: 'circle' },
+	{ id: 'reading', labelKey: 'bookshelf.library.progress.reading', icon: 'book-open' },
+	{ id: 'done', labelKey: 'bookshelf.library.progress.done', icon: 'check-circle-2' },
+];
+
+/** Option lookup with an 'all' fallback for junk state. */
+function progressOption(id: ShelfProgressFilter) {
+	return PROGRESS_OPTIONS.find(option => option.id === id) ?? PROGRESS_OPTIONS[0]!;
+}
+
+/** Progress bucket of an entry for filtering (unknown counts as planned). */
+export function progressBucket(progress: number | undefined): ShelfProgressFilter {
+	const value = progress ?? 0;
+	if (value <= 0) return 'planned';
+	if (value >= 100) return 'done';
+	return 'reading';
+}
 
 /** Highlight activity per source path (drives counts + recent sort). */
 function activityByPath(highlights: HighlightNote[]): Map<string, { count: number; lastAt: number }> {
@@ -70,6 +94,9 @@ export interface LibraryPageCtx {
 	// Favorites-only filter (transient view state)
 	getFavoriteOnly(): boolean;
 	setFavoriteOnly(on: boolean): void;
+	// Reading-progress filter (transient view state; 'all' = no filter)
+	getProgressFilter(): ShelfProgressFilter;
+	setProgressFilter(filter: ShelfProgressFilter): void;
 	// Pagination (transient page number; size persists in settings)
 	getPage(): number;
 	setPage(page: number): void;
@@ -196,13 +223,52 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 		ctx.onScopeChange();
 	};
 
+	// Right-aligned tail cluster: count + reading-progress filter +
+	// favorites + view size travel together as ONE flex item — a
+	// wrapping toolbar can never split them apart, and their mutual
+	// spacing stays a tight 8px (the count's old solo auto-margin is
+	// what scattered them).
+	const tail = controls.createDiv('hl-shelf-tail');
+
 	// Book count (kept in the toolbar; refreshed by renderBody)
-	const count = controls.createDiv('hl-shelf-count');
+	const count = tail.createDiv('hl-shelf-count');
 	count.setAttribute('aria-live', 'polite');
+
+	// Reading-progress filter: chromeless icon button left of the heart;
+	// a Menu popup picks 计划读 / 正在读 / 已读完 / 全部.
+	const progressFilter = ctx.getProgressFilter();
+	const progressOption0 = progressOption(progressFilter);
+	const progressBtn = tail.createEl('button', {
+		cls: `hl-shelf-progress-btn${progressFilter !== 'all' ? ' is-active' : ''}`,
+		attr: {
+			'aria-label': t(progressFilter === 'all'
+				? 'bookshelf.library.progressFilter'
+				: progressOption0.labelKey),
+			title: t(progressFilter === 'all'
+				? 'bookshelf.library.progressFilter'
+				: progressOption0.labelKey),
+			'aria-pressed': String(progressFilter !== 'all'),
+		},
+	});
+	setIcon(progressBtn, progressOption0.icon);
+	progressBtn.onclick = (event) => {
+		const menu = new Menu();
+		const current = ctx.getProgressFilter();
+		PROGRESS_OPTIONS.forEach(option => menu.addItem(item => item
+			.setTitle(t(option.labelKey))
+			.setIcon(option.icon)
+			.setChecked(current === option.id)
+			.onClick(() => {
+				ctx.setProgressFilter(option.id);
+				ctx.setPage(1);
+				ctx.onSearchChange();
+			})));
+		menu.showAtMouseEvent(event);
+	};
 
 	// Favorites-only filter (heart, left of the view-size toggle)
 	const favLabel = t('bookshelf.library.favorites');
-	const favBtn = controls.createEl('button', {
+	const favBtn = tail.createEl('button', {
 		cls: `hl-shelf-fav-btn${ctx.getFavoriteOnly() ? ' is-active' : ''}`,
 		attr: {
 			'aria-label': favLabel,
@@ -220,7 +286,7 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	// Size segmented control — hidden on phones (locked to large covers,
 	// see effectiveCoverSize)
 	if (!Platform.isPhone) {
-		const sizeToggle = controls.createDiv('hl-shelf-size-toggle');
+		const sizeToggle = tail.createDiv('hl-shelf-size-toggle');
 		SIZE_OPTIONS.forEach(option => {
 			const btn = sizeToggle.createEl('button', {
 				cls: `hl-view-btn ${size === option.id ? 'is-active' : ''}`,
@@ -265,6 +331,7 @@ function renderBody(
 	const format: ShelfFormatFilter = settings.bookshelfFormatFilter || 'all';
 	const query = ctx.getSearchQuery();
 	const bookTags = settings.bookshelfTags ?? {};
+	const bookMeta = settings.bookshelfBookMeta ?? {};
 	const tagFilter = ctx.getTagFilter();
 	const favoriteOnly = ctx.getFavoriteOnly();
 	const favorites = new Set(settings.bookshelfFavorites ?? []);
@@ -278,6 +345,20 @@ function renderBody(
 	if (favBtnEl) {
 		favBtnEl.toggleClass('is-active', favoriteOnly);
 		favBtnEl.setAttribute('aria-pressed', String(favoriteOnly));
+	}
+	// Same for the reading-progress filter (icon + tooltip follow state).
+	const progressFilter = ctx.getProgressFilter();
+	const progressBtnEl = toolbar.querySelector<HTMLElement>('.hl-shelf-progress-btn');
+	if (progressBtnEl) {
+		const option = progressOption(progressFilter);
+		setIcon(progressBtnEl, option.icon);
+		progressBtnEl.toggleClass('is-active', progressFilter !== 'all');
+		progressBtnEl.setAttribute('aria-pressed', String(progressFilter !== 'all'));
+		const stateLabel = t(progressFilter === 'all'
+			? 'bookshelf.library.progressFilter'
+			: option.labelKey);
+		progressBtnEl.setAttribute('aria-label', stateLabel);
+		progressBtnEl.setAttribute('title', stateLabel);
 	}
 
 	const subtitle = (entry: BookEntry): string =>
@@ -317,12 +398,15 @@ function renderBody(
 				file,
 				count: stats?.count ?? 0,
 				lastAt: stats?.lastAt ?? 0,
+				// Every book shows a progress bar; unknown reads as 0%.
+				progress: bookMeta[file.path]?.progress ?? 0,
 			};
 		});
 
 	const entries = allEntries
 		.filter(entry => !favoriteOnly || favorites.has(entry.file.path))
 		.filter(entry => !tagFilter || (bookTags[entry.file.path] ?? []).includes(tagFilter))
+		.filter(entry => progressFilter === 'all' || progressBucket(entry.progress) === progressFilter)
 		.filter(entry => matchesBookTitle(query, entry.file.basename, cache.peek(entry.file)?.title))
 		.sort((a, b) => {
 			if (sortBy === 'recent') return b.lastAt - a.lastAt;
@@ -356,20 +440,26 @@ function renderBody(
 
 	const emptyText = favoriteOnly && entries.length === 0
 		? t('bookshelf.library.noFavorites')
-		: query.trim()
-			? t('bookshelf.library.noMatches', { query: query.trim() })
-			: format === 'all'
-				? t('bookshelf.library.noFiles')
-				: t('bookshelf.library.noFilesFiltered', { format: t(`bookshelf.kind.${format}`) });
+		: progressFilter !== 'all' && entries.length === 0
+			? t(`bookshelf.library.noProgress.${progressFilter}`)
+			: query.trim()
+				? t('bookshelf.library.noMatches', { query: query.trim() })
+				: format === 'all'
+					? t('bookshelf.library.noFiles')
+					: t('bookshelf.library.noFilesFiltered', { format: t(`bookshelf.kind.${format}`) });
 
 	// Idempotence gate: identical visible outcome -> no DOM work at all.
+	// Entry keys carry the reading progress so a metadata edit repaints.
 	const sig = [
 		size,
 		ctx.isSelectMode() ? 'sel' : '',
 		favoriteOnly ? 'fav' : '',
+		progressFilter !== 'all' ? `prog:${progressFilter}` : '',
 		capped ? 'cap' : '',
 		hasPager ? `pager:${page}/${totalPages}/${pageSize}` : '',
-		entries.length === 0 ? `empty:${emptyText}` : pageEntries.map(e => e.file.path).join('|'),
+		entries.length === 0
+			? `empty:${emptyText}`
+			: pageEntries.map(e => `${e.file.path}@${e.progress ?? '-'}`).join('|'),
 	].join('::');
 	if (body.getAttribute('data-render-sig') === sig) return;
 	body.setAttribute('data-render-sig', sig);
@@ -436,6 +526,12 @@ function renderBody(
 					else rerenderHearts(body, new Set(settings.bookshelfFavorites));
 				});
 			},
+		},
+		meta: {
+			// Body-only refresh keeps the search box focused; the render
+			// signature carries progress so the bar actually repaints.
+			onEdit: file => new BookMetaModal(host.app, plugin, file, () => ctx.onSearchChange()).open(),
+			onChanged: () => ctx.onScopeChange(),
 		},
 		emptyText,
 	});

@@ -9,6 +9,7 @@ import { TFile } from 'obsidian';
 import { t } from '../i18n';
 import type { HighlightNote, ShelfFormatFilter, ShelfRecentSortBy } from '../models';
 import { renderBookGrid, relativeTime, type BookEntry, type GridHost } from './book-card';
+import { BookMetaModal } from './book-meta-modal';
 import type { ShelfCoverCache } from './covers';
 import { shelfKind, type ShelfKind } from './scope';
 import { appendFormatFilter, appendRecentSort, effectiveCoverSize } from './shelf-toolbar';
@@ -97,6 +98,7 @@ export function renderRecentPage(
 	const sortBy = plugin.settings.bookshelfRecentSortBy || 'recent';
 
 	const entries: BookEntry[] = [];
+	const bookMeta = plugin.settings.bookshelfBookMeta ?? {};
 	for (const source of applyRecentPreferences(
 		computeRecentSources(highlights),
 		path => {
@@ -109,7 +111,13 @@ export function renderRecentPage(
 	)) {
 		const file = host.app.vault.getAbstractFileByPath(source.path);
 		if (file instanceof TFile) {
-			entries.push({ file, count: source.count, lastAt: source.lastAt });
+			entries.push({
+				file,
+				count: source.count,
+				lastAt: source.lastAt,
+				// Every book shows a progress bar; unknown reads as 0%.
+				progress: bookMeta[source.path]?.progress ?? 0,
+			});
 		}
 	}
 
@@ -123,5 +131,11 @@ export function renderRecentPage(
 			? t('bookshelf.recent.empty')
 			: t('bookshelf.recent.emptyFiltered', { format: t(`bookshelf.kind.${format}`) }),
 		favorites: notify.favorites,
+		meta: {
+			// The recent page re-renders wholesale; progress bars refresh
+			// with it.
+			onEdit: file => new BookMetaModal(host.app, plugin, file, notify.onSettingsChange).open(),
+			onChanged: notify.onSettingsChange,
+		},
 	});
 }

@@ -74,6 +74,12 @@ export default class HiLighterPlugin extends Plugin {
 	lastContext: HighlightContext | null = null;
 	pendingSelectionInfo: { selection: string; context: HighlightContext; x: number; y: number; doc: Document } | null = null;
 	syncController: SyncController | null = null;
+	/**
+	 * Session-scoped dedup for the daily reading log: tokens of
+	 * `dayKey + NUL + vault path` already counted today, so a book
+	 * re-opened or edited repeatedly inflates nothing.
+	 */
+	readingDayCounted = new Set<string>();
 	private syncPathLast: string | null = null;
 	private syncRestartTimer: number | null = null;
 	private coverStoreInstance: CoverStore | null = null;

@@ -163,8 +163,37 @@ export interface ShelfPreset {
     include: Array<string | { path: string; recursive: boolean }>;
     /** Exclude folders (whole subtrees), same shape as bookshelfExcludeFolders. */
     exclude: string[];
+    /** Position in the saved list (0-based; absent = legacy, sorts last). */
+    order?: number;
     /** Last edit time (ms); drives newer-wins in cross-device sync. */
     updatedAt?: number;
+}
+
+/**
+ * Per-book user metadata (bookshelfBookMeta: vault path -> BookMeta).
+ * Reading progress feeds the card progress bar; finishedAt drives the
+ * annual reading stats. All fields optional so a fresh install has a
+ * zero-migration, all-absent state.
+ */
+export interface BookMeta {
+    /** Title override; display falls back to cover meta / file name. */
+    title?: string;
+    /** Author override. */
+    author?: string;
+    /** Publication date: 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'. */
+    publishDate?: string;
+    /** Page count (positive integer). */
+    pages?: number;
+    /** Rating 0-5 in 0.5 steps (0 / absent = unrated). */
+    rating?: number;
+    /** Reading progress 0-100 (integer percent); absent = unknown. */
+    progress?: number;
+    /** When progress first left 0 (epoch ms). */
+    startedAt?: number;
+    /** When progress reached 100 (epoch ms); annual-stats key, backfillable. */
+    finishedAt?: number;
+    /** Last edit (epoch ms); newer-wins in cross-device sync. */
+    updatedAt: number;
 }
 
 /**
@@ -216,14 +245,20 @@ export interface HiLighterSettings {
     bookshelfTags?: Record<string, string[]>;   // vault path -> shelf tags (all formats)
     bookshelfFavorites?: string[];              // vault paths the user hearted (all formats)
     bookshelfPageSize?: number;                 // library pagination size (20/50/100/200)
-    // Cross-device delete propagation for the three shelf collections
-    // above (shelves / favorites / tags), mirroring the highlight
-    // tombstone mechanism so a delete on one device is not resurrected
-    // by the next sync from another. Tombstone ids: shelf.id for
-    // shelves, the vault path for favorites, path + NUL + tag for tags.
+    // Per-book user metadata (阅读进度/作者/出版日期/页数/评分) + the
+    // daily reading-activity log that drives streak / annual stats.
+    bookshelfBookMeta?: Record<string, BookMeta>;
+    bookshelfReadingDays?: Record<string, number>;   // 'yyyy-mm-dd' -> books read that day
+    // Cross-device delete propagation for the four shelf collections
+    // above (shelves / favorites / tags / book metadata), mirroring the
+    // highlight tombstone mechanism so a delete on one device is not
+    // resurrected by the next sync from another. Tombstone ids: shelf.id
+    // for shelves, the vault path for favorites / book metadata,
+    // path + NUL + tag for tags.
     shelfTombstones?: SyncTombstone[];
     favoriteTombstones?: SyncTombstone[];
     tagTombstones?: SyncTombstone[];
+    bookMetaTombstones?: SyncTombstone[];
     epubProgress: Record<string, string>;   // epub path -> last-read CFI
     epubBookmarks: Record<string, EpubBookmark[]>;  // epub path -> bookmarks
     epubReadingMode: 'page' | 'scroll';     // horizontal pages vs vertical scroll

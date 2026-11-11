@@ -3,8 +3,9 @@
 // ============================================================
 
 import { isValidColorId } from '../colors';
-import type { CardTemplateId, HiLighterSettings, HighlightNote, ShelfPreset, SyncTombstone } from '../models';
+import type { BookMeta, CardTemplateId, HiLighterSettings, HighlightNote, ShelfPreset, SyncTombstone } from '../models';
 import type { BookTagMap } from '../bookshelf/book-tags';
+import { normalizeBookMetaMap, normalizeReadingDays } from '../bookshelf/book-meta';
 import type { ShelfCollections } from './shelf-collections';
 import { CARD_TEMPLATES } from '../card-templates';
 
@@ -27,13 +28,16 @@ export type ParsedSyncPayload =
         count: number;
         highlights: unknown[];
         tombstones: SyncTombstone[];
-        /** Shelf collections (自定义书架 / favorites / tags); empty when absent. */
+        /** Shelf collections (自定义书架 / favorites / tags / book meta); empty when absent. */
         shelves: ShelfPreset[];
         favorites: string[];
         tags: BookTagMap;
+        bookMeta: Record<string, BookMeta>;
+        readingDays: Record<string, number>;
         shelfTombstones: SyncTombstone[];
         favoriteTombstones: SyncTombstone[];
         tagTombstones: SyncTombstone[];
+        bookMetaTombstones: SyncTombstone[];
     }
     | { ok: false; reason: 'json' | 'version' | 'shape' };
 
@@ -97,9 +101,12 @@ export function parseSyncPayload(content: string): ParsedSyncPayload {
         shelves: sanitizeShelves(obj.shelves),
         favorites: sanitizeStringList(obj.favorites),
         tags: sanitizeTagMap(obj.tags),
+        bookMeta: normalizeBookMetaMap(obj.bookMeta),
+        readingDays: normalizeReadingDays(obj.readingDays),
         shelfTombstones: sanitizeTombstones(obj.shelfTombstones),
         favoriteTombstones: sanitizeTombstones(obj.favoriteTombstones),
         tagTombstones: sanitizeTombstones(obj.tagTombstones),
+        bookMetaTombstones: sanitizeTombstones(obj.bookMetaTombstones),
     };
 }
 
@@ -157,6 +164,8 @@ function sanitizeShelves(raw: unknown): ShelfPreset[] {
             name: s.name.slice(0, 200),
             include,
             exclude: sanitizeStringList(s.exclude),
+            // Position in the saved list (drag order); absent = legacy.
+            order: typeof s.order === 'number' && Number.isFinite(s.order) ? s.order : undefined,
             updatedAt: typeof s.updatedAt === 'number' && Number.isFinite(s.updatedAt) ? s.updatedAt : undefined,
         });
     }
@@ -240,7 +249,9 @@ export function buildPayload(
 /** True when any shelf collection or tombstone is non-empty. */
 function hasCollections(c: ShelfCollections): boolean {
     return c.shelves.length > 0 || c.favorites.length > 0 || Object.keys(c.tags).length > 0
-        || c.shelfTombstones.length > 0 || c.favoriteTombstones.length > 0 || c.tagTombstones.length > 0;
+        || Object.keys(c.bookMeta).length > 0 || Object.keys(c.readingDays).length > 0
+        || c.shelfTombstones.length > 0 || c.favoriteTombstones.length > 0 || c.tagTombstones.length > 0
+        || c.bookMetaTombstones.length > 0;
 }
 
 /** True when this payload was written by this plugin instance (no-op re-import). */

@@ -33,6 +33,7 @@ import {
 } from './epub-font-menu';
 import { resolveEpubTypography } from './epub-typography';
 import { resolveEpubPageColors } from './epub-page-theme';
+import { writeBookProgress } from '../bookshelf/book-actions';
 
 export const EPUB_VIEW_TYPE = 'hl-epub-view';
 
@@ -707,11 +708,32 @@ export class EpubView extends FileView {
                     ...this.plugin.settings.epubProgress,
                     [this.file.path]: cfi,
                 };
+                // Reading progress (bookshelf metadata) rides the same save:
+                // it needs the generated page locations, so books that
+                // never had them built simply keep their unknown progress.
+                const percent = this.progressPercent();
+                if (percent !== null) {
+                    writeBookProgress(this.plugin, this.file.path, percent);
+                }
                 void this.plugin.saveSettings();
             }
             void this.refreshChapterTitle();
             this.updatePageChip();
         });
+    }
+
+    /**
+     * Reading progress 0-100 for the bookshelf, derived from the
+     * location cache; null until locations exist (un-opened books or
+     * the async generation still running).
+     */
+    private progressPercent(): number | null {
+        const total = this.locationCfis?.length ?? 0;
+        if (total < 2) return null;
+        const index = this.currentLocationIndex();
+        if (index < 0) return null;
+        if (index === 0) return 0;
+        return Math.min(100, Math.round((index / (total - 1)) * 100));
     }
 
     /** Outside-click dismissal for clicks landing in the book itself.
