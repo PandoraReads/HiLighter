@@ -5,9 +5,19 @@
 // filter (one setting, applied on both pages) and the recent-page
 // sort order.
 
+import { Platform } from 'obsidian';
 import type HiLighterPlugin from '../main';
-import type { ShelfFormatFilter, ShelfRecentSortBy } from '../models';
+import type { ShelfCoverSize, ShelfFormatFilter, ShelfRecentSortBy } from '../models';
 import { t } from '../i18n';
+
+/**
+ * Effective cover density: phones are locked to large covers (the size
+ * toggle is hidden there — two big columns read best on a small screen),
+ * other platforms follow the setting.
+ */
+export function effectiveCoverSize(setting: ShelfCoverSize | undefined): ShelfCoverSize {
+	return Platform.isPhone ? 'large' : setting || 'large';
+}
 
 const FORMAT_OPTIONS: Array<{ id: ShelfFormatFilter; labelKey: string }> = [
 	{ id: 'all', labelKey: 'bookshelf.filter.all' },

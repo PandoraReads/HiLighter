@@ -6,14 +6,14 @@
 // scope (saved shelves + include / exclude folders) is managed in
 // shelf-scope-modal.ts.
 
-import { Notice, TFile, setIcon } from 'obsidian';
+import { Notice, Platform, TFile, setIcon } from 'obsidian';
 import { t } from '../i18n';
 import type { HighlightNote, ShelfCoverSize, ShelfFormatFilter, ShelfSortBy } from '../models';
 import { matchShelfFiles, MAX_SHELF_SCAN_FILES, normalizeIncludeFolders, shelfKind } from './scope';
 import { withFavoriteDeletion, withoutFavoriteDeletion } from '../sync/shelf-collections';
 import { renderBookGrid, type BookEntry, type GridHost } from './book-card';
 import type { ShelfCoverCache } from './covers';
-import { appendFormatFilter } from './shelf-toolbar';
+import { appendFormatFilter, effectiveCoverSize } from './shelf-toolbar';
 import { ShelfScopeModal } from './shelf-scope-modal';
 import { toggleShelfDropdown } from './shelf-menu';
 import { matchesBookTitle } from './title-match';
@@ -115,7 +115,7 @@ export function renderLibraryPage(
 function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx): HTMLElement {
 	const plugin = host.plugin;
 	const settings = plugin.settings;
-	const size = settings.bookshelfCoverSize || 'large';
+	const size = effectiveCoverSize(settings.bookshelfCoverSize);
 	const toolbar = parent.createDiv('hl-shelf-toolbar');
 
 	// Custom shelves: dropdown to switch saved shelves; the scope
@@ -147,8 +147,12 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 		ctx.onSearchChange();
 	};
 
+	// Filter/control cluster: one nested row so phones can scroll it
+	// horizontally under the full-width search (desktop unchanged).
+	const controls = toolbar.createDiv('hl-shelf-controls');
+
 	// Sort select
-	const sortWrap = toolbar.createDiv('hl-shelf-sort-wrap');
+	const sortWrap = controls.createDiv('hl-shelf-sort-wrap');
 	const sortSelect = sortWrap.createEl('select', {
 		cls: 'hl-shelf-select',
 		attr: { 'aria-label': t('bookshelf.library.sort.label') },
@@ -165,10 +169,10 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	};
 
 	// Format filter (shared with the recent page)
-	appendFormatFilter(plugin, toolbar, ctx.onScopeChange);
+	appendFormatFilter(plugin, controls, ctx.onScopeChange);
 
 	// Tag filter select (options refreshed by renderBody as tags change)
-	const tagWrap = toolbar.createDiv('hl-shelf-sort-wrap');
+	const tagWrap = controls.createDiv('hl-shelf-sort-wrap');
 	const tagSelect = tagWrap.createEl('select', {
 		cls: 'hl-shelf-select',
 		attr: { 'aria-label': t('bookshelf.library.tags'), 'data-role': 'tag-filter' },
@@ -181,7 +185,7 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 
 	// Multi-select toggle (batch tag / delete)
 	const selectLabel = t('bookshelf.library.select');
-	const selectBtn = toolbar.createEl('button', {
+	const selectBtn = controls.createEl('button', {
 		cls: `hl-tool-btn hl-shelf-scope-btn ${ctx.isSelectMode() ? 'is-active' : ''}`,
 		attr: { 'aria-label': selectLabel, title: selectLabel, 'aria-pressed': String(ctx.isSelectMode()) },
 	});
@@ -193,12 +197,12 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	};
 
 	// Book count (kept in the toolbar; refreshed by renderBody)
-	const count = toolbar.createDiv('hl-shelf-count');
+	const count = controls.createDiv('hl-shelf-count');
 	count.setAttribute('aria-live', 'polite');
 
 	// Favorites-only filter (heart, left of the view-size toggle)
 	const favLabel = t('bookshelf.library.favorites');
-	const favBtn = toolbar.createEl('button', {
+	const favBtn = controls.createEl('button', {
 		cls: `hl-shelf-fav-btn${ctx.getFavoriteOnly() ? ' is-active' : ''}`,
 		attr: {
 			'aria-label': favLabel,
@@ -213,19 +217,22 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 		ctx.onSearchChange();
 	};
 
-	// Size segmented control
-	const sizeToggle = toolbar.createDiv('hl-shelf-size-toggle');
-	SIZE_OPTIONS.forEach(option => {
-		const btn = sizeToggle.createEl('button', {
-			cls: `hl-view-btn ${size === option.id ? 'is-active' : ''}`,
-			attr: { 'aria-label': t(option.labelKey), title: t(option.labelKey) },
+	// Size segmented control — hidden on phones (locked to large covers,
+	// see effectiveCoverSize)
+	if (!Platform.isPhone) {
+		const sizeToggle = controls.createDiv('hl-shelf-size-toggle');
+		SIZE_OPTIONS.forEach(option => {
+			const btn = sizeToggle.createEl('button', {
+				cls: `hl-view-btn ${size === option.id ? 'is-active' : ''}`,
+				attr: { 'aria-label': t(option.labelKey), title: t(option.labelKey) },
+			});
+			setIcon(btn, option.icon);
+			btn.onclick = () => {
+				plugin.settings.bookshelfCoverSize = option.id;
+				void plugin.saveSettings().then(() => ctx.onScopeChange());
+			};
 		});
-		setIcon(btn, option.icon);
-		btn.onclick = () => {
-			plugin.settings.bookshelfCoverSize = option.id;
-			void plugin.saveSettings().then(() => ctx.onScopeChange());
-		};
-	});
+	}
 
 	return toolbar;
 }
@@ -253,7 +260,7 @@ function renderBody(
 	const plugin = host.plugin;
 	const settings = plugin.settings;
 	const include = normalizeIncludeFolders(settings.bookshelfIncludeFolders);
-	const size = settings.bookshelfCoverSize || 'large';
+	const size = effectiveCoverSize(settings.bookshelfCoverSize);
 	const sortBy = settings.bookshelfSortBy || 'title';
 	const format: ShelfFormatFilter = settings.bookshelfFormatFilter || 'all';
 	const query = ctx.getSearchQuery();

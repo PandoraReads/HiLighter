@@ -174,11 +174,10 @@ export default class HiLighterPlugin extends Plugin {
 		this.registerView(HIGHLIGHT_MANAGER_VIEW_TYPE, (leaf) => new HighlightManagerView(leaf, this));
 		this.registerView(MOBILE_RECENT_VIEW_TYPE, (leaf) => new MobileRecentHighlightsView(leaf, this));
 		this.registerView(MINDMAP_VIEW_TYPE, (leaf) => new HighlightMindMapView(leaf, this));
-		// Bookshelf navigation page: desktop + tablet (phones keep the
-		// original sidebar flows)
-		if (!Platform.isPhone) {
-			this.registerView(BOOKSHELF_VIEW_TYPE, (leaf) => new BookshelfView(leaf, this));
-		}
+		// Bookshelf navigation page: everywhere. Phones route their entry
+		// flows into it (the old mobile recent list stays registered for
+		// pre-existing leaves but is no longer opened).
+		this.registerView(BOOKSHELF_VIEW_TYPE, (leaf) => new BookshelfView(leaf, this));
 
 		// Runtime CSS for user-defined custom highlight colors
 		injectCustomColorStyles(document, this.settings);
@@ -210,15 +209,16 @@ export default class HiLighterPlugin extends Plugin {
 	 * Initialize actual workspace features
 	 */
 	private initializeFeatures() {
-		// 1. Ribbon Icons
-		this.addRibbonIcon('highlighter', t('ribbon.highlight'), () => this.openHighlightEntry());
-		// Bookshelf navigation entry (desktop + tablet): recent reading /
-		// library / cards / mind map / review / stats in one place
+		// 1. Ribbon Icons — phones keep only the bookshelf (the selection
+		// entry stays reachable via the command palette there)
 		if (!Platform.isPhone) {
-			this.addRibbonIcon('library', t('bookshelf.open'), () => {
-				void this.activateView(BOOKSHELF_VIEW_TYPE, 'main');
-			});
+			this.addRibbonIcon('highlighter', t('ribbon.highlight'), () => this.openHighlightEntry());
 		}
+		// Bookshelf navigation entry: recent reading / library / cards /
+		// mind map / review / stats in one place
+		this.addRibbonIcon('library', t('bookshelf.open'), () => {
+			void this.activateView(BOOKSHELF_VIEW_TYPE, 'main');
+		});
 
 		// 2. Commands
 		this.addCommand({
@@ -226,20 +226,15 @@ export default class HiLighterPlugin extends Plugin {
 			name: t('cmd.openHighlight'),
 			callback: () => this.openHighlightEntry(),
 		});
-		if (!Platform.isPhone) {
-			this.addCommand({
-				id: 'open-bookshelf',
-				name: t('bookshelf.open'),
-				callback: () => { void this.activateView(BOOKSHELF_VIEW_TYPE, 'main'); },
-			});
-		}
+		this.addCommand({
+			id: 'open-bookshelf',
+			name: t('bookshelf.open'),
+			callback: () => { void this.activateView(BOOKSHELF_VIEW_TYPE, 'main'); },
+		});
 		this.addCommand({
 			id: 'open-highlight-manager',
 			name: t('cmd.manageHighlights'),
-			callback: () => this.activateView(
-				Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_MANAGER_VIEW_TYPE,
-				'main',
-			),
+			callback: () => this.activateView(this.managerEntryView(), 'main'),
 		});
 		this.addCommand({
 			id: 'open-mindmap',
@@ -342,10 +337,7 @@ export default class HiLighterPlugin extends Plugin {
 				syncExport: () => { void this.syncController?.exportNow(); },
 				sync: () => { void this.syncController?.syncNow(); },
 				openStudio: () => {
-					void this.activateView(
-						Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_MANAGER_VIEW_TYPE,
-						'main',
-					);
+					void this.activateView(this.managerEntryView(), 'main');
 				},
 				openView: (view, side) => {
 					const type = view === 'manager' ? HIGHLIGHT_MANAGER_VIEW_TYPE : HIGHLIGHT_VIEW_TYPE;
@@ -767,7 +759,18 @@ export default class HiLighterPlugin extends Plugin {
 		}).open();
 	}
 
+	/**
+	 * Where "manage highlights" style entries land: phones route into the
+	 * bookshelf (it took over the phone flow, 2.8.5), tablets keep the
+	 * simple mobile recent list, desktop gets the card manager.
+	 */
+	private managerEntryView(): string {
+		if (Platform.isPhone) return BOOKSHELF_VIEW_TYPE;
+		return Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_MANAGER_VIEW_TYPE;
+	}
+
 	private openHighlightEntry(): Promise<void> {
+		if (Platform.isPhone) return this.activateView(BOOKSHELF_VIEW_TYPE, 'main');
 		return this.activateView(
 			Platform.isMobile ? MOBILE_RECENT_VIEW_TYPE : HIGHLIGHT_VIEW_TYPE,
 			Platform.isMobile ? 'main' : 'right',

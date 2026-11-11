@@ -11,7 +11,7 @@ import type { HighlightNote, ShelfFormatFilter, ShelfRecentSortBy } from '../mod
 import { renderBookGrid, relativeTime, type BookEntry, type GridHost } from './book-card';
 import type { ShelfCoverCache } from './covers';
 import { shelfKind, type ShelfKind } from './scope';
-import { appendFormatFilter, appendRecentSort } from './shelf-toolbar';
+import { appendFormatFilter, appendRecentSort, effectiveCoverSize } from './shelf-toolbar';
 
 /** Aggregated reading activity for one source file. */
 export interface RecentSource {
@@ -114,7 +114,7 @@ export function renderRecentPage(
 	}
 
 	renderBookGrid(host, body, entries, cache, {
-		size: plugin.settings.bookshelfCoverSize || 'large',
+		size: effectiveCoverSize(plugin.settings.bookshelfCoverSize),
 		subtitle: (entry) => t('bookshelf.recent.subtitle', {
 			count: entry.count,
 			time: relativeTime(entry.lastAt),

@@ -8179,6 +8179,17 @@ mark.hl-pdf-flash {
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
+/* Filter cluster nested in the toolbar: right-aligned group on wide
+   screens (identical to the pre-nesting layout), full-width scrollable
+   row under the search on phones. */
+.hl-shelf-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
 /* Neutral controls: native surfaces so the shelf blends with the
    plain page background (theming stays in accent + covers) */
 .hl-shelf-scope-btn {
@@ -9515,3 +9526,66 @@ mark.hl-pdf-flash {
 .hl-shelf-dropdown-row.is-add:hover {
     color: var(--text-normal);
 }
+
+/* ============================================================
+   BOOKSHELF ON PHONES (touch hearts for all mobile devices)
+   All rules are platform-prefixed — zero effect on desktop.
+   ============================================================ */
+
+/* Favorite hearts depend on hover on desktop; touch devices have no
+   hover — always show them, bigger, thumb-friendly (phones + tablets). */
+.is-mobile .hl-book-fav {
+    opacity: .85;
+    pointer-events: auto;
+    width: 30px;
+    height: 30px;
+}
+
+.is-mobile .hl-book-fav svg { width: 16px; height: 16px; }
+
+/* Floating widgets clear the home-indicator gesture bar. */
+.is-phone .hl-shelf-pager { bottom: max(10px, env(safe-area-inset-bottom)); }
+.is-phone .hl-shelf-batch { bottom: max(16px, env(safe-area-inset-bottom)); }
+.is-phone .hl-shelf-scroll-top { bottom: max(24px, env(safe-area-inset-bottom)); }
+.is-phone .hl-shelf-library.has-pager { padding-bottom: 96px; }
+
+/* Topbar: brand text out, card entry icon-only, tabs get the room. */
+.is-phone .hl-shelf-topbar .hl-studio-topbar-identity { display: none; }
+.is-phone .hl-shelf-topbar .hl-studio-topbar-button { padding: 0 9px; }
+.is-phone .hl-shelf-topbar .hl-tool-stats-label { display: none; }
+.is-phone .hl-shelf-tabs { flex: 1; min-width: 0; }
+
+/* Library toolbar, two tiers: shelf button + search share row 1; the
+   filter cluster wraps onto a full-width, horizontally scrollable
+   row 2. */
+.is-phone .hl-shelf-toolbar { gap: 6px; }
+
+.is-phone .hl-shelf-toolbar .hl-shelf-search {
+    flex: 1;
+    min-width: 0;
+}
+
+.is-phone .hl-shelf-controls {
+    flex-basis: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-left: 0;
+    gap: 6px;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.is-phone .hl-shelf-controls .hl-shelf-count { margin-left: 0; }
+.is-phone .hl-shelf-toolbar .hl-shelf-scope-btn .hl-shelf-btn-label { display: none; }
+.is-phone .hl-shelf-toolbar .hl-shelf-scope-btn { padding: 0 9px; }
+
+/* Touch targets on phones. */
+.is-phone .hl-shelf-toolbar .hl-shelf-select,
+.is-phone .hl-shelf-toolbar .hl-shelf-scope-btn,
+.is-phone .hl-shelf-toolbar .hl-shelf-search,
+.is-phone .hl-shelf-controls .hl-shelf-fav-btn { min-height: 36px; }
+
+/* Scope / shelf modals: near-fullscreen width, taller rows on phones. */
+.is-phone .hl-scope-modal { width: calc(100vw - 32px); }
+.is-phone .hl-scope-row { padding: 10px 8px 10px 12px; }
+.is-phone .hl-shelf-preset { padding: 10px 8px 10px 12px; }

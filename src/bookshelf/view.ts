@@ -7,7 +7,7 @@
 // topbar); FSRS review keeps its entry in the card studio. Phones
 // keep the original sidebar flows.
 
-import { ItemView, WorkspaceLeaf, Notice, Platform, setIcon, TFile, TFolder } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, Platform, setIcon, Menu, TFile, TFolder } from 'obsidian';
 import type { TAbstractFile } from 'obsidian';
 import type { ThemeId } from '../models';
 import { t } from '../i18n';
@@ -35,6 +35,11 @@ const TABS: Array<{ id: BookshelfTab; labelKey: string; icon: string }> = [
 	{ id: 'mindmap', labelKey: 'bookshelf.tab.mindmap', icon: 'git-fork' },
 	{ id: 'stats', labelKey: 'bookshelf.tab.stats', icon: 'bar-chart-3' },
 ];
+
+/** Phones hide the mind-map tab (the mindmap view is desktop/tablet only). */
+const VISIBLE_TABS: typeof TABS = Platform.isPhone
+	? TABS.filter(tab => tab.id !== 'mindmap')
+	: TABS;
 
 const THEMES: ThemeId[] = ['editorial', 'native', 'paper', 'ocean', 'forest', 'galaxy', 'cyber', 'sunset', 'rose'];
 
@@ -401,22 +406,42 @@ export class BookshelfView extends ItemView {
 		cardsBtn.createSpan({ text: cardsLabel, cls: 'hl-tool-stats-label' });
 		cardsBtn.onclick = () => this.openTab('cards');
 
-		const themeWrap = actions.createDiv('hl-studio-theme-wrap');
-		const themeIcon = themeWrap.createDiv('hl-studio-theme-icon');
-		setIcon(themeIcon, 'palette');
-		const themeSelect = themeWrap.createEl('select', {
-			cls: 'hl-studio-theme-select',
-			attr: { 'aria-label': t('settings.appearance.theme'), title: t('settings.appearance.theme') },
-		});
-		THEMES.forEach(theme => themeSelect.createEl('option', {
-			text: t(`settings.theme.${theme}`),
-			value: theme,
-		}));
-		themeSelect.value = this.plugin.settings.theme;
-		themeSelect.onchange = () => {
-			this.plugin.settings.theme = themeSelect.value as ThemeId;
+		// Theme picker: a <select> row is too wide on phones — pop a Menu
+		// from an icon button instead.
+		const applyTheme = (theme: string): void => {
+			this.plugin.settings.theme = theme as ThemeId;
 			void this.plugin.saveSettings().then(() => this.plugin.refreshAllViews());
 		};
+		if (Platform.isPhone) {
+			const themeBtn = actions.createEl('button', {
+				cls: 'hl-tool-btn hl-studio-mode-toggle hl-studio-icon-btn',
+				attr: { 'aria-label': t('settings.appearance.theme'), title: t('settings.appearance.theme') },
+			});
+			setIcon(themeBtn, 'palette');
+			themeBtn.onclick = (event) => {
+				const menu = new Menu();
+				THEMES.forEach(theme => menu.addItem(item => {
+					item.setTitle(t(`settings.theme.${theme}`))
+						.setChecked(theme === this.plugin.settings.theme)
+						.onClick(() => applyTheme(theme));
+				}));
+				menu.showAtMouseEvent(event);
+			};
+		} else {
+			const themeWrap = actions.createDiv('hl-studio-theme-wrap');
+			const themeIcon = themeWrap.createDiv('hl-studio-theme-icon');
+			setIcon(themeIcon, 'palette');
+			const themeSelect = themeWrap.createEl('select', {
+				cls: 'hl-studio-theme-select',
+				attr: { 'aria-label': t('settings.appearance.theme'), title: t('settings.appearance.theme') },
+			});
+			THEMES.forEach(theme => themeSelect.createEl('option', {
+				text: t(`settings.theme.${theme}`),
+				value: theme,
+			}));
+			themeSelect.value = this.plugin.settings.theme;
+			themeSelect.onchange = () => applyTheme(themeSelect.value);
+		}
 
 		const currentMode = this.plugin.settings.studioColorMode || 'auto';
 		const isDark = currentMode === 'dark' || (currentMode === 'auto' && document.body.classList.contains('theme-dark'));
@@ -437,7 +462,7 @@ export class BookshelfView extends ItemView {
 
 	private buildTabs(parent: HTMLElement): void {
 		const tabBar = parent;
-		TABS.forEach(tab => {
+		VISIBLE_TABS.forEach(tab => {
 			const active = this.activeTab === tab.id;
 			const btn = tabBar.createEl('button', {
 				cls: `hl-shelf-tab ${active ? 'is-active' : ''}`,
