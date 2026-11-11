@@ -25,12 +25,14 @@ const NAME_MAX_LENGTH = 40;
 /**
  * Captures a scope under a name; null when the name is blank.
  * Include/exclude are normalized through the scope rules, so junk
- * entries never sneak into a saved shelf.
+ * entries never sneak into a saved shelf. `order` fixes the shelf's
+ * position in the saved list (callers pass the next free index).
  */
 export function makeShelfPreset(
     name: string | undefined,
     include: IncludeFolderInput[] | undefined,
     exclude: string[] | undefined,
+    order?: number,
 ): ShelfPreset | null {
     const trimmed = (name ?? '').trim().slice(0, NAME_MAX_LENGTH);
     if (!trimmed) return null;
@@ -39,6 +41,7 @@ export function makeShelfPreset(
         name: trimmed,
         include: normalizeIncludeFolders(include),
         exclude: normalizeFolderList(exclude),
+        order,
         updatedAt: Date.now(),
     };
 }
@@ -59,6 +62,37 @@ export function addShelf(shelves: ShelfPreset[], preset: ShelfPreset): ShelfPres
 /** Removes by id; unknown ids leave the list unchanged (new array). */
 export function removeShelf(shelves: ShelfPreset[], id: string): ShelfPreset[] {
     return shelves.filter(shelf => shelf.id !== id);
+}
+
+/**
+ * Moves a shelf (by id) to a new position and rewrites sequential
+ * `order` fields. Shelves whose position actually changed get a
+ * bumped `updatedAt` so the reorder survives cross-device sync
+ * (per-shelf newer-wins; the merge output sorts by `order`). The
+ * input list is never mutated.
+ */
+export function reorderShelves(
+    shelves: ShelfPreset[],
+    fromId: string,
+    toIndex: number,
+    now: number = Date.now(),
+): ShelfPreset[] {
+    const from = shelves.findIndex(shelf => shelf.id === fromId);
+    if (from === -1) return shelves;
+    const to = Math.max(0, Math.min(toIndex, shelves.length - 1));
+    if (to === from) return shelves;
+    const without = shelves.filter((_, index) => index !== from);
+    const next = [...without.slice(0, to), shelves[from]!, ...without.slice(to)];
+    return next.map((shelf, index) => {
+        // Same object at the same index: normalize the order field only
+        // (a pure normalization keeps its sync timestamp).
+        if (shelves[index] === shelf && shelf.order === index) return shelf;
+        return {
+            ...shelf,
+            order: index,
+            updatedAt: shelves[index] === shelf ? shelf.updatedAt : now,
+        };
+    });
 }
 
 /**

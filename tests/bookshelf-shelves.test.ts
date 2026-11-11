@@ -6,6 +6,7 @@ import {
     newShelfId,
     normalizeShelves,
     removeShelf,
+    reorderShelves,
 } from '../src/bookshelf/shelves';
 import type { ShelfPreset } from '../src/models';
 
@@ -67,6 +68,58 @@ describe('shelf list operations (immutable)', () => {
         ] as ShelfPreset[];
         expect(normalizeShelves(junk)).toEqual([one, two]);
         expect(normalizeShelves(undefined)).toEqual([]);
+    });
+});
+
+describe('reorderShelves', () => {
+    const NOW = 1_700_000_000_000;
+    const shelves: ShelfPreset[] = [
+        { id: 'a', name: 'A', include: [], exclude: [], order: 0, updatedAt: 10 },
+        { id: 'b', name: 'B', include: [], exclude: [], order: 1, updatedAt: 20 },
+        { id: 'c', name: 'C', include: [], exclude: [], order: 2, updatedAt: 30 },
+    ];
+
+    it('moves a shelf down and rewrites sequential order fields', () => {
+        const next = reorderShelves(shelves, 'a', 2, NOW);
+        expect(next.map(s => s.id)).toEqual(['b', 'c', 'a']);
+        expect(next.map(s => s.order)).toEqual([0, 1, 2]);
+    });
+
+    it('moves a shelf up', () => {
+        const next = reorderShelves(shelves, 'c', 0, NOW);
+        expect(next.map(s => s.id)).toEqual(['c', 'a', 'b']);
+        expect(next.map(s => s.order)).toEqual([0, 1, 2]);
+    });
+
+    it('bumps updatedAt only for shelves that changed position', () => {
+        const next = reorderShelves(shelves, 'a', 1, NOW);
+        // a and b swapped positions -> both bumped; c stayed -> untouched ref.
+        expect(next[0]).toMatchObject({ id: 'b', updatedAt: NOW });
+        expect(next[1]).toMatchObject({ id: 'a', updatedAt: NOW });
+        expect(next[2]).toBe(shelves[2]);
+    });
+
+    it('never mutates the input list', () => {
+        const snapshot = JSON.stringify(shelves);
+        reorderShelves(shelves, 'a', 2, NOW);
+        expect(JSON.stringify(shelves)).toBe(snapshot);
+    });
+
+    it('is a no-op for unknown ids, negatives clamped, big indexes drop at the end', () => {
+        expect(reorderShelves(shelves, 'nope', 1, NOW)).toBe(shelves);
+        expect(reorderShelves(shelves, 'a', -5, NOW)).toBe(shelves);
+        expect(reorderShelves(shelves, 'a', 0, NOW)).toBe(shelves);
+        expect(reorderShelves(shelves, 'c', 99, NOW).map(s => s.id)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('normalizes order for legacy shelves lacking the field', () => {
+        const legacy: ShelfPreset[] = [
+            { id: 'x', name: 'X', include: [], exclude: [] },
+            { id: 'y', name: 'Y', include: [], exclude: [] },
+        ];
+        const next = reorderShelves(legacy, 'y', 0, NOW);
+        expect(next.map(s => s.id)).toEqual(['y', 'x']);
+        expect(next.map(s => s.order)).toEqual([0, 1]);
     });
 });
 

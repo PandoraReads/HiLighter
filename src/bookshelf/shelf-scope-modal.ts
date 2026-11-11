@@ -23,7 +23,9 @@ import {
 	makeShelfPreset,
 	normalizeShelves,
 	removeShelf,
+	reorderShelves,
 } from './shelves';
+import { wireRowDrag } from './shelf-reorder';
 import { withShelfDeletion } from '../sync/shelf-collections';
 import { ConfirmModal } from '../ui/confirm-modal';
 import type HiLighterPlugin from '../main';
@@ -107,6 +109,18 @@ export class ShelfScopeModal extends Modal {
 			row.setAttribute('tabindex', '0');
 			row.setAttribute('aria-label', t('bookshelf.shelves.switch', { name: shelf.name }));
 			row.setAttribute('title', t('bookshelf.shelves.switch'));
+			// Grip handle: drag rows to reorder the saved list; the order
+			// carries into the toolbar dropdown and cross-device sync.
+			const drag = row.createDiv('hl-shelf-preset-drag');
+			drag.setAttribute('aria-label', t('bookshelf.shelves.drag'));
+			drag.setAttribute('title', t('bookshelf.shelves.drag'));
+			setIcon(drag, 'grip-vertical');
+			wireRowDrag(list, drag, row, (from, to) => {
+				const moved = shelves[from];
+				if (!moved) return;
+				this.persistShelves(reorderShelves(shelves, moved.id, to));
+				this.renderContent();
+			});
 			const main = row.createDiv('hl-shelf-preset-main');
 			main.createDiv({ cls: 'hl-shelf-preset-name', text: shelf.name });
 			main.createDiv({ cls: 'hl-shelf-preset-scope', text: this.shelfSummary(shelf) });
@@ -188,6 +202,7 @@ export class ShelfScopeModal extends Modal {
 				input.value,
 				settings.bookshelfIncludeFolders,
 				settings.bookshelfExcludeFolders,
+				normalizeShelves(settings.bookshelfShelves).length,
 			);
 			if (!preset) {
 				new Notice(t('bookshelf.shelves.nameRequired'));
