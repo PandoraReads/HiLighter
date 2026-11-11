@@ -32,3 +32,11 @@ yarn-error.log*
 *.tmp
 *.temp
 .cache/
+# Session working artifacts (design samples, plans, editor state — not released)
+.zcode/
+docs/card-detail-*-samples.html
+docs/non-destructive-highlight-plan.md
+docs/zotero-academic-research.md
+screenshots/*-sample.png
+screenshots/studio-*.png
+screenshots/studio-*.jpg
