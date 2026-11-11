@@ -912,6 +912,10 @@ export default class HiLighterPlugin extends Plugin {
 		await this.saveData(this.settings);
 		// Custom color definitions may have changed; refresh the runtime CSS.
 		injectCustomColorStyles(document, this.settings);
+		// Shelf collections (shelves / favorites / tags) ride the sync file;
+		// flag dirty so the next cycle exports them. The controller ignores
+		// this while it is the one saving (import), preventing a feedback loop.
+		this.syncController?.markSettingsDirty();
 	}
 
 	async exportSyncFile(): Promise<void> {

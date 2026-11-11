@@ -10,6 +10,7 @@ import { Notice, TFile, setIcon } from 'obsidian';
 import { t } from '../i18n';
 import type { HighlightNote, ShelfCoverSize, ShelfFormatFilter, ShelfSortBy } from '../models';
 import { matchShelfFiles, MAX_SHELF_SCAN_FILES, normalizeIncludeFolders, shelfKind } from './scope';
+import { withFavoriteDeletion, withoutFavoriteDeletion } from '../sync/shelf-collections';
 import { renderBookGrid, type BookEntry, type GridHost } from './book-card';
 import type { ShelfCoverCache } from './covers';
 import { appendFormatFilter } from './shelf-toolbar';
@@ -413,9 +414,13 @@ function renderBody(
 			isFavorite: path => favorites.has(path),
 			onToggle: path => {
 				const current = settings.bookshelfFavorites ?? [];
-				settings.bookshelfFavorites = current.includes(path)
+				const wasFavorite = current.includes(path);
+				settings.bookshelfFavorites = wasFavorite
 					? current.filter(p => p !== path)
 					: [...current, path];
+				settings.favoriteTombstones = wasFavorite
+					? withFavoriteDeletion(settings.favoriteTombstones, path, Date.now())
+					: withoutFavoriteDeletion(settings.favoriteTombstones, path);
 				void plugin.saveSettings().then(() => {
 					// Keep the visible page; only the heart state changes
 					// (unless the favorites-only filter is on, where the

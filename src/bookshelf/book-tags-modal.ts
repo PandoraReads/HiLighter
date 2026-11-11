@@ -13,6 +13,7 @@ import {
 	tagOnAllBooks,
 } from './book-tags';
 import type HiLighterPlugin from '../main';
+import { withTagDeletion, withoutTagDeletion } from '../sync/shelf-collections';
 
 export class TagBooksModal extends Modal {
 	private readonly plugin: HiLighterPlugin;
@@ -89,6 +90,18 @@ export class TagBooksModal extends Modal {
 			tag,
 			addTag,
 		);
+		// Mirror the change into tag tombstones so a removal propagates
+		// across devices (and a re-add clears any stale suppression).
+		const clean = tag.trim();
+		if (clean) {
+			let tombstones = this.plugin.settings.tagTombstones ?? [];
+			for (const path of this.paths) {
+				tombstones = addTag
+					? withoutTagDeletion(tombstones, path, clean)
+					: withTagDeletion(tombstones, path, clean, Date.now());
+			}
+			this.plugin.settings.tagTombstones = tombstones;
+		}
 		void this.plugin.saveSettings();
 		this.onChange();
 	}

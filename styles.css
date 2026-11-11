@@ -9169,9 +9169,19 @@ mark.hl-pdf-flash {
     flex-shrink: 0;
 }
 
+/* Pin the glyph so no theme / mobile flex quirk can collapse or recolor
+   it: block display + no shrink (mobile flex items otherwise collapse to
+   0 width), explicit box, stroke-based outline in the inherited color. */
 .hl-shelf-fav-btn svg {
-    width: 14px;
-    height: 14px;
+    display: block;
+    flex-shrink: 0;
+    width: 16px !important;
+    height: 16px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+    stroke-width: 2 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 .hl-shelf-fav-btn:hover {
@@ -9183,7 +9193,7 @@ mark.hl-pdf-flash {
 }
 
 .hl-shelf-fav-btn.is-active svg {
-    fill: currentColor;
+    fill: currentColor !important;
 }
 
 /* ── Compact shelf controls: slimmer vertical rhythm so the toolbar
@@ -9285,10 +9295,13 @@ mark.hl-pdf-flash {
 }
 
 .hl-shelf-pager .hl-shelf-pager-btn svg {
-    width: 14px !important;
-    height: 14px !important;
+    display: block;
+    flex-shrink: 0;
+    width: 16px !important;
+    height: 16px !important;
     stroke: currentColor !important;
     fill: none !important;
+    stroke-width: 2 !important;
     opacity: 1 !important;
     visibility: visible !important;
 }

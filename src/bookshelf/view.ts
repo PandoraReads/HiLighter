@@ -25,6 +25,7 @@ import { renderRecentPage } from './recent-page';
 import { renderLibraryPage } from './library-page';
 import { ShelfCoverCache } from './covers';
 import { isShelfRelevantPath, normalizeIncludeFolders, shelfKind } from './scope';
+import { withFavoriteDeletion, withoutFavoriteDeletion } from '../sync/shelf-collections';
 
 export type BookshelfTab = 'recent' | 'library' | 'cards' | 'mindmap' | 'stats';
 
@@ -296,10 +297,16 @@ export class BookshelfView extends ItemView {
 	/** Toggles a book's favorite state (persisted). */
 	async toggleFavorite(path: string): Promise<void> {
 		const current = this.plugin.settings.bookshelfFavorites ?? [];
-		const next = current.includes(path)
+		const wasFavorite = current.includes(path);
+		const next = wasFavorite
 			? current.filter(p => p !== path)
 			: [...current, path];
 		this.plugin.settings.bookshelfFavorites = next;
+		// Record the removal (or clear a stale one on re-favorite) so the
+		// change survives cross-device sync instead of being resurrected.
+		this.plugin.settings.favoriteTombstones = wasFavorite
+			? withFavoriteDeletion(this.plugin.settings.favoriteTombstones, path, Date.now())
+			: withoutFavoriteDeletion(this.plugin.settings.favoriteTombstones, path);
 		await this.plugin.saveSettings();
 	}
 

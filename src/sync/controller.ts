@@ -27,6 +27,7 @@ import {
     type ParsedSyncPayload,
     type SyncTombstone,
 } from './sync-file';
+import { collectionsFromSettings, mergeShelfCollections } from './shelf-collections';
 import {
     POLL_INTERVAL_MS,
     POLL_JITTER_RATIO,
@@ -72,6 +73,7 @@ export interface SyncDbLike {
 
 export interface SyncControllerDeps {
     getSettings(): HiLighterSettings;
+    saveSettings(): Promise<void>;
     writerId: string;
     adapter: SyncAdapter;
     timers: SyncTimers;
@@ -98,6 +100,9 @@ export class SyncController {
 
     private started = false;
     private remoteChanged = true;
+    private settingsDirty = false;
+    /** Guards the import's own saveSettings from re-triggering an export. */
+    private suppressSettingsDirty = false;
     private importOk: boolean | null = null;
     private remoteCountKnown = 0;
     private lastReconciledSeq = 0;
@@ -216,6 +221,17 @@ export class SyncController {
         };
     }
 
+    /**
+     * Flags synced shelf collections (shelves / favorites / tags) as dirty
+     * after a settings write, so the next cycle exports them. Called from
+     * the plugin's saveSettings; a no-op while sync is not running.
+     */
+    markSettingsDirty(): void {
+        if (!this.started || this.suppressSettingsDirty) return;
+        this.settingsDirty = true;
+        this.scheduler.markDirty();
+    }
+
     // ──── Cycle ──────────────────────────────────────────────
 
     /** Inner cycle; assumes the mutex is held. */
@@ -318,11 +334,37 @@ export class SyncController {
             const result = await this.deps.db.upsertHighlights(incoming);
             await this.deps.db.pruneTombstones(this.deps.timers.now());
 
-            const changed = this.deps.db.getChangeSeq() !== seqBefore;
+            const highlightsChanged = this.deps.db.getChangeSeq() !== seqBefore;
+
+            // Merge the shelf collections (shelves / favorites / tags) and
+            // persist them back into settings. Tombstones always persist so a
+            // remote delete is remembered even when nothing visible changed.
+            const now = this.deps.timers.now();
+            const { result: merged, changed: collectionsChanged } = mergeShelfCollections(
+                collectionsFromSettings(settings),
+                payload,
+                now,
+            );
+            if (collectionsChanged) {
+                settings.bookshelfShelves = merged.shelves;
+                settings.bookshelfFavorites = merged.favorites;
+                settings.bookshelfTags = merged.tags;
+            }
+            settings.shelfTombstones = merged.shelfTombstones;
+            settings.favoriteTombstones = merged.favoriteTombstones;
+            settings.tagTombstones = merged.tagTombstones;
+            this.suppressSettingsDirty = true;
+            try {
+                await this.deps.saveSettings();
+            } finally {
+                this.suppressSettingsDirty = false;
+            }
+
+            const changed = highlightsChanged || collectionsChanged;
             this.remoteChanged = false;
             this.importOk = true;
             this.remoteCountKnown = payload.count;
-            this.lastImportAt = this.deps.timers.now();
+            this.lastImportAt = now;
 
             if (trigger === 'manual') {
                 this.deps.notice(t('sync.import.success', { added: result.added, updated: result.updated }));
@@ -372,7 +414,8 @@ export class SyncController {
                 this.deps.db.getTombstones(),
             ]);
             const now = this.deps.timers.now();
-            const json = buildPayload(highlights, tombstones, now, this.deps.writerId);
+            const collections = collectionsFromSettings(this.deps.getSettings());
+            const json = buildPayload(highlights, tombstones, now, this.deps.writerId, collections);
 
             const dir = path.substring(0, path.lastIndexOf('/'));
             if (dir) {
@@ -385,6 +428,7 @@ export class SyncController {
             await this.deps.adapter.write(path, json);
 
             this.lastReconciledSeq = seqBefore;
+            this.settingsDirty = false;
             this.lastAutoExportAt = now;
             this.exportTimes.push(now);
             this.exportTimes = this.exportTimes.filter(t => now - t < EXPORT_BURST_WINDOW_MS);
@@ -409,7 +453,7 @@ export class SyncController {
     }
 
     private isDirty(): boolean {
-        return this.deps.db.getChangeSeq() !== this.lastReconciledSeq;
+        return this.settingsDirty || this.deps.db.getChangeSeq() !== this.lastReconciledSeq;
     }
 
     private reconcileScheduler(): void {

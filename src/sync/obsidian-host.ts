@@ -11,6 +11,7 @@ import type { SyncAdapter, SyncControllerDeps, SyncTimers } from './controller';
 export interface SyncHostPlugin {
     app: App;
     settings: HiLighterSettings;
+    saveSettings(): Promise<void>;
     refreshViews(): void;
     registerInterval(id: number): number;
     registerEvent(ref: EventRef): void;
@@ -60,6 +61,7 @@ export function createSyncHost(plugin: SyncHostPlugin): SyncControllerDeps {
 
     return {
         getSettings: () => plugin.settings,
+        saveSettings: () => plugin.saveSettings(),
         writerId: randomUUID(),
         adapter,
         timers,

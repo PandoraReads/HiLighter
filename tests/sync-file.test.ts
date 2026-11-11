@@ -167,3 +167,56 @@ describe('normalizeSyncPath', () => {
         expect(normalizeSyncPath('')).toBe('.hilighter/sync-data.json');
     });
 });
+
+describe('shelf collections in the payload', () => {
+    const collections = {
+        shelves: [{ id: 's1', name: '英文', include: [{ path: 'books', recursive: true }], exclude: ['books/tmp'], updatedAt: 5 }],
+        favorites: ['a.epub'],
+        tags: { 'a.epub': ['x'] },
+        shelfTombstones: [],
+        favoriteTombstones: [{ id: 'b.epub', deletedAt: 7 }],
+        tagTombstones: [],
+    };
+
+    it('round-trips shelves / favorites / tags through build + parse', () => {
+        const raw = buildPayload([note()], [], 1, 'me', collections);
+        const parsed = parseSyncPayload(raw);
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok) return;
+        expect(parsed.shelves).toEqual(collections.shelves);
+        expect(parsed.favorites).toEqual(['a.epub']);
+        expect(parsed.tags).toEqual({ 'a.epub': ['x'] });
+        expect(parsed.favoriteTombstones).toEqual([{ id: 'b.epub', deletedAt: 7 }]);
+    });
+
+    it('omits collection fields entirely when there is nothing to carry', () => {
+        const raw = buildPayload([note()], [], 1, 'me');
+        expect(raw).not.toContain('shelves');
+        const parsed = parseSyncPayload(raw);
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok) return;
+        expect(parsed.shelves).toEqual([]);
+        expect(parsed.favorites).toEqual([]);
+        expect(parsed.tags).toEqual({});
+    });
+
+    it('an old payload without collections parses to empty ones', () => {
+        const parsed = parseSyncPayload(JSON.stringify({ version: 2, highlights: [] }));
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok) return;
+        expect(parsed.shelves).toEqual([]);
+        expect(parsed.tagTombstones).toEqual([]);
+    });
+
+    it('drops malformed shelf entries but keeps valid ones', () => {
+        const raw = JSON.stringify({
+            version: 2,
+            highlights: [],
+            shelves: [{ id: '', name: 'x' }, { name: 'no-id' }, { id: 'ok', name: 'ok', include: 'junk', exclude: [1, 'e'] }],
+        });
+        const parsed = parseSyncPayload(raw);
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok) return;
+        expect(parsed.shelves).toEqual([{ id: 'ok', name: 'ok', include: [], exclude: ['e'], updatedAt: undefined }]);
+    });
+});

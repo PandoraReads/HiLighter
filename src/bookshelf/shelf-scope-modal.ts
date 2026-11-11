@@ -24,6 +24,7 @@ import {
 	normalizeShelves,
 	removeShelf,
 } from './shelves';
+import { withShelfDeletion } from '../sync/shelf-collections';
 import { ConfirmModal } from '../ui/confirm-modal';
 import type HiLighterPlugin from '../main';
 
@@ -123,6 +124,12 @@ export class ShelfScopeModal extends Modal {
 					this.app,
 					t('bookshelf.shelves.deleteConfirm', { name: shelf.name }),
 					() => {
+						// Record the deletion so it survives cross-device sync.
+						this.plugin.settings.shelfTombstones = withShelfDeletion(
+							this.plugin.settings.shelfTombstones,
+							shelf.id,
+							Date.now(),
+						);
 						this.persistShelves(removeShelf(shelves, shelf.id));
 						this.renderContent();
 					},

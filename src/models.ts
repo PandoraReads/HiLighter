@@ -163,6 +163,8 @@ export interface ShelfPreset {
     include: Array<string | { path: string; recursive: boolean }>;
     /** Exclude folders (whole subtrees), same shape as bookshelfExcludeFolders. */
     exclude: string[];
+    /** Last edit time (ms); drives newer-wins in cross-device sync. */
+    updatedAt?: number;
 }
 
 /**
@@ -214,6 +216,14 @@ export interface HiLighterSettings {
     bookshelfTags?: Record<string, string[]>;   // vault path -> shelf tags (all formats)
     bookshelfFavorites?: string[];              // vault paths the user hearted (all formats)
     bookshelfPageSize?: number;                 // library pagination size (20/50/100/200)
+    // Cross-device delete propagation for the three shelf collections
+    // above (shelves / favorites / tags), mirroring the highlight
+    // tombstone mechanism so a delete on one device is not resurrected
+    // by the next sync from another. Tombstone ids: shelf.id for
+    // shelves, the vault path for favorites, path + NUL + tag for tags.
+    shelfTombstones?: SyncTombstone[];
+    favoriteTombstones?: SyncTombstone[];
+    tagTombstones?: SyncTombstone[];
     epubProgress: Record<string, string>;   // epub path -> last-read CFI
     epubBookmarks: Record<string, EpubBookmark[]>;  // epub path -> bookmarks
     epubReadingMode: 'page' | 'scroll';     // horizontal pages vs vertical scroll

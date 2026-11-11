@@ -39,6 +39,7 @@ export function makeShelfPreset(
         name: trimmed,
         include: normalizeIncludeFolders(include),
         exclude: normalizeFolderList(exclude),
+        updatedAt: Date.now(),
     };
 }
 

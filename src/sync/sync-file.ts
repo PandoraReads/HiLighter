@@ -3,7 +3,9 @@
 // ============================================================
 
 import { isValidColorId } from '../colors';
-import type { CardTemplateId, HiLighterSettings, HighlightNote, SyncTombstone } from '../models';
+import type { CardTemplateId, HiLighterSettings, HighlightNote, ShelfPreset, SyncTombstone } from '../models';
+import type { BookTagMap } from '../bookshelf/book-tags';
+import type { ShelfCollections } from './shelf-collections';
 import { CARD_TEMPLATES } from '../card-templates';
 
 export type { SyncTombstone };
@@ -25,6 +27,13 @@ export type ParsedSyncPayload =
         count: number;
         highlights: unknown[];
         tombstones: SyncTombstone[];
+        /** Shelf collections (自定义书架 / favorites / tags); empty when absent. */
+        shelves: ShelfPreset[];
+        favorites: string[];
+        tags: BookTagMap;
+        shelfTombstones: SyncTombstone[];
+        favoriteTombstones: SyncTombstone[];
+        tagTombstones: SyncTombstone[];
     }
     | { ok: false; reason: 'json' | 'version' | 'shape' };
 
@@ -85,6 +94,12 @@ export function parseSyncPayload(content: string): ParsedSyncPayload {
         count: typeof obj.count === 'number' ? obj.count : obj.highlights.length,
         highlights: obj.highlights,
         tombstones: sanitizeTombstones(obj.tombstones),
+        shelves: sanitizeShelves(obj.shelves),
+        favorites: sanitizeStringList(obj.favorites),
+        tags: sanitizeTagMap(obj.tags),
+        shelfTombstones: sanitizeTombstones(obj.shelfTombstones),
+        favoriteTombstones: sanitizeTombstones(obj.favoriteTombstones),
+        tagTombstones: sanitizeTombstones(obj.tagTombstones),
     };
 }
 
@@ -97,6 +112,53 @@ function sanitizeTombstones(raw: unknown): SyncTombstone[] {
         const t = item as Record<string, unknown>;
         if (typeof t.id !== 'string' || typeof t.deletedAt !== 'number') continue;
         out.push({ id: t.id, deletedAt: t.deletedAt });
+    }
+    return out;
+}
+
+/** Coerce an unknown field into a clean string list (dedup, drop blanks). */
+function sanitizeStringList(raw: unknown): string[] {
+    if (!Array.isArray(raw)) return [];
+    const out = new Set<string>();
+    for (const item of raw) {
+        if (typeof item === 'string' && item !== '') out.add(item);
+    }
+    return [...out];
+}
+
+/** Coerce an unknown field into a path -> tags map (drops junk entries). */
+function sanitizeTagMap(raw: unknown): BookTagMap {
+    const source = (raw !== null && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    const out: BookTagMap = {};
+    for (const [path, list] of Object.entries(source)) {
+        if (typeof path !== 'string' || path === '' || !Array.isArray(list)) continue;
+        const tags = sanitizeStringList(list);
+        if (tags.length > 0) out[path] = tags;
+    }
+    return out;
+}
+
+/** Coerce an unknown field into well-shaped shelf presets (drops junk). */
+function sanitizeShelves(raw: unknown): ShelfPreset[] {
+    if (!Array.isArray(raw)) return [];
+    const out: ShelfPreset[] = [];
+    for (const item of raw) {
+        if (typeof item !== 'object' || item === null) continue;
+        const s = item as Record<string, unknown>;
+        if (typeof s.id !== 'string' || s.id === '') continue;
+        if (typeof s.name !== 'string' || s.name.trim() === '') continue;
+        const include = Array.isArray(s.include)
+            ? s.include.filter((entry): entry is string | { path: string; recursive: boolean } =>
+                typeof entry === 'string'
+                || (typeof entry === 'object' && entry !== null && typeof (entry as { path?: unknown }).path === 'string'))
+            : [];
+        out.push({
+            id: s.id,
+            name: s.name.slice(0, 200),
+            include,
+            exclude: sanitizeStringList(s.exclude),
+            updatedAt: typeof s.updatedAt === 'number' && Number.isFinite(s.updatedAt) ? s.updatedAt : undefined,
+        });
     }
     return out;
 }
@@ -155,6 +217,7 @@ export function buildPayload(
     tombstones: SyncTombstone[],
     exportedAt: number,
     writerId: string,
+    collections?: ShelfCollections,
 ): string {
     return JSON.stringify(
         {
@@ -164,10 +227,20 @@ export function buildPayload(
             count: highlights.length,
             highlights,
             tombstones,
+            // Shelf collections ride along so they sync across devices/vaults.
+            // Omitted entirely when there is nothing to carry (keeps old
+            // payloads byte-identical and backward compatible).
+            ...(collections && hasCollections(collections) ? collections : {}),
         },
         null,
         2,
     );
+}
+
+/** True when any shelf collection or tombstone is non-empty. */
+function hasCollections(c: ShelfCollections): boolean {
+    return c.shelves.length > 0 || c.favorites.length > 0 || Object.keys(c.tags).length > 0
+        || c.shelfTombstones.length > 0 || c.favoriteTombstones.length > 0 || c.tagTombstones.length > 0;
 }
 
 /** True when this payload was written by this plugin instance (no-op re-import). */
