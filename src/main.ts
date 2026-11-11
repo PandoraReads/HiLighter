@@ -11,6 +11,8 @@ import {
 	View,
 	moment
 } from 'obsidian';
+import type { Vault } from 'obsidian';
+import { CoverStore } from './bookshelf/cover-store';
 import { HiLighterSettingTab, DEFAULT_SETTINGS } from './settings';
 import type { HiLighterSettings } from './models';
 import { DEFAULT_RESEARCH_PROMPTS } from './models';
@@ -74,6 +76,27 @@ export default class HiLighterPlugin extends Plugin {
 	syncController: SyncController | null = null;
 	private syncPathLast: string | null = null;
 	private syncRestartTimer: number | null = null;
+	private coverStoreInstance: CoverStore | null = null;
+
+	/**
+	 * Plugin-wide persistent bookshelf cover store (path+mtime keyed
+	 * shrunk JPEG data URLs), shared by every bookshelf view so cover
+	 * extraction never re-reads book binaries it already extracted.
+	 */
+	coverStore(): CoverStore {
+		if (!this.coverStoreInstance) {
+			// configDir is the active config folder (.obsidian unless the
+			// user overrode it); the file lives beside data.json.
+			const vaultWithConfig = this.app.vault as Vault & { configDir?: string };
+			const configDir = vaultWithConfig.configDir ?? '.obsidian';
+			const pluginDir = this.manifest.dir || 'hilighter';
+			this.coverStoreInstance = new CoverStore(
+				this.app.vault.adapter,
+				`${configDir}/plugins/${pluginDir}/cover-cache.json`,
+			);
+		}
+		return this.coverStoreInstance;
+	}
 
 	async onload() {
 		// Initialize vault-specific database before anything else
@@ -348,6 +371,8 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	onunload(): void {
+		// Best-effort persist of covers extracted in this session.
+		void this.coverStoreInstance?.flush();
 		this.syncController?.dispose();
 		if (this.settings.syncEnabled && this.settings.syncOnUnload && !Platform.isMobile) {
 			this.exportSyncFile().catch((err: unknown) => {

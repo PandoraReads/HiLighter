@@ -51,6 +51,9 @@
 *   **Cards locate the source**: Every highlight becomes a note card; click it to jump back to the exact sentence with a locate flash.
 *   **Reader toolbar**: outline dropdown for chapter jumps, page jump with auto-generated page numbers, and bookmarks (add the current page, jump back from the list, remove anytime).
 *   **Two reading modes**: horizontal page turns (buttons or left/right swipe) or continuous vertical scrolling — switch anytime; your position is preserved.
+*   **Display settings (New in 2.8.2)**: The `Aa` toolbar button opens the reader's display panel. Pick a page color — five light papers and six dark background/text pairings (sepia, blue, green, warm-ink…) — then fine-tune font size, line height, and page margins with steppers, and choose from 16 CJK and latin fonts (Song, Kai, Fangsong, Yuan, Baskerville, Palatino, Iowan Old Style, Charter, Garamond…). Everything applies live and is remembered across books.
+
+![epub display settings](screenshots/epub-display-settings.png)
 
 ### 🧠 Mind Maps (New in 2.4)
 *   **One-Click Generation**: Import all highlights from any file as a mind map — grouped by document headings, highlight color, tag, or flat order.
@@ -177,6 +180,17 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 ---
 
 ## Changelog
+
+### v2.8.2 (2026-11-11)
+
+- EPUB reader display panel (`Aa` button): page color presets — five light papers plus six dark background/text pairings — font size, line height and page margin steppers, and 16 CJK/latin fonts. All settings apply live and persist across books.
+- Bookshelf covers are resilient on tablets now: every cover read runs behind a timeout, so a stalled iCloud placeholder download can no longer freeze the whole shelf; oversized books fall back to generated covers instantly, and extracted covers are cached persistently — the cache syncs through iCloud, so a tablet reuses covers the desktop already extracted.
+- Bookshelf: favorite books with hover hearts on covers plus a favorites-only filter; direct page jump in the pagination bar; compact toolbar/pager controls; the tablet light/dark toggle icon is always visible.
+- Lookup popup: dictionary and translation results render as separated cards, with phonetics on their own line and a clearer layout.
+
+### v2.8.1 (2026-11-11)
+
+- Bookshelf scan-scope hardening: per-folder recursion toggles, a 2000-file scan cap with a visible warning, and idempotent refreshes that stop iCloud sync churn from flickering the shelf. Fixed the buy-me-a-coffee image path in the language READMEs.
 
 ### v2.8.0 (2026-11-10)
 

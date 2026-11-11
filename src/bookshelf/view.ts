@@ -7,7 +7,7 @@
 // topbar); FSRS review keeps its entry in the card studio. Phones
 // keep the original sidebar flows.
 
-import { ItemView, WorkspaceLeaf, Notice, setIcon, TFile, TFolder } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, Platform, setIcon, TFile, TFolder } from 'obsidian';
 import type { TAbstractFile } from 'obsidian';
 import type { ThemeId } from '../models';
 import { t } from '../i18n';
@@ -47,7 +47,7 @@ export class BookshelfView extends ItemView {
 	/** Source-path index of `highlights` for cheap event filtering. */
 	private highlightPaths: ReadonlySet<string> = new Set();
 
-	private coverCache = new ShelfCoverCache();
+	private coverCache: ShelfCoverCache;
 	private pageEl: HTMLElement | null = null;
 	private refreshTimer: number | null = null;
 	/** Library-page title search (transient, survives tab switches). */
@@ -56,6 +56,8 @@ export class BookshelfView extends ItemView {
 	private selectMode = false;
 	private selectedBooks = new Set<string>();
 	private tagFilter: string | null = null;
+	/** Library-page favorites-only filter (transient). */
+	private favoriteOnly = false;
 	private dragDepth = 0;
 	/** Library pagination (transient page; size persists in settings). */
 	private libraryPage = 1;
@@ -63,6 +65,11 @@ export class BookshelfView extends ItemView {
 	constructor(leaf: WorkspaceLeaf, plugin: HiLighterPlugin) {
 		super(leaf);
 		this.plugin = plugin;
+		// Shares the plugin-wide persistent cover store; the in-memory
+		// memo is per view but store hits make reopens cheap.
+		this.coverCache = new ShelfCoverCache(plugin.coverStore(), {
+			isMobile: Platform.isMobile,
+		});
 	}
 
 	getViewType(): string {
@@ -211,6 +218,8 @@ export class BookshelfView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this.coverCache.clear();
+		// Persist any covers resolved during this view's lifetime.
+		void this.plugin.coverStore().flush();
 		if (this.refreshTimer !== null) {
 			window.clearTimeout(this.refreshTimer);
 			this.refreshTimer = null;
@@ -279,12 +288,34 @@ export class BookshelfView extends ItemView {
 		if (this.pageEl) this.renderPage(this.pageEl);
 	}
 
+	/** Live favorites set (shared by both grid pages). */
+	favoritesSet(): Set<string> {
+		return new Set(this.plugin.settings.bookshelfFavorites ?? []);
+	}
+
+	/** Toggles a book's favorite state (persisted). */
+	async toggleFavorite(path: string): Promise<void> {
+		const current = this.plugin.settings.bookshelfFavorites ?? [];
+		const next = current.includes(path)
+			? current.filter(p => p !== path)
+			: [...current, path];
+		this.plugin.settings.bookshelfFavorites = next;
+		await this.plugin.saveSettings();
+	}
+
 	private renderPage(page: HTMLElement): void {
 		page.empty();
+		const favorites = {
+			isFavorite: (path: string) => this.favoritesSet().has(path),
+			onToggle: (path: string) => {
+				void this.toggleFavorite(path).then(() => this.rerenderPage());
+			},
+		};
 		switch (this.activeTab) {
 			case 'recent':
 				renderRecentPage(this, page, this.highlights, this.coverCache, {
 					onSettingsChange: () => this.rerenderPage(),
+					favorites,
 				});
 				break;
 			case 'library':
@@ -330,6 +361,8 @@ export class BookshelfView extends ItemView {
 			clearSelection: () => { this.selectedBooks = new Set(); },
 			getTagFilter: () => this.tagFilter,
 			setTagFilter: (tag: string | null) => { this.tagFilter = tag; },
+			getFavoriteOnly: () => this.favoriteOnly,
+			setFavoriteOnly: (on: boolean) => { this.favoriteOnly = on; },
 			getPage: () => this.libraryPage,
 			setPage: (pageNumber: number) => { this.libraryPage = pageNumber; },
 		});

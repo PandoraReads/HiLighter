@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { lookupSelection } from '../src/selection/lookup-service';
 import { DOMParser as LinkeDOMParser } from 'linkedom';
 
+/** Google gtx-shaped payload: segments + detected source language. */
+function googleJson(text: string, detected = 'en'): unknown {
+    return [[[text, 'source', null, null, 1]], null, detected];
+}
+
 describe('dictionary and translation lookup', () => {
     it('looks up Chinese meanings even when the target language is Chinese', async () => {
         vi.stubGlobal('DOMParser', LinkeDOMParser);
@@ -28,34 +33,64 @@ describe('dictionary and translation lookup', () => {
     it('translates English dictionary definitions into the target language', async () => {
         const request = vi.fn(async (url: string) => url.includes('dictionaryapi')
             ? { status: 200, json: [{ meanings: [{ definitions: [{ definition: 'a greeting' }] }] }] }
-            : { status: 200, json: { responseStatus: 200, responseData: { translatedText: url.includes('a%20greeting') ? '问候语' : '你好' } } });
+            : url.includes('translate.googleapis.com')
+                ? { status: 200, json: googleJson(url.includes('a+greeting') ? '问候语' : '你好') }
+                : { status: 200, json: { responseStatus: 200, responseData: { translatedText: url.includes('a%20greeting') ? '问候语' : '你好' } } });
         const result = await lookupSelection('hello', request, 'en', 'zh-CN');
         expect(result.dictionary?.definitions[0]?.definition).toBe('问候语');
-        expect(result.translation).toBe('你好');
+        expect(result.translations).toContainEqual({ source: 'google', text: '你好' });
+        expect(result.translations).toContainEqual({ source: 'mymemory', text: '你好' });
     });
     it('looks up an English word and translates it', async () => {
         const request = vi.fn(async (url: string) => url.includes('dictionaryapi')
             ? { status: 200, json: [{ word: 'hello', phonetic: 'həˈləʊ', meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'a greeting' }] }] }] }
-            : { status: 200, json: { responseStatus: 200, responseData: { translatedText: url.includes('a%20greeting') ? '问候语' : '你好' } } });
+            : url.includes('translate.googleapis.com')
+                ? { status: 200, json: googleJson('你好') }
+                : { status: 200, json: { responseStatus: 200, responseData: { translatedText: '你好' } } });
         const result = await lookupSelection('hello', request);
-        expect(result.translation).toBe('你好');
-        expect(result.dictionary?.definitions[0]).toEqual({ partOfSpeech: '名词', definition: '问候语' });
-        expect(request).toHaveBeenCalledTimes(3);
+        expect(result.translations).toContainEqual({ source: 'google', text: '你好' });
+        expect(result.translations).toContainEqual({ source: 'mymemory', text: '你好' });
+        expect(result.dictionary?.definitions[0]).toEqual({ partOfSpeech: '名词', definition: '你好' });
+        // dictionary + google main + mymemory main + one definition translation
+        expect(request).toHaveBeenCalledTimes(4);
     });
     it('translates a sentence without querying the word dictionary', async () => {
-        const request = vi.fn(async () => ({ status: 200, json: { responseStatus: 200, responseData: { translatedText: '你好' } } }));
+        const request = vi.fn(async (url: string) => url.includes('translate.googleapis.com')
+            ? { status: 200, json: googleJson('你好') }
+            : { status: 200, json: { responseStatus: 200, responseData: { translatedText: '你好' } } });
         const result = await lookupSelection('hello world', request);
-        expect(result.translation).toBe('你好');
-        expect(request).toHaveBeenCalledTimes(1);
+        expect(result.translations).toContainEqual({ source: 'google', text: '你好' });
+        expect(result.translations).toContainEqual({ source: 'mymemory', text: '你好' });
+        expect(request).toHaveBeenCalledTimes(2);
     });
-    it('preserves dictionary results if translation fails', async () => {
+    it('keeps whatever returned when some sources fail', async () => {
         const request = vi.fn(async (url: string) => {
-            if (!url.includes('dictionaryapi')) throw new Error('network');
-            return { status: 200, json: [{ meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'greeting' }] }] }] };
+            if (url.includes('dictionaryapi')) {
+                return { status: 200, json: [{ meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'greeting' }] }] }] };
+            }
+            throw new Error('network');
         });
         const result = await lookupSelection('hello', request);
         expect(result.dictionary?.definitions[0]?.definition).toBe('greeting');
-        expect(result.translationError).toBe(true);
+        expect(result.translations).toEqual([]);
+    });
+    it('drops a translation source that misses the deadline', async () => {
+        const request = vi.fn(async (url: string) => {
+            if (url.includes('translate.googleapis.com')) {
+                return new Promise<{ status: number; json: unknown }>(() => undefined); // hangs forever
+            }
+            return { status: 200, json: { responseStatus: 200, responseData: { translatedText: '你好' } } };
+        });
+        const result = await lookupSelection('hello world', request, 'en', 'zh-CN', 20);
+        expect(result.translations).toEqual([{ source: 'mymemory', text: '你好' }]);
+    });
+    it('uses google auto-detect when the source language is unknown', async () => {
+        const request = vi.fn(async (url: string) => ({ status: 200, json: googleJson('你好', 'en') }));
+        const result = await lookupSelection('some short phrase', request, null, 'zh-CN');
+        expect(result.detectedSource).toBe('en');
+        expect(result.translations).toEqual([{ source: 'google', text: '你好' }]);
+        expect(request).toHaveBeenCalledTimes(1);
+        expect(request.mock.calls[0]![0]).toContain('sl=auto');
     });
     it('does not send text exceeding translation service byte limit', async () => {
         const request = vi.fn(async () => ({ status: 200, json: {} }));
@@ -66,12 +101,8 @@ describe('dictionary and translation lookup', () => {
     it('uses the detected source and interface target in the translation request', async () => {
         const request = vi.fn(async (_url: string) => ({ status: 200, json: { responseStatus: 200, responseData: { translatedText: 'Hello' } } }));
         await lookupSelection('Guten Morgen', request, 'de', 'en');
-        expect(request.mock.calls[0]![0]).toContain('langpair=de%7Cen');
-    });
-    it('does not guess a source language when identification is uncertain', async () => {
-        const request = vi.fn(async () => ({ status: 200, json: [] }));
-        const result = await lookupSelection('some short phrase', request, null, 'zh-CN');
-        expect(result.needsSource).toBe(true);
-        expect(request).not.toHaveBeenCalled();
+        const urls = request.mock.calls.map(call => call[0]);
+        expect(urls.some(url => url.includes('langpair=de%7Cen'))).toBe(true);
+        expect(urls.some(url => url.includes('sl=de') && url.includes('tl=en'))).toBe(true);
     });
 });

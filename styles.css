@@ -5818,10 +5818,154 @@ mark.hl-note-anchor,
     color: var(--text-error);
 }
 
+/* ── Font & size menu ── */
+
+.hl-epub-menu-font {
+    min-width: 230px;
+    max-width: 300px;
+}
+
+.hl-epub-font-section {
+    padding: 8px 10px 4px;
+    font-size: 0.72em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.hl-epub-font-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.hl-epub-font-row:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hl-epub-font-row.is-active {
+    color: var(--hl-accent);
+    font-weight: 600;
+}
+
+.hl-epub-font-name {
+    flex: 1;
+}
+
+.hl-epub-font-check {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: var(--hl-accent);
+}
+
+.hl-epub-size-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 8px;
+}
+
+.hl-epub-size-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.hl-epub-size-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.hl-epub-size-btn.is-disabled {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.hl-epub-size-value {
+    flex: 1;
+    text-align: center;
+    font-size: 0.85em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-normal);
+}
+
+.hl-epub-font-reset {
+    margin-top: 2px;
+    padding: 6px 10px;
+    border-top: 1px solid var(--background-modifier-border);
+    font-size: 0.8em;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.hl-epub-font-reset:hover {
+    color: var(--text-error);
+}
+
+/* Page color swatches. The chosen color paints only the EPUB reading
+   pane (container + iframe body); toolbar and Obsidian stay themed. */
+.hl-epub-theme-swatches {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px 12px 10px;
+}
+
+.hl-epub-theme-swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+/* Paired-ink preview: the glyph shows the text color on the page color */
+.hl-epub-theme-swatch-ink {
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+}
+
+.hl-epub-theme-swatch:hover {
+    transform: scale(1.1);
+}
+
+.hl-epub-theme-swatch.is-active {
+    box-shadow: 0 0 0 2px var(--background-modifier-border), 0 0 0 4px var(--hl-accent);
+}
+
+/* Typography override active: accent hint on the toolbar button */
+.hl-epub-nav.has-override {
+    color: var(--hl-accent);
+}
+
 .hl-epub-container {
     flex: 1;
     min-height: 0;
     position: relative;
+    transition: background 0.2s ease;   /* page-color switches fade in */
 }
 
 .hl-epub-container iframe {
@@ -8081,8 +8225,8 @@ mark.hl-pdf-flash {
 
 /* Title search: body-only re-render keeps focus while typing */
 .hl-shelf-search {
-    flex: 0 1 210px;
-    min-width: 130px;
+    flex: 0 1 150px;
+    min-width: 100px;
     min-height: 34px;
     padding: 0 10px;
     border: 1px solid var(--background-modifier-border);
@@ -8558,6 +8702,84 @@ mark.hl-pdf-flash {
 .hl-scope-add:hover { border-color: var(--hl-accent); color: var(--hl-accent); }
 .hl-scope-add-icon svg { width: 13px; height: 13px; }
 
+/* ── Custom shelves (自定义书架): saved preset rows + save-as row ── */
+
+.hl-shelf-preset {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 8px 8px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    background: var(--background-secondary);
+    cursor: pointer;
+}
+
+.hl-shelf-preset:hover { border-color: var(--hl-accent); }
+
+.hl-shelf-preset.is-active {
+    border-color: var(--hl-accent);
+}
+
+.hl-shelf-preset-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.hl-shelf-preset-name {
+    font-weight: 650;
+    color: var(--text-normal);
+}
+
+.hl-shelf-preset.is-active .hl-shelf-preset-name {
+    color: var(--hl-accent);
+}
+
+.hl-shelf-preset-scope {
+    margin-top: 2px;
+    font-size: .78em;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hl-shelf-preset-badge {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(var(--hl-accent-rgb, 124, 124, 124), 0.14);
+    color: var(--hl-accent);
+    font-size: .72em;
+    font-weight: 700;
+}
+
+.hl-shelf-preset-save {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hl-shelf-preset-name-input {
+    flex: 1;
+    min-width: 0;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--hl-control-radius, 7px);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font: inherit;
+    font-size: .84em;
+}
+
+.hl-shelf-preset-name-input:focus {
+    outline: none;
+    border-color: var(--hl-accent);
+}
+
+.hl-shelf-preset-save .hl-scope-add { flex-shrink: 0; }
+
 @media (max-width: 700px) {
     .hl-shelf-page { padding: 0 16px; }
     .hl-shelf-tab { padding: 7px 9px; }
@@ -8868,3 +9090,320 @@ mark.hl-pdf-flash {
 }
 
 .hl-shelf-pager .hl-shelf-select { min-height: 30px; }
+
+/* ============================================================
+   BOOKSHELF v2.8.2 — favorites + compact controls
+   ============================================================ */
+
+/* ── Favorite heart on covers: bottom-right, chromeless, hover-revealed ── */
+
+.hl-book-fav {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: #fff;
+    opacity: 0;
+    pointer-events: none;
+    cursor: pointer;
+    transition: opacity .12s ease, transform .12s ease;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55));
+}
+
+.hl-book:hover .hl-book-fav,
+.hl-book-fav:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Favorited hearts stay visible (no hover needed) */
+.hl-book-fav.is-favorite {
+    opacity: 1;
+    pointer-events: auto;
+    color: #ff5d7b;
+}
+
+.hl-book-fav.is-favorite svg {
+    fill: currentColor;
+}
+
+.hl-book-fav:hover {
+    transform: scale(1.12);
+}
+
+/* Touch devices have no hover: hearts are always tappable */
+@media (hover: none) {
+    .hl-book-fav {
+        opacity: .85;
+        pointer-events: auto;
+    }
+}
+
+/* ── Toolbar favorites-only filter (heart, left of view toggle):
+      chromeless icon — no box, no background ── */
+
+.hl-shelf-fav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    min-height: 30px;
+    padding: 0;
+    /* Obsidian's base button rule re-adds a box via --input-shadow and
+       theme button styles outrank plain classes — pin all three. */
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: var(--hl-control-radius, 7px);
+    color: var(--text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.hl-shelf-fav-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.hl-shelf-fav-btn:hover {
+    color: var(--hl-accent);
+}
+
+.hl-shelf-fav-btn.is-active {
+    color: #ff5d7b;
+}
+
+.hl-shelf-fav-btn.is-active svg {
+    fill: currentColor;
+}
+
+/* ── Compact shelf controls: slimmer vertical rhythm so the toolbar
+      and header never wrap on narrow windows ── */
+
+.hl-shelf-toolbar {
+    gap: 8px;
+    padding: 5px 0 8px;
+}
+
+.hl-shelf-scope-btn {
+    min-height: 30px;
+    padding: 0 10px;
+}
+
+.hl-shelf-select {
+    min-height: 30px;
+    padding: 0 8px;
+}
+
+.hl-shelf-search {
+    min-height: 30px;
+}
+
+/* View-size toggle: tight icon spacing on every platform (the
+   per-button padding rule is reinforced to win over older rules) */
+.hl-shelf-size-toggle {
+    gap: 1px !important;
+    padding: 1px !important;
+}
+
+.hl-shelf-size-toggle .hl-view-btn {
+    padding: 3px 5px !important;
+    gap: 0 !important;
+}
+
+.hl-shelf-size-toggle .hl-view-btn svg {
+    width: 13px !important;
+    height: 13px !important;
+}
+
+/* Header (menu bar) buttons: slimmer */
+.hl-studio-topbar .hl-tool-btn,
+.hl-studio-topbar .hl-tool-review,
+.hl-studio-topbar .hl-studio-mode-toggle,
+.hl-studio-topbar .hl-studio-theme-select {
+    height: 30px;
+    min-height: 30px;
+    padding: 0 9px;
+    gap: 6px;
+}
+
+/* Light/dark toggle on tablets: the icon must stay visible no matter
+   which theme variables misbehave — pin color, size and box. */
+.hl-shelf-topbar .hl-studio-mode-toggle.hl-studio-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 !important;
+    color: var(--text-normal) !important;
+    background: var(--background-secondary) !important;
+    border: 1px solid var(--background-modifier-border) !important;
+}
+
+.hl-shelf-topbar .hl-studio-mode-toggle svg {
+    width: 16px !important;
+    height: 16px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* ── Compact pagination bar + direct page jump ── */
+
+.hl-shelf-pager {
+    gap: 6px;
+    padding: 3px 8px;
+    bottom: 10px;
+}
+
+.hl-shelf-pager .hl-shelf-pager-btn {
+    width: 26px;
+    height: 26px;
+    min-height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+/* Pager arrows must stay visible no matter which theme variables
+   misbehave (same pinning as the topbar mode toggle). */
+.hl-shelf-pager .hl-shelf-pager-btn {
+    color: var(--text-normal) !important;
+}
+
+.hl-shelf-pager .hl-shelf-pager-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.hl-shelf-pager-btn svg { width: 14px !important; height: 14px !important; }
+
+.hl-shelf-pager .hl-shelf-select { min-height: 26px; }
+
+.hl-shelf-pager-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: .78em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-normal);
+    white-space: nowrap;
+}
+
+/* The page input must match the 26px row buttons exactly. Pinned with a
+   high-specificity selector because Obsidian's global input[type=number]
+   rule otherwise wins and re-inflates the box. */
+.hl-shelf-pager .hl-shelf-pager-status input.hl-shelf-pager-input {
+    width: 46px;
+    height: 26px;
+    min-height: 26px;
+    padding: 0 2px;
+    box-sizing: border-box;
+    line-height: 1;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font: inherit;
+    font-size: .95em;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+.hl-shelf-pager .hl-shelf-pager-status input.hl-shelf-pager-input:focus {
+    outline: none;
+    border-color: var(--hl-accent);
+}
+
+/* Hide the native number spinners (jump via typing or Enter) */
+.hl-shelf-pager-input::-webkit-outer-spin-button,
+.hl-shelf-pager-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.hl-shelf-pager-input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* ── EPUB typography steppers: label + [−] value [+] rows ── */
+
+.hl-epub-size-row .hl-epub-size-name {
+    flex: 0 0 auto;
+    min-width: 56px;
+    font-size: .8em;
+    color: var(--text-muted);
+}
+
+.hl-epub-size-row .hl-epub-size-value {
+    flex: 1 1 auto;
+}
+
+/* ============================================================
+   LOOKUP POPUP — dictionary / translation result cards
+   ============================================================ */
+
+/* Each source (dictionary, each translation engine) renders as its
+   own card: separated visually, readable on the glass background. */
+.hl-lookup-section {
+    margin-top: 10px;
+    padding: 10px 12px 11px;
+    border: 1px solid var(--hl-glass-border, var(--background-modifier-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--background-secondary) 72%, transparent);
+}
+
+.hl-lookup-section .hl-lookup-label {
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Small accent tick before each section label */
+.hl-lookup-section .hl-lookup-label::before {
+    content: '';
+    width: 3px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--hl-accent, var(--text-accent));
+    flex: none;
+}
+
+/* Phonetic transcription (dictionary section) */
+.hl-lookup-phonetic {
+    margin-bottom: 6px;
+    color: var(--text-muted);
+    font-size: .85em;
+    font-family: var(--font-text);
+    letter-spacing: .02em;
+}
+
+.hl-lookup-section .hl-lookup-definition { margin-top: 5px; line-height: 1.45; }
+.hl-lookup-section .hl-lookup-definition:first-of-type { margin-top: 0; }
+
+/* The translation itself is the headline result — slightly larger */
+.hl-lookup-translation {
+    font-size: 1.06em;
+    line-height: 1.55;
+    font-weight: 550;
+    overflow-wrap: anywhere;
+}

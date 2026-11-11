@@ -8,6 +8,7 @@
 import { setIcon, moment, TFile } from 'obsidian';
 import type { App } from 'obsidian';
 import type HiLighterPlugin from '../main';
+import { t } from '../i18n';
 import { shelfKind } from './scope';
 import type { ShelfCoverCache } from './covers';
 
@@ -68,7 +69,8 @@ const FALLBACK_INTERVAL_MS = 250;
  * Renders the cover grid. `subtitle` supplies the per-card meta line
  * (recent page shows counts, library shows author/kind); it is also
  * re-applied after metadata arrives. `selection`, when present,
- * switches clicks to multi-select toggling.
+ * switches clicks to multi-select toggling. `favorites`, when present,
+ * mounts a heart toggle on each cover (bottom-right, hover-revealed).
  */
 export function renderBookGrid(
 	host: GridHost,
@@ -83,6 +85,10 @@ export function renderBookGrid(
 		onEmptyAction?: () => void;
 		selection?: {
 			isSelected: (path: string) => boolean;
+			onToggle: (path: string) => void;
+		};
+		favorites?: {
+			isFavorite: (path: string) => boolean;
 			onToggle: (path: string) => void;
 		};
 	},
@@ -141,6 +147,23 @@ export function renderBookGrid(
 		const kindBadge = cover.createSpan({ cls: 'hl-book-kind' });
 		setIcon(kindBadge.createSpan({ cls: 'hl-book-kind-icon' }), KIND_ICON[kind] ?? 'file');
 		kindBadge.createSpan({ cls: 'hl-book-kind-label', text: KIND_SHORT[kind] ?? '' });
+
+		// Favorite heart: bottom-right, chromeless, hidden until hover
+		// (always shown when favorited or on touch devices).
+		if (opts.favorites) {
+			const fav = cover.createSpan({ cls: 'hl-book-fav' });
+			const isFav = opts.favorites.isFavorite(entry.file.path);
+			fav.toggleClass('is-favorite', isFav);
+			setIcon(fav, 'heart');
+			const favLabel = t(isFav ? 'bookshelf.favRemove' : 'bookshelf.favAdd');
+			fav.setAttribute('role', 'button');
+			fav.setAttribute('aria-label', favLabel);
+			fav.setAttribute('title', favLabel);
+			fav.onclick = (event) => {
+				event.stopPropagation();
+				opts.favorites!.onToggle(entry.file.path);
+			};
+		}
 
 		// Title stays on the cover (caption scrim / generated gradient);
 		// the info line below the card carries only the meta subtitle.

@@ -76,7 +76,13 @@ export function renderRecentPage(
 	parent: HTMLElement,
 	highlights: HighlightNote[],
 	cache: ShelfCoverCache,
-	notify: { onSettingsChange: () => void },
+	notify: {
+		onSettingsChange: () => void;
+		favorites?: {
+			isFavorite: (path: string) => boolean;
+			onToggle: (path: string) => void;
+		};
+	},
 ): void {
 	const plugin = host.plugin;
 
@@ -116,5 +122,6 @@ export function renderRecentPage(
 		emptyText: format === 'all'
 			? t('bookshelf.recent.empty')
 			: t('bookshelf.recent.emptyFiltered', { format: t(`bookshelf.kind.${format}`) }),
+		favorites: notify.favorites,
 	});
 }

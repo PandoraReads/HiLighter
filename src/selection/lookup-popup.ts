@@ -4,6 +4,8 @@ import { lookupSelection } from './lookup-service';
 import { detectLookupLanguage, lookupTarget } from './lookup-language';
 import { selectLocalVoice } from './lookup-speech';
 
+const GOOGLE_TRANSLATE_URL = 'https://translate.google.com/';
+
 export function openLookupPopup(options: { doc: Document; x: number; y: number; text: string; context?: string; onSave: (note: string) => Promise<void> }): void {
     const { doc, text } = options;
     doc.querySelectorAll('.hl-lookup-popup').forEach(element => element.remove());
@@ -65,29 +67,42 @@ export function openLookupPopup(options: { doc: Document; x: number; y: number; 
         result.empty();
         const sections: string[] = [];
         if (data.dictionary) {
-            result.createDiv({ cls: 'hl-lookup-label', text: t('lookup.dictionary') });
-            if (data.dictionary.phonetic) result.createDiv({ text: data.dictionary.phonetic });
+            const dictSection = result.createDiv('hl-lookup-section');
+            dictSection.createDiv({ cls: 'hl-lookup-label', text: t('lookup.dictionary') });
+            if (data.dictionary.phonetic) dictSection.createDiv({ cls: 'hl-lookup-phonetic', text: data.dictionary.phonetic });
             const lines = data.dictionary.definitions.map(item => `${item.partOfSpeech ? `${item.partOfSpeech}: ` : ''}${item.definition}`);
-            lines.forEach(line => result.createDiv({ cls: 'hl-lookup-definition', text: line }));
+            lines.forEach(line => dictSection.createDiv({ cls: 'hl-lookup-definition', text: line }));
             sections.push(`**${t('lookup.dictionary')}**${data.dictionary.phonetic ? ` ${data.dictionary.phonetic}` : ''}\n${lines.map(line => `- ${line}`).join('\n')}`);
         }
-        if (data.definitionTranslationFailed) result.createDiv({ cls: 'hl-lookup-status', text: t('lookup.definitionTranslationFailed') });
-        if (data.translation) {
-            result.createDiv({ cls: 'hl-lookup-label', text: t('lookup.translation') });
-            result.createDiv({ text: data.translation });
-            sections.push(`**${t('lookup.translation')}**\n${data.translation}`);
+        for (const translation of data.translations) {
+            const sourceLabel = translation.source === 'google' ? t('lookup.google') : 'MyMemory';
+            const translationSection = result.createDiv('hl-lookup-section');
+            translationSection.createDiv({ cls: 'hl-lookup-label', text: `${t('lookup.translation')} · ${sourceLabel}` });
+            translationSection.createDiv({ cls: 'hl-lookup-translation', text: translation.text });
+            sections.push(`**${t('lookup.translation')} · ${sourceLabel}**\n${translation.text}`);
         }
         if (data.tooLong) result.createDiv({ cls: 'hl-lookup-status', text: t('lookup.tooLong') });
-        if (data.needsSource) result.createDiv({ cls: 'hl-lookup-status', text: t('lookup.languageUnknown') });
         if (data.sameLanguage) result.createDiv({ cls: 'hl-lookup-status', text: t('lookup.sameLanguage') });
-        if (data.translationError) result.createDiv({ cls: 'hl-lookup-status', text: t('lookup.translationFailed') });
-        if (data.dictionaryError) result.createDiv({ cls: 'hl-lookup-status', text: t('lookup.dictionaryFailed') });
-        const sourceText = data.dictionaryUrl ? `[${t('lookup.dictionarySource')}](${data.dictionaryUrl})` : '';
-        savedText = sections.length ? [...sections, [sourceText, data.translation ? '[MyMemory](https://mymemory.translated.net/)' : ''].filter(Boolean).join(' · ')].filter(Boolean).join('\n\n') : '';
+        // Failed/slow sources (dictionary or either translation engine) are
+        // silently omitted — only what returned in time is displayed.
+        const sourceLinks = data.translations.map(translation => translation.source === 'google'
+            ? `[${t('lookup.google')}](${GOOGLE_TRANSLATE_URL})`
+            : '[MyMemory](https://mymemory.translated.net/)');
+        const sources = [
+            data.dictionaryUrl ? `[${t('lookup.dictionarySource')}](${data.dictionaryUrl})` : '',
+            ...sourceLinks,
+        ].filter(Boolean).join(' · ');
+        savedText = sections.length ? [...sections, sources].filter(Boolean).join('\n\n') : '';
         save.disabled = !savedText;
         attribution.empty();
         if (data.dictionaryUrl) attribution.createEl('a', { text: t('lookup.dictionarySource'), href: data.dictionaryUrl });
-        if (data.translation) { if (data.dictionaryUrl) attribution.createSpan({ text: ' · ' }); attribution.createEl('a', { text: 'MyMemory', href: 'https://mymemory.translated.net/' }); }
+        data.translations.forEach((translation, index) => {
+            if (index > 0 || data.dictionaryUrl) attribution.createSpan({ text: ' · ' });
+            attribution.createEl('a', {
+                text: translation.source === 'google' ? t('lookup.google') : 'MyMemory',
+                href: translation.source === 'google' ? GOOGLE_TRANSLATE_URL : 'https://mymemory.translated.net/',
+            });
+        });
         attribution.toggleClass('is-hidden', !savedText);
     }).catch(() => {
         if (popup.isConnected && generation === currentGeneration) { result.setText(t('lookup.failed')); save.disabled = true; }

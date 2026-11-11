@@ -9,9 +9,9 @@
 // view through FileView's setState/loadFile → onLoadFile chain. A plain
 // ItemView never receives the file, leaving the view blank.
 //
-// Toolbar: prev / outline dropdown / chapter title / page jump /
-// resume last position / next. Explicit jumps (outline, page, card,
-// resume) do not overwrite the saved reading position — only organic
+// Toolbar: prev / outline / bookmarks / chapter title / page jump /
+// display settings / reading mode / next. Explicit jumps (outline, page,
+// card, resume) do not overwrite the saved reading position — only organic
 // reading navigation does, so "resume" always points where you left off.
 
 import ePubLib from 'epubjs';
@@ -25,6 +25,14 @@ import { showHighlightMenu } from '../selection/selection-menu';
 import { resolveHex } from '../colors';
 import { syncAnnotations } from './epub-annotations';
 import { openEpubRegistry } from './registry';
+import { renderEpubPagesMenu } from './epub-pages-menu';
+import {
+    appendEpubFontMenu,
+    hasEpubDisplayOverride,
+    rerenderEpubMenuInPlace,
+} from './epub-font-menu';
+import { resolveEpubTypography } from './epub-typography';
+import { resolveEpubPageColors } from './epub-page-theme';
 
 export const EPUB_VIEW_TYPE = 'hl-epub-view';
 
@@ -59,7 +67,10 @@ export class EpubView extends FileView {
     private toolbarEl: HTMLElement | null = null;
     private pageChipEl: HTMLElement | null = null;
     private modeBtnEl: HTMLElement | null = null;
+    private fontBtnEl: HTMLElement | null = null;
     private menuEl: HTMLElement | null = null;
+    /** Reading surface; gets the page-color background (EPUB pane only). */
+    private readerEl: HTMLElement | null = null;
 
     /** Guards async open book work against a file switch / teardown. */
     private loadSeq = 0;
@@ -141,6 +152,11 @@ export class EpubView extends FileView {
         tocBtn.setAttribute('aria-label', t('epub.toc'));
         tocBtn.onclick = () => this.toggleMenu(tocBtn, 'toc');
 
+        const bookmarkBtn = bar.createDiv('hl-epub-nav');
+        setIcon(bookmarkBtn.createSpan(), 'bookmark');
+        bookmarkBtn.setAttribute('aria-label', t('epub.bookmark'));
+        bookmarkBtn.onclick = () => this.toggleMenu(bookmarkBtn, 'bookmarks');
+
         this.chapterEl = bar.createDiv('hl-epub-chapter');
         this.chapterEl.setText('…');
         this.chapterEl.setAttribute('aria-label', t('epub.toc'));
@@ -151,10 +167,15 @@ export class EpubView extends FileView {
         this.pageChipEl.setAttribute('aria-label', t('epub.pageJump'));
         this.pageChipEl.onclick = () => this.toggleMenu(this.pageChipEl!, 'pages');
 
-        const bookmarkBtn = bar.createDiv('hl-epub-nav');
-        setIcon(bookmarkBtn.createSpan(), 'bookmark');
-        bookmarkBtn.setAttribute('aria-label', t('epub.bookmark'));
-        bookmarkBtn.onclick = () => this.toggleMenu(bookmarkBtn, 'bookmarks');
+        this.fontBtnEl = bar.createDiv('hl-epub-nav');
+        const fontLabel = t('epub.font');
+        setIcon(this.fontBtnEl.createSpan(), 'type');
+        this.fontBtnEl.setAttribute('aria-label', fontLabel);
+        this.fontBtnEl.setAttribute('title', fontLabel);
+        this.fontBtnEl.onclick = () => this.toggleMenu(this.fontBtnEl!, 'font');
+        if (hasEpubDisplayOverride(this.plugin.settings)) {
+            this.fontBtnEl.addClass('has-override');
+        }
 
         this.modeBtnEl = bar.createDiv('hl-epub-nav');
         this.updateModeIcon();
@@ -192,7 +213,7 @@ export class EpubView extends FileView {
 
     // ── Dropdown menus ─────────────────────────────────────────
 
-    private toggleMenu(anchor: HTMLElement, kind: 'toc' | 'pages' | 'bookmarks'): void {
+    private toggleMenu(anchor: HTMLElement, kind: 'toc' | 'pages' | 'bookmarks' | 'font'): void {
         if (this.menuEl?.dataset.kind === kind) {
             this.closeMenu();
             return;
@@ -203,6 +224,7 @@ export class EpubView extends FileView {
         this.menuEl = menu;
         if (kind === 'toc') void this.renderTocMenu(menu);
         else if (kind === 'pages') void this.renderPagesMenu(menu);
+        else if (kind === 'font') this.renderFontMenu(menu);
         else this.renderBookmarksMenu(menu);
         this.positionMenu(menu, anchor, kind === 'pages' ? 'pages' : 'toc');
     }
@@ -291,51 +313,14 @@ export class EpubView extends FileView {
     }
 
     private renderPagesMenu(menu: HTMLElement): void {
-        void this.ensureLocations().then(cfis => {
-            menu.empty();
-            if (!cfis || cfis.length < 2) {
-                menu.createDiv('hl-epub-menu-empty').setText(t('epub.pageGenerating'));
-                if (cfis && cfis.length < 2) menu.setText(t('epub.tocEmpty'));
-                return;
-            }
-            const total = cfis.length;
-            const current = Math.min(Math.max(this.currentLocationIndex(), 0), total - 1);
-
-            const info = menu.createDiv('hl-epub-pages-info');
-            const pageLabel = menu.createDiv('hl-epub-pages-label');
-            const renderInfo = (idx: number): void => {
-                info.setText(t('epub.pageOf', { x: idx + 1, y: total })
-                    + ` · ${Math.round((idx / (total - 1)) * 100)}%`);
-            };
-            renderInfo(current);
-
-            const row = menu.createDiv('hl-epub-pages-row');
-            const slider = row.createEl('input', { type: 'range' });
-            slider.min = '0';
-            slider.max = String(total - 1);
-            slider.value = String(current);
-            const numInput = row.createEl('input', { type: 'number' });
-            numInput.min = '1';
-            numInput.max = String(total);
-            numInput.value = String(current + 1);
-            const goBtn = row.createDiv('hl-epub-pages-go');
-            goBtn.setText(t('epub.go'));
-            const jump = (): void => {
-                const n = Math.min(Math.max(parseInt(numInput.value, 10) || 1, 1), total);
+        renderEpubPagesMenu(menu, {
+            ensureLocations: () => this.ensureLocations(),
+            currentLocationIndex: () => this.currentLocationIndex(),
+            jump: index => {
                 this.closeMenu();
-                void this.displayLocationIndex(n - 1);
-            };
-            goBtn.onclick = jump;
-            numInput.addEventListener('keydown', (e: KeyboardEvent) => {
-                if (e.key === 'Enter') jump();
-            });
-            slider.oninput = () => {
-                numInput.value = String(parseInt(slider.value, 10) + 1);
-                renderInfo(parseInt(slider.value, 10));
-            };
-            void pageLabel;
+                void this.displayLocationIndex(index);
+            },
         });
-        menu.createDiv('hl-epub-menu-empty').setText(t('epub.pageGenerating'));
     }
 
     /** Page-location CFIs for the book: cached in IndexedDB, else generated. */
@@ -468,15 +453,9 @@ export class EpubView extends FileView {
 
     /** Rebuilds the open bookmarks menu in place (after add/remove). */
     private rerenderBookmarkMenu(): void {
-        if (!this.menuEl || this.menuEl.dataset.kind !== 'bookmarks') return;
-        const cls = this.menuEl.className;
-        const left = this.menuEl.style.left;
-        const top = this.menuEl.style.top;
-        this.menuEl.className = cls;
-        this.menuEl.style.left = left;
-        this.menuEl.style.top = top;
-        this.menuEl.empty();
-        this.renderBookmarksMenu(this.menuEl);
+        const menu = this.menuEl;
+        if (!menu || menu.dataset.kind !== 'bookmarks') return;
+        rerenderEpubMenuInPlace(menu, m => this.renderBookmarksMenu(m));
     }
 
     private async addBookmark(): Promise<void> {
@@ -512,6 +491,28 @@ export class EpubView extends FileView {
         } catch {
             new Notice(t('epub.bookmarkJumpError'));
         }
+    }
+
+    // ── Display settings (font / spacing / page color) ────────
+
+    /** Display dropdown (UI + persistence live in epub-font-menu). */
+    private renderFontMenu(menu: HTMLElement): void {
+        appendEpubFontMenu(menu, {
+            settings: this.plugin.settings,
+            save: () => this.plugin.saveSettings(),
+            applyDisplay: () => {
+                this.applyTheme();
+                this.rerenderFontMenu();
+            },
+            onOverrideChange: has => this.fontBtnEl?.toggleClass('has-override', has),
+        });
+    }
+
+    /** Rebuilds the open font menu in place (after a change). */
+    private rerenderFontMenu(): void {
+        const menu = this.menuEl;
+        if (!menu || menu.dataset.kind !== 'font') return;
+        rerenderEpubMenuInPlace(menu, m => this.renderFontMenu(m));
     }
 
     private currentCfi(): string | null {
@@ -552,6 +553,7 @@ export class EpubView extends FileView {
         this.updateModeIcon();
 
         const container = this.contentEl.createDiv('hl-epub-container');
+        this.readerEl = container;
         try {
             const data = await this.plugin.app.vault.readBinary(file);
             if (seq !== this.loadSeq) return;
@@ -602,23 +604,42 @@ export class EpubView extends FileView {
     }
 
     /** The rendition renders inside an iframe that cannot see CSS vars;
-     *  resolve them here and pass literal values. */
+     *  resolve them here and pass literal values. User display overrides
+     *  (family / size / line height / margins / page color) win over the
+     *  theme values. A chosen page color paints the iframe body AND the
+     *  reader container — scoped to the EPUB pane, never the Obsidian
+     *  theme or other views. */
     private applyTheme(): void {
         if (!this.rendition) return;
         try {
             const bodyStyle = getComputedStyle(document.body);
             const text = bodyStyle.getPropertyValue('--text-normal').trim() || '#222222';
-            const font = bodyStyle.getPropertyValue('--font-text').trim() || '';
-            const size = bodyStyle.getPropertyValue('--font-text-size').trim() || '16px';
+            const fontVar = bodyStyle.getPropertyValue('--font-text').trim();
+            const sizeVar = bodyStyle.getPropertyValue('--font-text-size').trim() || '16px';
+            const { fontFamily, fontSize, lineHeight, marginCss } = resolveEpubTypography(
+                this.plugin.settings,
+                { fontVar, sizeVar },
+            );
+            const pageColors = resolveEpubPageColors(this.plugin.settings, text);
+            const themed = pageColors.background !== '';
+            // Books hardcode text colors; on a themed page force the paired
+            // color onto the common block elements so nothing turns invisible.
+            const colorSelectors = themed
+                ? 'p, div, span, li, a, blockquote, td, th, h1, h2, h3, h4, h5, h6'
+                : 'p, div, span, li';
+            const readerEl = this.readerEl;
+            if (readerEl) readerEl.style.background = pageColors.background;
+            const body: Record<string, string> = {
+                color: pageColors.text,
+                background: themed ? pageColors.background : 'transparent',
+                'font-family': fontFamily,
+                'font-size': fontSize,
+                padding: marginCss,
+            };
+            if (lineHeight) body['line-height'] = lineHeight;
             this.rendition.themes.default({
-                body: {
-                    color: text,
-                    background: 'transparent',
-                    'font-family': font ? `${font}, serif` : 'serif',
-                    'font-size': size,
-                    padding: '0 4px !important',
-                },
-                'p, div, span, li': { color: `${text} !important` },
+                body,
+                [colorSelectors]: { color: `${pageColors.text} !important` },
                 '::selection': { background: 'rgba(125, 125, 125, 0.35)' },
             });
         } catch {
@@ -668,10 +689,11 @@ export class EpubView extends FileView {
         // no automatic re-attach after a page turn.
         rendition.on('rendered', (_section: unknown, view: unknown) => {
             void this.syncAnnotations();
-            if (this.readingMode !== 'page') return;
             const contents = (view as { contents?: Contents } | undefined)?.contents
                 ?? (this.rendition?.getContents?.() as unknown as Contents[] | undefined)?.[0];
-            if (contents) this.attachSwipe(contents);
+            if (!contents) return;
+            this.attachIframeDismiss(contents);
+            if (this.readingMode === 'page') this.attachSwipe(contents);
         });
 
         // Persist read position + chapter title. Explicit jumps (toc /
@@ -690,6 +712,23 @@ export class EpubView extends FileView {
             void this.refreshChapterTitle();
             this.updatePageChip();
         });
+    }
+
+    /** Outside-click dismissal for clicks landing in the book itself.
+     *  The reading surface is an iframe — its pointer events never reach
+     *  the parent document, so the menu close listener in onOpen() can't
+     *  see them. The menu never lives inside the iframe, so any click
+     *  here is by definition outside it. Listeners die with the iframe
+     *  on page turns / section swaps — re-attached per render. */
+    private attachIframeDismiss(contents: Contents): void {
+        try {
+            contents.document.addEventListener('pointerdown', () => this.closeMenu(), {
+                passive: true,
+                capture: true,
+            });
+        } catch {
+            // dismissal layer — never surface errors
+        }
     }
 
     /** Left/right swipe paging inside the section iframe (page mode only).
@@ -787,6 +826,7 @@ export class EpubView extends FileView {
         this.rendition = null;
         this.book = null;
         this.locationCfis = null;
+        this.readerEl = null;
         this.contentEl.querySelectorAll('.hl-epub-container').forEach(el => el.remove());
     }
 

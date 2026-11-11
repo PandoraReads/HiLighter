@@ -3,23 +3,17 @@
 // ============================================================
 // Folder-scoped shelf of every epub / pdf / markdown file, in a
 // calibre-style cover grid with large / small / list views. The scan
-// scope (include + exclude folders) is managed in a modal.
+// scope (saved shelves + include / exclude folders) is managed in
+// shelf-scope-modal.ts.
 
-import {
-	App,
-	FuzzySuggestModal,
-	Modal,
-	Notice,
-	TFile,
-	TFolder,
-	setIcon,
-} from 'obsidian';
+import { Notice, TFile, setIcon } from 'obsidian';
 import { t } from '../i18n';
 import type { HighlightNote, ShelfCoverSize, ShelfFormatFilter, ShelfSortBy } from '../models';
-import { matchShelfFiles, MAX_SHELF_SCAN_FILES, normalizeFolderList, normalizeIncludeFolders, shelfKind } from './scope';
+import { matchShelfFiles, MAX_SHELF_SCAN_FILES, normalizeIncludeFolders, shelfKind } from './scope';
 import { renderBookGrid, type BookEntry, type GridHost } from './book-card';
 import type { ShelfCoverCache } from './covers';
 import { appendFormatFilter } from './shelf-toolbar';
+import { ShelfScopeModal } from './shelf-scope-modal';
 import { matchesBookTitle } from './title-match';
 import { collectBookTags, removeTagPaths } from './book-tags';
 import { TagBooksModal } from './book-tags-modal';
@@ -71,6 +65,9 @@ export interface LibraryPageCtx {
 	// Tag filter (transient view state; null = all)
 	getTagFilter(): string | null;
 	setTagFilter(tag: string | null): void;
+	// Favorites-only filter (transient view state)
+	getFavoriteOnly(): boolean;
+	setFavoriteOnly(on: boolean): void;
 	// Pagination (transient page number; size persists in settings)
 	getPage(): number;
 	setPage(page: number): void;
@@ -119,13 +116,13 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	const size = settings.bookshelfCoverSize || 'large';
 	const toolbar = parent.createDiv('hl-shelf-toolbar');
 
-	// Scan-scope button
-	const scopeLabel = t('bookshelf.library.scope');
+	// Custom shelves: saved scope presets + include/exclude editor
+	const scopeLabel = t('bookshelf.library.shelves');
 	const scopeBtn = toolbar.createEl('button', {
 		cls: 'hl-tool-btn hl-shelf-scope-btn',
 		attr: { 'aria-label': scopeLabel, title: scopeLabel },
 	});
-	setIcon(scopeBtn, 'folder-tree');
+	setIcon(scopeBtn, 'library-big');
 	scopeBtn.createSpan({ text: scopeLabel, cls: 'hl-shelf-btn-label' });
 	scopeBtn.onclick = () => {
 		new ShelfScopeModal(host.app, plugin, ctx.onScopeChange).open();
@@ -196,6 +193,23 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	const count = toolbar.createDiv('hl-shelf-count');
 	count.setAttribute('aria-live', 'polite');
 
+	// Favorites-only filter (heart, left of the view-size toggle)
+	const favLabel = t('bookshelf.library.favorites');
+	const favBtn = toolbar.createEl('button', {
+		cls: `hl-shelf-fav-btn${ctx.getFavoriteOnly() ? ' is-active' : ''}`,
+		attr: {
+			'aria-label': favLabel,
+			title: favLabel,
+			'aria-pressed': String(ctx.getFavoriteOnly()),
+		},
+	});
+	setIcon(favBtn, 'heart');
+	favBtn.onclick = () => {
+		ctx.setFavoriteOnly(!ctx.getFavoriteOnly());
+		ctx.setPage(1);
+		ctx.onSearchChange();
+	};
+
 	// Size segmented control
 	const sizeToggle = toolbar.createDiv('hl-shelf-size-toggle');
 	SIZE_OPTIONS.forEach(option => {
@@ -242,10 +256,19 @@ function renderBody(
 	const query = ctx.getSearchQuery();
 	const bookTags = settings.bookshelfTags ?? {};
 	const tagFilter = ctx.getTagFilter();
+	const favoriteOnly = ctx.getFavoriteOnly();
+	const favorites = new Set(settings.bookshelfFavorites ?? []);
 
 	const countEl = toolbar.querySelector<HTMLElement>('.hl-shelf-count');
 	if (countEl) countEl.empty();
 	refreshTagOptions(toolbar, bookTags, ctx);
+	// The toolbar persists across body re-renders; keep the favorites
+	// filter button in sync with the current state.
+	const favBtnEl = toolbar.querySelector<HTMLElement>('.hl-shelf-fav-btn');
+	if (favBtnEl) {
+		favBtnEl.toggleClass('is-active', favoriteOnly);
+		favBtnEl.setAttribute('aria-pressed', String(favoriteOnly));
+	}
 
 	const subtitle = (entry: BookEntry): string =>
 		entry.count > 0 ? t('bookshelf.library.subtitle', { count: entry.count }) : '';
@@ -288,6 +311,7 @@ function renderBody(
 		});
 
 	const entries = allEntries
+		.filter(entry => !favoriteOnly || favorites.has(entry.file.path))
 		.filter(entry => !tagFilter || (bookTags[entry.file.path] ?? []).includes(tagFilter))
 		.filter(entry => matchesBookTitle(query, entry.file.basename, cache.peek(entry.file)?.title))
 		.sort((a, b) => {
@@ -320,16 +344,19 @@ function renderBody(
 		}
 	}
 
-	const emptyText = query.trim()
-		? t('bookshelf.library.noMatches', { query: query.trim() })
-		: format === 'all'
-			? t('bookshelf.library.noFiles')
-			: t('bookshelf.library.noFilesFiltered', { format: t(`bookshelf.kind.${format}`) });
+	const emptyText = favoriteOnly && entries.length === 0
+		? t('bookshelf.library.noFavorites')
+		: query.trim()
+			? t('bookshelf.library.noMatches', { query: query.trim() })
+			: format === 'all'
+				? t('bookshelf.library.noFiles')
+				: t('bookshelf.library.noFilesFiltered', { format: t(`bookshelf.kind.${format}`) });
 
 	// Idempotence gate: identical visible outcome -> no DOM work at all.
 	const sig = [
 		size,
 		ctx.isSelectMode() ? 'sel' : '',
+		favoriteOnly ? 'fav' : '',
 		capped ? 'cap' : '',
 		hasPager ? `pager:${page}/${totalPages}/${pageSize}` : '',
 		entries.length === 0 ? `empty:${emptyText}` : pageEntries.map(e => e.file.path).join('|'),
@@ -380,6 +407,22 @@ function renderBody(
 				},
 			}
 			: undefined,
+		favorites: {
+			isFavorite: path => favorites.has(path),
+			onToggle: path => {
+				const current = settings.bookshelfFavorites ?? [];
+				settings.bookshelfFavorites = current.includes(path)
+					? current.filter(p => p !== path)
+					: [...current, path];
+				void plugin.saveSettings().then(() => {
+					// Keep the visible page; only the heart state changes
+					// (unless the favorites-only filter is on, where the
+					// book may need to leave the grid).
+					if (favoriteOnly) ctx.onSearchChange();
+					else rerenderHearts(body, new Set(settings.bookshelfFavorites));
+				});
+			},
+		},
 		emptyText,
 	});
 
@@ -393,7 +436,7 @@ function renderBody(
 	}
 }
 
-/** Bottom pagination bar: prev / status / next + per-page size select. */
+/** Bottom pagination bar: prev / page jump / next + per-page size. */
 function buildPager(
 	root: HTMLElement,
 	plugin: HiLighterPlugin,
@@ -417,10 +460,35 @@ function buildPager(
 		scrollPageToTop(bar);
 	};
 
-	bar.createSpan({
-		cls: 'hl-shelf-pager-status',
-		text: t('bookshelf.library.pageStatus', { page: state.page, total: state.totalPages }),
+	// Page status with an editable current page: type a number (or use
+	// the spinners) and press Enter / blur to jump.
+	const status = bar.createDiv('hl-shelf-pager-status');
+	const jumpInput = status.createEl('input', {
+		type: 'number',
+		cls: 'hl-shelf-pager-input',
+		attr: {
+			'aria-label': t('bookshelf.library.pageJump'),
+			min: '1',
+			max: String(state.totalPages),
+		},
 	});
+	jumpInput.value = String(state.page);
+	status.createSpan({ cls: 'hl-shelf-pager-total', text: `/ ${state.totalPages}` });
+	const jump = (): void => {
+		const n = Math.min(Math.max(parseInt(jumpInput.value, 10) || state.page, 1), state.totalPages);
+		jumpInput.value = String(n);
+		if (n === state.page) return;
+		ctx.setPage(n);
+		ctx.onSearchChange();
+		scrollPageToTop(bar);
+	};
+	jumpInput.addEventListener('keydown', (event: KeyboardEvent) => {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			jumpInput.blur();
+		}
+	});
+	jumpInput.addEventListener('blur', jump);
 
 	const next = bar.createEl('button', {
 		cls: 'hl-shelf-pager-btn',
@@ -476,6 +544,20 @@ function refreshTagOptions(toolbar: HTMLElement, bookTags: Record<string, string
 }
 
 /** Updates card check marks + the batch stack without a body re-render. */
+/** Patches heart states in place (no grid teardown, no cover flicker). */
+function rerenderHearts(body: HTMLElement, favorites: Set<string>): void {
+	body.querySelectorAll('.hl-book[data-path]').forEach(card => {
+		const path = card.getAttribute('data-path') ?? '';
+		const fav = card.querySelector<HTMLElement>('.hl-book-fav');
+		if (!fav) return;
+		const isFav = favorites.has(path);
+		fav.classList.toggle('is-favorite', isFav);
+		const label = t(isFav ? 'bookshelf.favRemove' : 'bookshelf.favAdd');
+		fav.setAttribute('aria-label', label);
+		fav.setAttribute('title', label);
+	});
+}
+
 function refreshSelectionUI(body: HTMLElement, ctx: LibraryPageCtx): void {
 	const selected = ctx.getSelected();
 	body.querySelectorAll('.hl-book[data-path]').forEach(card => {
@@ -573,204 +655,3 @@ function buildBatchBar(host: GridHost, root: HTMLElement, ctx: LibraryPageCtx): 
 	};
 }
 
-/** Folder picker (fuzzy) used by the scope modal. */
-class FolderPickerModal extends FuzzySuggestModal<TFolder> {
-	private readonly onPick: (folder: TFolder) => void;
-
-	constructor(app: App, onPick: (folder: TFolder) => void) {
-		super(app);
-		this.onPick = onPick;
-		this.setPlaceholder(t('bookshelf.scope.pick'));
-	}
-
-	getItems(): TFolder[] {
-		return this.app.vault.getAllLoadedFiles().filter((f): f is TFolder => f instanceof TFolder);
-	}
-
-	getItemText(folder: TFolder): string {
-		return folder.isRoot() ? t('bookshelf.scope.root') : folder.path;
-	}
-
-	onChooseItem(folder: TFolder): void {
-		this.onPick(folder);
-	}
-}
-
-/** Include / exclude folder manager for the library scan scope. */
-export class ShelfScopeModal extends Modal {
-	private readonly plugin: HiLighterPlugin;
-	private readonly onChange: () => void;
-
-	constructor(app: App, plugin: HiLighterPlugin, onChange: () => void) {
-		super(app);
-		this.plugin = plugin;
-		this.onChange = onChange;
-	}
-
-	onOpen(): void {
-		this.renderContent();
-	}
-
-	private renderContent(): void {
-		const { contentEl } = this;
-		contentEl.empty();
-		contentEl.addClass('hl-scope-modal');
-		contentEl.createEl('h2', { text: t('bookshelf.scope.title'), cls: 'hl-scope-title' });
-
-		this.renderIncludeList(contentEl);
-		this.renderExcludeList(contentEl);
-	}
-
-	// ── Include folders: path + per-folder recursion toggle ──
-
-	private renderIncludeList(container: HTMLElement): void {
-		const folders = normalizeIncludeFolders(this.plugin.settings.bookshelfIncludeFolders);
-
-		const section = container.createDiv('hl-scope-section');
-		section.createDiv({
-			cls: 'hl-scope-heading',
-			text: t('bookshelf.scope.include'),
-		});
-
-		if (folders.length === 0) {
-			section.createDiv({ cls: 'hl-scope-empty', text: t('bookshelf.scope.empty') });
-		} else {
-			const list = section.createDiv('hl-scope-list');
-			folders.forEach(folder => {
-				const row = list.createDiv('hl-scope-row');
-				const pathCol = row.createDiv('hl-scope-row-main');
-				pathCol.createSpan({
-					text: folder.path === '' ? t('bookshelf.scope.root') : folder.path,
-					cls: 'hl-scope-path',
-				});
-
-				// Recursion toggle: top-level only (default for new
-				// folders) or include nested subfolders.
-				const toggleLabel = t(folder.recursive
-					? 'bookshelf.scope.recursive'
-					: 'bookshelf.scope.topOnly');
-				const toggle = pathCol.createEl('button', {
-					cls: `hl-scope-recursive ${folder.recursive ? 'is-recursive' : ''}`,
-					attr: {
-						'aria-label': toggleLabel,
-						title: toggleLabel,
-						'aria-pressed': String(folder.recursive),
-					},
-				});
-				setIcon(toggle.createSpan({ cls: 'hl-scope-recursive-icon' }),
-					folder.recursive ? 'folder-tree' : 'folder');
-				toggle.createSpan({ text: toggleLabel, cls: 'hl-scope-recursive-label' });
-				toggle.onclick = () => {
-					this.persistInclude(folders.map(item => item.path === folder.path
-						? { path: item.path, recursive: !item.recursive }
-						: item));
-					this.renderContent();
-				};
-
-				this.appendRemoveButton(row, () => {
-					this.persistInclude(folders.filter(item => item.path !== folder.path));
-					this.renderContent();
-				});
-			});
-		}
-
-		const add = section.createEl('button', { cls: 'hl-scope-add', text: t('bookshelf.scope.add') });
-		setIcon(add.createSpan({ cls: 'hl-scope-add-icon' }), 'plus');
-		add.onclick = () => {
-			new FolderPickerModal(this.app, (folder) => {
-				const normalized = folder.isRoot() ? '' : folder.path;
-				if (folders.some(item => item.path === normalized)) {
-					new Notice(t('bookshelf.scope.duplicate'));
-					return;
-				}
-				// Defense: the vault root means a whole-vault scan —
-				// confirm before that can ever enter the scope.
-				if (normalized === '') {
-					new ConfirmModal(
-						this.app,
-						t('bookshelf.scope.rootConfirm'),
-						() => {
-							this.persistInclude([...folders, { path: '', recursive: true }]);
-							this.renderContent();
-						},
-						{ warning: true, confirmText: t('btn.confirm') },
-					).open();
-					return;
-				}
-				// New folders start top-level only; nested archives can
-				// be pulled in explicitly with the recursion toggle.
-				this.persistInclude([...folders, { path: normalized, recursive: false }]);
-				this.renderContent();
-			}).open();
-		};
-	}
-
-	// ── Exclude folders: plain subtree prunes ──
-
-	private renderExcludeList(container: HTMLElement): void {
-		const folders = normalizeFolderList(this.plugin.settings.bookshelfExcludeFolders);
-
-		const section = container.createDiv('hl-scope-section');
-		section.createDiv({
-			cls: 'hl-scope-heading',
-			text: t('bookshelf.scope.exclude'),
-		});
-
-		if (folders.length === 0) {
-			section.createDiv({ cls: 'hl-scope-empty', text: t('bookshelf.scope.empty') });
-		} else {
-			const list = section.createDiv('hl-scope-list');
-			folders.forEach(folder => {
-				const row = list.createDiv('hl-scope-row');
-				row.createSpan({
-					text: folder === '' ? t('bookshelf.scope.root') : folder,
-					cls: 'hl-scope-path',
-				});
-				this.appendRemoveButton(row, () => {
-					this.persistExclude(folders.filter(f => f !== folder));
-					this.renderContent();
-				});
-			});
-		}
-
-		const add = section.createEl('button', { cls: 'hl-scope-add', text: t('bookshelf.scope.add') });
-		setIcon(add.createSpan({ cls: 'hl-scope-add-icon' }), 'plus');
-		add.onclick = () => {
-			new FolderPickerModal(this.app, (folder) => {
-				const normalized = folder.isRoot() ? '' : folder.path;
-				if (normalized === '') {
-					// Excluding the root would empty the shelf entirely.
-					new Notice(t('bookshelf.scope.excludeRootDenied'));
-					return;
-				}
-				if (folders.includes(normalized)) {
-					new Notice(t('bookshelf.scope.duplicate'));
-					return;
-				}
-				this.persistExclude([...folders, normalized]);
-				this.renderContent();
-			}).open();
-		};
-	}
-
-	private appendRemoveButton(row: HTMLElement, onRemove: () => void): void {
-		const remove = row.createEl('button', {
-			cls: 'hl-scope-remove',
-			attr: { 'aria-label': t('bookshelf.scope.remove'), title: t('bookshelf.scope.remove') },
-		});
-		setIcon(remove, 'x');
-		remove.onclick = onRemove;
-	}
-
-	private persistInclude(folders: Array<{ path: string; recursive: boolean }>): void {
-		this.plugin.settings.bookshelfIncludeFolders = folders;
-		void this.plugin.saveSettings();
-		this.onChange();
-	}
-
-	private persistExclude(folders: string[]): void {
-		this.plugin.settings.bookshelfExcludeFolders = folders;
-		void this.plugin.saveSettings();
-		this.onChange();
-	}
-}

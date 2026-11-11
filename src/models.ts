@@ -150,6 +150,22 @@ export type ShelfFormatFilter = 'all' | 'epub' | 'pdf' | 'markdown';
 export type ShelfRecentSortBy = 'recent' | 'count' | 'title';
 
 /**
+ * A named scan-scope preset (自定义书架): the include/exclude folder
+ * lists captured under a user-chosen name so the shelf can be
+ * switched with one click. Stored in settings.
+ */
+export interface ShelfPreset {
+    /** Stable generated id (switch/delete key, names may repeat). */
+    id: string;
+    /** User-facing shelf name. */
+    name: string;
+    /** Include folders, same shape as bookshelfIncludeFolders. */
+    include: Array<string | { path: string; recursive: boolean }>;
+    /** Exclude folders (whole subtrees), same shape as bookshelfExcludeFolders. */
+    exclude: string[];
+}
+
+/**
  * Plugin settings stored in data.json
  */
 export interface HiLighterSettings {
@@ -190,15 +206,22 @@ export interface HiLighterSettings {
     // 书籍 tab scans nothing until folders are configured.
     bookshelfIncludeFolders?: Array<string | { path: string; recursive: boolean }>;
     bookshelfExcludeFolders?: string[];   // folders subtracted from the scan scope (whole subtrees)
+    bookshelfShelves?: ShelfPreset[];     // named scope presets (自定义书架), one click to switch
     bookshelfCoverSize?: ShelfCoverSize;  // cover grid density on the 书籍 tab
     bookshelfSortBy?: ShelfSortBy;        // 书籍 tab sort order
     bookshelfRecentSortBy?: ShelfRecentSortBy;  // 近期阅读 tab sort order
     bookshelfFormatFilter?: ShelfFormatFilter;  // shared format filter (近期阅读 + 书籍)
     bookshelfTags?: Record<string, string[]>;   // vault path -> shelf tags (all formats)
+    bookshelfFavorites?: string[];              // vault paths the user hearted (all formats)
     bookshelfPageSize?: number;                 // library pagination size (20/50/100/200)
     epubProgress: Record<string, string>;   // epub path -> last-read CFI
     epubBookmarks: Record<string, EpubBookmark[]>;  // epub path -> bookmarks
     epubReadingMode: 'page' | 'scroll';     // horizontal pages vs vertical scroll
+    epubFontFamily: string;                 // reader font option id ('' = follow Obsidian theme)
+    epubFontSize?: number;                  // reader font size override in px (undefined = follow theme)
+    epubLineHeight?: number;                // reader line-height override (undefined = book default)
+    epubPageMargin?: number;                // reader side margin override in px (undefined = 4px)
+    epubPageTheme?: string;                 // reader page color option id (undefined = follow Obsidian theme)
     // Internationalization
     language: string;              // UI language id or 'auto' (follow Obsidian)
     translationTargetLang: string;
@@ -275,6 +298,7 @@ export const DEFAULT_SETTINGS: HiLighterSettings = {
     epubProgress: {},
     epubBookmarks: {},
     epubReadingMode: 'page',
+    epubFontFamily: '',
     bookshelfIncludeFolders: [],
     bookshelfExcludeFolders: [],
     bookshelfCoverSize: 'large',
@@ -282,6 +306,8 @@ export const DEFAULT_SETTINGS: HiLighterSettings = {
     bookshelfRecentSortBy: 'recent',
     bookshelfFormatFilter: 'all',
     bookshelfTags: {},
+    bookshelfFavorites: [],
+    bookshelfShelves: [],
     bookshelfPageSize: 20,
     language: 'zh',
     translationTargetLang: '中文',

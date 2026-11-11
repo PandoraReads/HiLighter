@@ -8,8 +8,15 @@
 //         generated cover)
 // - Markdown: frontmatter cover/image/... property — vault image or
 //         network URL (fallback: generated cover)
-// Results are cached per path + mtime; reads run behind a small
-// semaphore so a big shelf does not stampede the vault adapter.
+// Results are cached per path + mtime and PERSISTED (shrunk JPEG
+// data URLs) through a plugin-wide CoverStore, so a reopened shelf
+// does not re-read gigabytes of book binaries.
+//
+// Every read runs behind a small semaphore with a hard timeout: on
+// iCloud-synced vaults a tablet's `vault.readBinary` can stall for
+// minutes (on-demand placeholder download) or forever (offline). A
+// stalled read must degrade to a generated cover, never jam the
+// whole shelf queue.
 
 import JSZip from 'jszip';
 import ePubLib from 'epubjs';
@@ -17,6 +24,12 @@ import { TFile } from 'obsidian';
 import type { App, Vault } from 'obsidian';
 import { shelfKind } from './scope';
 import type { ShelfKind } from './scope';
+import {
+	isPersistableCoverSrc,
+	shrinkCoverDataUrl,
+	CoverStore,
+} from './cover-store';
+import { withTimeout } from '../utils/with-timeout';
 import {
 	parseContainerXml,
 	parseOpfMeta,
@@ -39,6 +52,33 @@ export interface ShelfMeta {
 	kind: ShelfKind;
 }
 
+/** Whole-read budget after which the card falls back (mobile gets less). */
+export const COVER_TIMEOUT_MS_DESKTOP = 15000;
+export const COVER_TIMEOUT_MS_MOBILE = 8000;
+/**
+ * Budget for the epub.js primary path alone, so the JSZip fallback
+ * still gets a slice of the overall deadline. Also bounds the
+ * epub.js `book.ready` hang (broken NCX books never resolve it).
+ */
+const EPUBJS_BUDGET_MS = 6000;
+/** Budget for loading the persistent cover store (same iCloud risks). */
+const STORE_READY_TIMEOUT_MS = 3000;
+
+/**
+ * Binary reads larger than this are skipped (generated cover). On
+ * tablets/phones a read is an iCloud on-demand download of the whole
+ * file; a textbook-sized epub is not worth one cover.
+ */
+export const MAX_BINARY_BYTES_MOBILE = 30 * 1024 * 1024;
+/** Generous desktop cap against pathological multi-GB files. */
+export const MAX_BINARY_BYTES_DESKTOP = 300 * 1024 * 1024;
+
+/** True when a full binary read is worth attempting for a cover. */
+export function shouldReadCoverBinary(sizeBytes: number, isMobile: boolean): boolean {
+	const cap = isMobile ? MAX_BINARY_BYTES_MOBILE : MAX_BINARY_BYTES_DESKTOP;
+	return Number.isFinite(sizeBytes) && sizeBytes >= 0 && sizeBytes <= cap;
+}
+
 /** Minimal pdf.js surface used for first-page renders (not public API). */
 interface PdfjsLike {
 	getDocument(options: { data: Uint8Array }): {
@@ -49,6 +89,7 @@ interface PdfjsLike {
 			}>;
 			destroy(): Promise<void>;
 		}>;
+		destroy?(): Promise<void>;
 	};
 	GlobalWorkerOptions?: { workerSrc?: string };
 }
@@ -63,12 +104,15 @@ const PDFJS_WORKER_URL = '/lib/pdfjs/pdf.worker.min.mjs';
  * ourselves: the module registry returns the identical instance the
  * built-in viewer uses (and evaluating it exposes the library), so
  * covers render even in a fresh session where no PDF was opened yet.
+ * Mobile does not serve this module URL, so there we only use the
+ * library when Obsidian itself already loaded it.
  */
 let pdfjsWarmup: Promise<PdfjsLike | null> | null = null;
 
-function loadPdfjs(): Promise<PdfjsLike | null> {
+function loadPdfjs(allowImport: boolean): Promise<PdfjsLike | null> {
 	const direct = (window as unknown as { pdfjsLib?: PdfjsLike }).pdfjsLib;
 	if (direct) return Promise.resolve(direct);
+	if (!allowImport) return Promise.resolve(null);
 	if (pdfjsWarmup) return pdfjsWarmup;
 
 	pdfjsWarmup = (async () => {
@@ -136,9 +180,21 @@ interface EpubBookLike {
  * the reader also yields its cover here. The cover is pulled as a
  * base64 data URL straight from the archive (no blob URL lifetime to
  * manage, and the book can be destroyed immediately after).
+ *
+ * A kill timer bounds the whole attempt: a book with a broken NCX
+ * never resolves `book.ready`, and the finally block below would then
+ * never run — without the timer the Book plus the full multi-MB
+ * binary leak on every shelf visit.
  */
 async function readEpubViaEpubjs(data: ArrayBuffer): Promise<Partial<ShelfMeta> | null> {
 	let book: EpubBookLike | null = null;
+	const killTimer = setTimeout(() => {
+		try {
+			book?.destroy?.();
+		} catch {
+			// best-effort teardown
+		}
+	}, EPUBJS_BUDGET_MS);
 	try {
 		book = ePubLib(data as unknown as string) as unknown as EpubBookLike;
 		await book.ready;
@@ -159,6 +215,7 @@ async function readEpubViaEpubjs(data: ArrayBuffer): Promise<Partial<ShelfMeta> 
 	} catch {
 		return null;
 	} finally {
+		clearTimeout(killTimer);
 		try {
 			book?.destroy?.();
 		} catch {
@@ -237,7 +294,14 @@ async function readEpubMeta(vault: Vault, file: TFile): Promise<ShelfMeta> {
 	try {
 		const data = await vault.readBinary(file);
 
-		const primary = await readEpubViaEpubjs(data);
+		// Bounded primary path: a book with a broken NCX leaves
+		// `book.ready` unresolved forever; the budget hands the rest of
+		// the deadline to the zip fallback.
+		const primary = await withTimeout(
+			readEpubViaEpubjs(data),
+			EPUBJS_BUDGET_MS,
+			() => null,
+		);
 		let meta: ShelfMeta = {
 			title: primary?.title || file.basename,
 			author: primary?.author,
@@ -272,17 +336,31 @@ async function readEpubMeta(vault: Vault, file: TFile): Promise<ShelfMeta> {
 // PDF
 // ============================================================
 
-async function readPdfMeta(vault: Vault, file: TFile): Promise<ShelfMeta> {
+async function readPdfMeta(vault: Vault, file: TFile, isMobile: boolean): Promise<ShelfMeta> {
 	const kind: ShelfKind = 'pdf';
-	const pdfjs = await loadPdfjs();
+	const pdfjs = await loadPdfjs(!isMobile);
 	if (!pdfjs) {
-		// Builds without the pdf.js module: generated cover.
-		console.error('[HiLighter] PDF cover unavailable: pdf.js could not be loaded');
+		// Mobile without an already-loaded pdf.js, or a build without
+		// the module: generated cover.
+		if (!isMobile) {
+			console.error('[HiLighter] PDF cover unavailable: pdf.js could not be loaded');
+		}
 		return fallbackMeta(file, kind);
 	}
 	try {
 		const data = new Uint8Array(await vault.readBinary(file));
-		const doc = await pdfjs.getDocument({ data }).promise;
+		const loadingTask = pdfjs.getDocument({ data });
+		// A stalled load (worker never ready on mobile) must release its
+		// worker: race the document promise and destroy the task on timeout.
+		const doc = await withTimeout(
+			loadingTask.promise,
+			EPUBJS_BUDGET_MS,
+			() => {
+				void loadingTask.destroy?.().catch(() => undefined);
+				return null;
+			},
+		);
+		if (!doc) return fallbackMeta(file, kind);
 		try {
 			const page = await doc.getPage(1);
 			const base = page.getViewport({ scale: 1 });
@@ -344,37 +422,118 @@ function readMarkdownMeta(app: App, file: TFile): ShelfMeta {
 // Cache + concurrency
 // ============================================================
 
+export interface ShelfCoverCacheOptions {
+	/** Mobile (tablet/phone) budget + binary-size gates apply. */
+	isMobile?: boolean;
+	/** Overrides the default whole-read timeout (tests). */
+	timeoutMs?: number;
+}
+
 /**
  * Cover / metadata cache. One instance per bookshelf view; entries key
- * on path and invalidate when the file mtime changes. Failed reads
- * cache a title-only fallback so broken files are not re-read forever.
+ * on path and invalidate when the file mtime changes. Failed or timed
+ * out reads cache a title-only fallback so broken files are not re-read
+ * forever. Extracted covers are additionally persisted through the
+ * shared CoverStore, which makes cold starts cheap.
  */
 export class ShelfCoverCache {
 	private entries = new Map<string, { mtime: number; promise: Promise<ShelfMeta>; resolved?: ShelfMeta }>();
 	private inflight = 0;
 	private waiting: Array<() => void> = [];
+	private store: CoverStore | null;
+	private isMobile: boolean;
+	private timeoutMs: number;
+
+	constructor(store: CoverStore | null = null, options: ShelfCoverCacheOptions = {}) {
+		this.store = store;
+		this.isMobile = Boolean(options.isMobile);
+		this.timeoutMs = options.timeoutMs
+			?? (this.isMobile ? COVER_TIMEOUT_MS_MOBILE : COVER_TIMEOUT_MS_DESKTOP);
+	}
 
 	/** Resolves metadata for a file, memoized until its mtime changes. */
-	get(app: App, file: TFile, kind?: ShelfKind): Promise<ShelfMeta> {
+	async get(app: App, file: TFile, kind?: ShelfKind): Promise<ShelfMeta> {
 		const mtime = file.stat?.mtime ?? 0;
 		const hit = this.entries.get(file.path);
 		if (hit && hit.mtime === mtime) return hit.promise;
 
 		const resolvedKind = kind ?? shelfKind(file.extension) ?? 'markdown';
+
+		// Persistent-store hit (previous session's extraction): no vault
+		// read at all, memoize the stored value directly.
+		if (this.store) {
+			// The store file lives in the same iCloud vault — its load can
+			// stall on a tablet exactly like a book binary. A slow load is
+			// just a miss for this session (it finishes in the background
+			// and later views benefit); it must never freeze the shelf.
+			await withTimeout(this.store.ready(), STORE_READY_TIMEOUT_MS, () => undefined);
+			// Another concurrent get() for the same file may have won the
+			// ready() race — honor its entry instead of double-reading.
+			const recheck = this.entries.get(file.path);
+			if (recheck && recheck.mtime === mtime) return recheck.promise;
+			const stored = this.storeHit(file, mtime, resolvedKind);
+			if (stored) return this.entries.get(file.path)!.promise;
+		}
+
 		// The placeholder promise is replaced synchronously below before
 		// anyone can observe it.
 		const entry: { mtime: number; promise: Promise<ShelfMeta>; resolved?: ShelfMeta } = {
 			mtime,
 			promise: Promise.resolve(fallbackMeta(file, resolvedKind)),
 		};
-		entry.promise = this.acquire(() => this.read(app, file, resolvedKind))
-			.catch(() => fallbackMeta(file, resolvedKind))
+		entry.promise = this.acquire(file, resolvedKind, () => this.read(app, file, resolvedKind))
+			.then(value => this.persist(file, mtime, value))
 			.then(value => {
 				entry.resolved = value;
 				return value;
 			});
 		this.entries.set(file.path, entry);
 		return entry.promise;
+	}
+
+	/** Memoizes a persistent-store hit; returns the meta, or null on a miss. */
+	private storeHit(file: TFile, mtime: number, kind: ShelfKind): ShelfMeta | null {
+		const store = this.store;
+		if (!store) return null;
+		let stored: ReturnType<CoverStore['get']> = null;
+		try {
+			stored = store.get(file.path, mtime);
+		} catch {
+			return null;
+		}
+		if (!stored) return null;
+		const meta: ShelfMeta = {
+			title: stored.title || file.basename,
+			author: stored.author,
+			coverSrc: stored.src,
+			kind,
+		};
+		const entry: { mtime: number; promise: Promise<ShelfMeta>; resolved?: ShelfMeta } = {
+			mtime,
+			promise: Promise.resolve(meta),
+		};
+		entry.promise = entry.promise.then(value => {
+			entry.resolved = value;
+			return value;
+		});
+		this.entries.set(file.path, entry);
+		return meta;
+	}
+
+	/** Shrinks a fresh cover and writes it to the persistent store. */
+	private async persist(file: TFile, mtime: number, meta: ShelfMeta): Promise<ShelfMeta> {
+		if (!this.store || !isPersistableCoverSrc(meta.coverSrc)) return meta;
+		const src = await shrinkCoverDataUrl(meta.coverSrc);
+		const next = src === meta.coverSrc ? meta : { ...meta, coverSrc: src };
+		this.store.put(file.path, {
+			mtime,
+			src,
+			title: next.title,
+			author: next.author,
+			kind: next.kind,
+			used: Date.now(),
+		});
+		return next;
 	}
 
 	/** Synchronous peek at already-loaded metadata; null when not yet resolved. */
@@ -387,11 +546,45 @@ export class ShelfCoverCache {
 		this.entries = new Map();
 	}
 
-	/** Runs jobs behind a small semaphore; resolution order is preserved. */
-	private acquire(job: () => Promise<ShelfMeta>): Promise<ShelfMeta> {
+	/**
+	 * Runs jobs behind a small semaphore. Each started job carries its
+	 * own deadline: the slot is released when the job settles OR the
+	 * budget expires — whichever comes first — so a stalled vault read
+	 * (iCloud placeholder download) can never jam the queue, and the
+	 * caller always receives a fallback meta by the deadline.
+	 */
+	private acquire(file: TFile, kind: ShelfKind, job: () => Promise<ShelfMeta>): Promise<ShelfMeta> {
 		return new Promise<ShelfMeta>((resolve) => {
 			const start = () => {
-				void job().then(resolve, () => resolve({ title: '', kind: 'markdown' }));
+				let released = false;
+				let resolved = false;
+				const releaseOnce = (): void => {
+					if (released) return;
+					released = true;
+					this.release();
+				};
+				const resolveOnce = (value: ShelfMeta): void => {
+					if (resolved) return;
+					resolved = true;
+					resolve(value);
+				};
+				const timer = setTimeout(() => {
+					console.error('[HiLighter] cover read timed out:', file.path);
+					releaseOnce();
+					resolveOnce(fallbackMeta(file, kind));
+				}, this.timeoutMs);
+				void job().then(
+					value => {
+						clearTimeout(timer);
+						releaseOnce();
+						resolveOnce(value);
+					},
+					() => {
+						clearTimeout(timer);
+						releaseOnce();
+						resolveOnce(fallbackMeta(file, kind));
+					},
+				);
 			};
 			if (this.inflight < MAX_CONCURRENT_READS) {
 				this.inflight++;
@@ -412,12 +605,16 @@ export class ShelfCoverCache {
 	}
 
 	private async read(app: App, file: TFile, kind: ShelfKind): Promise<ShelfMeta> {
-		try {
-			if (kind === 'epub') return await readEpubMeta(app.vault, file);
-			if (kind === 'pdf') return await readPdfMeta(app.vault, file);
-			return readMarkdownMeta(app, file);
-		} finally {
-			this.release();
+		if (kind !== 'markdown') {
+			const size = file.stat?.size ?? Number.POSITIVE_INFINITY;
+			if (!shouldReadCoverBinary(size, this.isMobile)) {
+				// Oversized for this platform (mobile: an iCloud download of
+				// the whole file) — generated cover, instantly.
+				return fallbackMeta(file, kind);
+			}
 		}
+		if (kind === 'epub') return await readEpubMeta(app.vault, file);
+		if (kind === 'pdf') return await readPdfMeta(app.vault, file, this.isMobile);
+		return readMarkdownMeta(app, file);
 	}
 }
