@@ -797,140 +797,6 @@ mark.hl-h-green {
     border-color: #3742fa;
 }
 
-/* ── Heatmap Styling (Simplified Squares) ── */
-.hl-heatmap-wrapper {
-    position: relative;
-    margin: 60px auto 40px;
-    padding: 0;
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: none;
-    border-radius: 0;
-    width: 90%;
-    max-width: 900px;
-    box-shadow: none;
-}
-
-.hl-heatmap-title-area {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 20px;
-}
-
-.hl-heatmap-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9em;
-    font-weight: 600;
-    color: var(--text-normal);
-}
-
-.hl-heatmap-rate {
-    padding: 6px 12px !important;
-    background: rgba(var(--background-secondary-rgb), 0.4) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-    color: var(--hl-accent) !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-size: 0.81em;
-    font-weight: 500 !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-}
-
-.hl-heatmap-rate:hover {
-    background: rgba(var(--background-secondary-rgb), 0.7) !important;
-    color: var(--text-normal) !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-}
-
-.theme-dark .hl-heatmap-rate {
-    background: rgba(255, 255, 255, 0.05) !important;
-}
-
-.theme-dark .hl-heatmap-rate:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-}
-
-.hl-heatmap-grid {
-    display: grid;
-    grid-template-columns: repeat(30, 1fr);
-    gap: 5px;
-    width: 100%;
-}
-
-.hl-heatmap-cell {
-    background: var(--hl-heatmap-empty);
-    border-radius: 3px;
-    /* Softer rounding */
-    aspect-ratio: 1 / 1;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    --hl-heatmap-scale: 1;
-}
-
-.hl-heatmap-cell:hover {
-    transform: scale(1.4);
-    z-index: 10;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-}
-
-.hl-heatmap-cell.active {
-    background: var(--hl-accent);
-    box-shadow: 0 0 10px rgba(var(--hl-accent-rgb), 0.4);
-    animation: hl-strobe-breathe 2.5s infinite ease-in-out;
-}
-
-.hl-heatmap-cell.is-today {
-    border: none;
-    box-shadow: 0 0 12px rgba(255, 255, 255, 1);
-    --hl-heatmap-scale: 1.25;
-    animation: hl-strobe-breathe 1.8s infinite ease-in-out;
-    /* Today pulses slightly faster */
-}
-
-.hl-heatmap-cell.future {
-    opacity: 0.2;
-}
-
-@keyframes hl-strobe-breathe {
-
-    0%,
-    100% {
-        opacity: 0.8;
-        transform: scale(var(--hl-heatmap-scale));
-        filter: brightness(1);
-    }
-
-    45% {
-        opacity: 1;
-        transform: scale(calc(var(--hl-heatmap-scale) * 1.15));
-        filter: brightness(1.2);
-    }
-
-    50% {
-        /* The "Strobe" Flash - brief moment of high brightness/white tint */
-        opacity: 1;
-        transform: scale(calc(var(--hl-heatmap-scale) * 1.2));
-        filter: brightness(2) contrast(1.2);
-        background-color: #fff;
-    }
-
-    55% {
-        opacity: 1;
-        transform: scale(calc(var(--hl-heatmap-scale) * 1.15));
-        filter: brightness(1.2);
-    }
-}
-
 /* ── Highlight Card Refinements ── */
 .hl-highlight-card {
     padding: 8px 10px 8px 14px !important;
@@ -3217,27 +3083,12 @@ mark.hl-h-green {
 
 @media screen and (max-width: 768px) {
 
-    /* 1. Studio Container & Sidebar - Peek Sidebar Design */
-    .hl-studio-container {
-        flex-direction: row !important;
-        /* Back to row to allow side peek */
-        overflow-x: hidden !important;
-        position: relative;
-    }
-
-    /* 2. Content Area - Full Width */
-    .hl-studio-content {
-        padding: 15px !important;
-        width: 100vw !important;
-        margin-left: 0 !important;
-    }
-
-    .hl-studio-content-header {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 20px;
-        margin-bottom: 30px !important;
-    }
+    /* (Removed legacy "English Made Easy" era rules for the studio
+       container/content/header: flex-direction column + a 30px bottom
+       margin on the header fought every modern phone layout — the
+       two-row toolbar and the gap above the cards both traced here,
+       found via headless-Chrome computed-style probe. The container
+       rule targeted a class that no longer exists in the DOM.) */
 
     .hl-highlight-container {
         padding-left: 0px !important;
@@ -4188,11 +4039,53 @@ mark.hl-h-green {
 }
 
 /* ── Heatmap ── */
+/* Activity heatmap: fixed 12px squares; the week count adapts to the
+   container (12–53) so the grid fills any width without growing cells.
+   Month labels above, weekday labels at the left, today ringed, tap a
+   cell for a “date · count” bubble. */
+.hl-heatmap-body {
+    display: flex;
+    gap: 6px;
+}
+
+.hl-heatmap-weekdays {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-top: 18px;
+}
+
+.hl-heatmap-weekdays span {
+    height: 12px;
+    font-size: 9px;
+    line-height: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.hl-heatmap-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.hl-heatmap-months {
+    position: relative;
+    height: 14px;
+    margin-bottom: 4px;
+}
+
+.hl-heatmap-month-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
 .hl-heatmap {
     display: flex;
     gap: 3px;
-    overflow-x: auto;
-    padding-bottom: 4px;
 }
 
 .hl-heatmap-col {
@@ -4202,11 +4095,61 @@ mark.hl-h-green {
 }
 
 .hl-heatmap-cell {
+    position: relative;
     width: 12px;
     height: 12px;
     border-radius: 3px;
     background: var(--hl-heatmap-empty);
+    cursor: pointer;
 }
+
+.hl-heatmap-cell.is-future {
+    opacity: .25;
+    cursor: default;
+}
+
+.hl-heatmap-cell.is-today {
+    outline: 1.5px solid var(--hl-accent);
+    outline-offset: 1px;
+}
+
+.hl-heatmap-tip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-normal);
+    color: var(--background-primary);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 5;
+    font-variant-numeric: tabular-nums;
+}
+
+.hl-heatmap-foot {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.hl-heatmap-summary { font-variant-numeric: tabular-nums; }
+
+.hl-heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+}
+
+.hl-heatmap-legend .hl-heatmap-cell { cursor: default; }
+.hl-heatmap-legend-label { font-size: 11px; color: var(--text-muted); }
 
 .hl-heatmap-cell.is-future {
     opacity: 0.3;
@@ -4650,19 +4593,24 @@ mark.hl-h-green {
    ============================================================ */
 
 /* Content header tools: search + group + sort + filter */
+.hl-studio-content-header { gap: 8px; }
 .hl-studio-tools {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
+/* Editorial underline search — matches the shelf toolbar input */
 .hl-studio-header-search {
     width: 180px;
-    height: 30px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 8px;
-    padding: 0 10px;
+    min-height: 40px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--hl-ui-line);
+    border-radius: 0;
+    padding: 6px 2px;
     font-size: 0.85em;
     color: var(--text-normal);
     font-family: var(--hl-font-sans);
@@ -4674,7 +4622,7 @@ mark.hl-h-green {
 
 .hl-studio-header-search:focus {
     outline: none;
-    border-color: var(--hl-accent);
+    border-bottom-color: var(--hl-accent);
 }
 
 /* Gallery / list mode: a FIXED header + an independently-scrolling body (flex
@@ -4691,22 +4639,19 @@ mark.hl-h-green {
 .hl-studio-content.is-gallery-mode > .hl-studio-content-header {
     flex-shrink: 0;
     margin: 0;
-    padding: 12px 48px;
+    padding: 4px clamp(20px, 3.5vw, 44px);
+    min-height: 44px;
     align-items: center;
-    background: #fff;
+    background: var(--hl-ui-bg);
     border-bottom: none;
     z-index: 2;
-}
-
-.theme-dark .hl-studio-content.is-gallery-mode > .hl-studio-content-header {
-    background: #0f0f0f;
 }
 
 .hl-studio-content.is-gallery-mode > .hl-studio-content-body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 4px 48px 24px;
+    padding: 4px clamp(20px, 3.5vw, 44px) 24px;
     position: relative;
 }
 
@@ -4716,21 +4661,23 @@ mark.hl-h-green {
     display: inline-block;
 }
 
+/* Ghost triggers: label + chevron, nothing else */
 .hl-filter-trigger,
 .hl-sort-trigger,
 .hl-group-trigger {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 6px 12px;
-    border-radius: 8px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
+    gap: 6px;
+    min-height: 40px;
+    padding: 6px 8px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
     color: var(--text-muted);
     font-size: 0.8em;
     font-weight: 600;
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    transition: color 0.15s;
 }
 
 .hl-filter-trigger:hover,
@@ -4739,19 +4686,11 @@ mark.hl-h-green {
 .hl-sort-trigger.is-open,
 .hl-group-trigger:hover,
 .hl-group-trigger.is-open {
-    border-color: var(--hl-accent);
     color: var(--text-normal);
 }
 
 .hl-filter-trigger.has-selection {
     color: var(--hl-accent);
-    border-color: var(--hl-accent);
-    background: rgba(var(--hl-accent-rgb), 0.1);
-}
-
-.hl-filter-trigger-icon svg {
-    width: 14px !important;
-    height: 14px !important;
 }
 
 .hl-filter-trigger-label {
@@ -4935,26 +4874,25 @@ mark.hl-h-green {
     flex-shrink: 0;
 }
 
-/* Segmented view toggle: 卡片 | 列表 */
+/* Segmented view toggle: 卡片 | 列表 — chromeless icon pair */
 .hl-studio-view-toggle {
     display: inline-flex;
-    padding: 2px;
-    border-radius: 9px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
+    gap: 2px;
+    border: none;
+    background: none;
 }
 
 .hl-view-btn {
     border: none;
     background: transparent;
-    padding: 4px 12px;
+    padding: 6px;
     border-radius: 7px;
     font-size: 0.78em;
     font-weight: 600;
     color: var(--text-muted);
     font-family: var(--font-interface);
     cursor: pointer;
-    transition: color 0.15s, background 0.15s;
+    transition: color 0.15s;
     white-space: nowrap;
 }
 
@@ -4964,7 +4902,7 @@ mark.hl-h-green {
 
 .hl-view-btn.is-active {
     color: var(--hl-accent);
-    background: rgba(var(--hl-accent-rgb), 0.14);
+    background: none;
 }
 
 /* Click-to-expand tool buttons (复习 / 批量 / 统计) */
@@ -6465,6 +6403,8 @@ mark.hl-note-anchor,
 }
 .hl-studio[data-hl-theme] { background: var(--hl-ui-bg); }
 
+/* Masthead shared by the bookshelf and card studio: serif brand,
+   hairline underneath, rides on the page surface (no themed band). */
 .hl-studio-topbar {
     position: relative;
     z-index: 4;
@@ -6473,17 +6413,31 @@ mark.hl-note-anchor,
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    min-height: 54px;
-    padding: 8px clamp(14px, 2.5vw, 28px);
+    min-height: 48px;
+    padding: 4px clamp(20px, 3.5vw, 44px);
     color: var(--hl-ui-muted);
-    background: var(--hl-ui-bg);
-    border-bottom: 1px solid var(--hl-ui-line);
+    background: transparent;
+    border-bottom: 1px solid var(--hl-ui-soft-line);
 }
 .hl-studio-topbar-identity,
 .hl-studio-topbar-actions { display: flex; align-items: center; gap: 9px; min-width: 0; }
-.hl-studio-topbar-brand { color: var(--hl-ui-ink); font-weight: 750; letter-spacing: .01em; }
-.hl-studio-topbar-separator { opacity: .55; }
-.hl-studio-topbar-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .86em; }
+.hl-studio-topbar-brand {
+    font-family: var(--hl-card-typeface);
+    font-size: 1.12em;
+    font-weight: 700;
+    letter-spacing: .01em;
+    color: var(--hl-ui-ink);
+}
+.hl-studio-topbar-title {
+    margin-left: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .62em;
+    font-weight: 500;
+    letter-spacing: .08em;
+    color: var(--hl-ui-muted);
+}
 .hl-studio-topbar-actions { justify-content: flex-end; flex-wrap: wrap; }
 .hl-studio-topbar-button,
 .hl-studio-mode-toggle {
@@ -6542,6 +6496,7 @@ mark.hl-note-anchor,
     align-items: center;
     gap: 7px;
 }
+.hl-studio .hl-studio-fab-stack.is-hidden { display: none; }
 .hl-studio .hl-studio-fab {
     display: grid;
     place-items: center;
@@ -6559,19 +6514,10 @@ mark.hl-note-anchor,
 .hl-studio .hl-studio-fab:hover { color: var(--hl-action-ink); background: var(--hl-action-bg); transform: translateY(-2px); }
 .hl-studio .hl-studio-fab svg { width: 15px; height: 15px; }
 .hl-studio .hl-studio-scroll-top[hidden] { display: none !important; }
-.hl-studio .hl-studio-header-search,
-.hl-studio .hl-group-trigger,
-.hl-studio .hl-sort-trigger,
-.hl-studio .hl-filter-trigger,
-.hl-studio .hl-tool-btn,
-.hl-studio .hl-icon-btn,
-.hl-studio .hl-studio-view-toggle,
-.hl-studio .hl-view-btn {
-    background: var(--hl-ui-card);
-    color: var(--hl-ui-ink);
-    border-color: var(--hl-ui-line);
-    border-radius: var(--hl-control-radius);
-}
+/* (Controls that used to get card boxes here — header search, group /
+   sort / filter triggers, tool buttons, view toggles — now follow the
+   masthead ghost language; see the pinned chromeless layer at the end
+   of this file.) */
 .hl-studio .hl-tool-stats { display: inline-flex; align-items: center; gap: 7px; width: auto; padding: 0 13px; white-space: nowrap; }
 .hl-studio .hl-tool-stats-label { font-size: 0.8em; font-weight: 600; }
 
@@ -6680,28 +6626,29 @@ mark.hl-note-anchor,
 }
 .hl-studio .hl-studio-header-search::placeholder { color: var(--hl-ui-muted); opacity: 1; }
 .hl-studio .hl-studio-header-search:focus { background: var(--hl-ui-card); }
+/* Themed ghost layer: studio controls take the masthead language —
+   borderless, grey at rest, ink on hover, accent when active. */
 .hl-studio :is(.hl-group-trigger, .hl-sort-trigger, .hl-filter-trigger, .hl-tool-batch, .hl-icon-btn) {
     background: transparent;
     color: var(--hl-ui-muted);
-    border-color: var(--hl-ui-line);
+    border: none;
     box-shadow: none;
 }
 .hl-studio :is(.hl-group-trigger, .hl-sort-trigger, .hl-filter-trigger, .hl-tool-batch, .hl-icon-btn):hover {
     color: var(--hl-ui-ink);
-    background: var(--hl-ui-surface);
-    border-color: var(--hl-ui-muted);
+    background: none;
 }
-.hl-studio .hl-studio-view-toggle { background: var(--hl-ui-surface); }
+.hl-studio .hl-studio-view-toggle { background: none; }
 .hl-studio .hl-view-btn { background: transparent; color: var(--hl-ui-muted); box-shadow: none; }
 .hl-studio .hl-view-btn.is-active {
-    background: var(--hl-ui-card);
-    color: var(--hl-ui-ink);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, .1);
+    background: none;
+    color: var(--hl-accent);
+    box-shadow: none;
 }
 .hl-studio :is(.hl-filter-trigger.has-selection, .hl-tool-batch.is-active, .hl-studio-topbar-button.is-active) {
-    color: var(--hl-ui-ink);
-    background: color-mix(in srgb, var(--hl-accent) 12%, var(--hl-ui-card));
-    border-color: color-mix(in srgb, var(--hl-accent) 45%, var(--hl-ui-line));
+    color: var(--hl-accent);
+    background: none;
+    border: none;
 }
 .hl-studio .hl-studio-group-header { border-color: var(--hl-ui-line); color: var(--hl-ui-muted); }
 .hl-studio .hl-studio-group-name {
@@ -6831,8 +6778,9 @@ mark.hl-note-anchor,
 
 @media (max-width: 650px) {
     .hl-studio .hl-studio-content { padding: 16px; }
-    .hl-studio-topbar { align-items: flex-start; flex-direction: column; }
-    .hl-studio-topbar-actions { width: 100%; justify-content: flex-start; }
+    /* Masthead stays one row: identity left, review right. */
+    .hl-studio-topbar { align-items: center; min-height: 44px; padding: 2px 12px; }
+    .hl-studio-topbar-actions { width: auto; justify-content: flex-end; }
     .hl-studio-theme-select { max-width: 150px; }
     .hl-studio .hl-studio-content-header { gap: 12px; flex-wrap: wrap; }
     .hl-studio .hl-tool-stats-label { display: none; }
@@ -7501,19 +7449,37 @@ mark.hl-note-anchor,
    Unified topbar controls: same height, font, weight, icons
    (review / mind map / stats / theme select / dark-mode toggle)
    ============================================================ */
+/* Masthead text action (复习 in the studio topbar): ghost — borderless,
+   grey at rest, ink on hover, accent while a session runs. */
 .hl-studio-topbar .hl-tool-btn,
 .hl-studio-topbar .hl-tool-review,
 .hl-studio-topbar .hl-studio-mode-toggle,
 .hl-studio-topbar .hl-studio-theme-select {
     box-sizing: border-box;
-    height: 34px;
-    min-height: 34px;
-    padding: 0 11px;
+    min-height: 0;
+    padding: 6px 4px;
     gap: 7px;
+    border: none;
+    background: none;
+    box-shadow: none;
+    color: var(--text-normal);
     font-family: var(--font-interface);
-    font-size: 12.5px;
+    font-size: .84em;
     font-weight: 600;
-    line-height: 1;
+    line-height: 1.4;
+    cursor: pointer;
+}
+.hl-studio-topbar .hl-tool-btn:hover,
+.hl-studio-topbar .hl-tool-review:hover,
+.hl-studio-topbar .hl-studio-mode-toggle:hover {
+    color: var(--hl-ui-ink);
+    border-color: transparent;
+    background: none;
+}
+.hl-studio-topbar .hl-tool-review.is-active {
+    color: var(--hl-accent);
+    background: none;
+    border: none;
 }
 .hl-card-color-band > span {
     display: block;
@@ -8032,31 +7998,36 @@ mark.hl-pdf-flash {
     z-index: 1;
 }
 
-/* Header rides on the plain page background: no themed band, no
-   divider — brand, tab pills and actions share one row, and the
-   content below continues on the same surface. */
-.hl-shelf-topbar {
-    background: transparent;
-    border-bottom: none;
-    min-height: 52px;
-    gap: 10px;
+/* Shelf masthead: the shared masthead above, with ghost actions —
+   text-only card entry and a borderless gear, matching the flat tab
+   row (same language the phone nav uses). */
+.hl-shelf-topbar { gap: 14px; }
+
+.hl-shelf-topbar .hl-studio-topbar-button {
+    min-height: 0;
+    padding: 6px 4px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: .84em;
+    font-weight: 600;
 }
 
-.hl-shelf-topbar .hl-studio-topbar-button,
-.hl-shelf-topbar .hl-studio-theme-select,
-.hl-shelf-topbar .hl-studio-mode-toggle {
-    background: var(--background-secondary);
-    border-color: var(--background-modifier-border);
+.hl-shelf-topbar .hl-studio-topbar-button svg { width: 15px; height: 15px; }
+
+.hl-shelf-topbar .hl-studio-topbar-button:hover {
+    border-color: transparent;
     color: var(--text-normal);
 }
 
-/* Icon-only variant (light/dark toggle): compact square, no label */
+/* Icon-only variant (appearance gear): borderless square */
 .hl-shelf-topbar .hl-studio-icon-btn {
     width: 34px;
     padding: 0;
 }
 
-/* ── Tab pills: inline between the brand and the header actions ── */
+/* ── Tab row: flat text with a short underline (masthead nav, same
+   language as the phone flat nav — no pills, no icons) ── */
 
 .hl-shelf-tabs {
     display: flex;
@@ -8064,7 +8035,7 @@ mark.hl-pdf-flash {
     gap: 2px;
     flex: 1 1 auto;
     min-width: 0;
-    margin: 0 4px;
+    margin: 0 8px;
     overflow-x: auto;
     scrollbar-width: none;
 }
@@ -8075,33 +8046,35 @@ mark.hl-pdf-flash {
     position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
     flex: 0 0 auto;
-    padding: 7px 13px;
+    padding: 4px 10px 8px;
     border: none;
-    border-radius: 999px;
-    background: transparent;
+    background: none;
     color: var(--text-muted);
     font: inherit;
     font-size: .84em;
-    font-weight: 650;
+    font-weight: 600;
+    letter-spacing: .02em;
     white-space: nowrap;
     cursor: pointer;
-    transition: color .15s, background .15s;
+    transition: color .15s;
 }
 
-.hl-shelf-tab:hover {
-    color: var(--text-normal);
-    background: var(--background-modifier-hover);
-}
+.hl-shelf-tab:hover { color: var(--text-normal); }
 
-.hl-shelf-tab.is-active {
-    color: var(--hl-accent);
-    background: rgba(var(--hl-accent-rgb, 255, 143, 183), 0.13);
-}
+.hl-shelf-tab.is-active { color: var(--hl-accent); font-weight: 700; }
 
-.hl-shelf-tab-icon { display: inline-flex; }
-.hl-shelf-tab-icon svg { width: 15px; height: 15px; }
+.hl-shelf-tab.is-active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 2px;
+    width: 16px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--hl-accent);
+}
 
 /* ── Page body ───────────────────────────────────────── */
 
@@ -8140,14 +8113,18 @@ mark.hl-pdf-flash {
 
 /* Toolbar sits in its own non-scrolling zone above the grid: books
    physically cannot scroll above or behind it. */
+/* Quiet toolbar under the masthead: all controls are ghosts — text,
+   underline search, chromeless icons — sharing one 40px rhythm and
+   the grey/ink/accent color language. No divider: whitespace and the
+   masthead hairline above structure the page. */
 .hl-shelf-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     flex-wrap: wrap;
     flex: 0 0 auto;
-    padding: 6px 0 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
+    min-height: 44px;
+    padding: 2px 0;
 }
 
 /* Filter cluster nested in the toolbar: fills the space after the
@@ -8157,65 +8134,81 @@ mark.hl-pdf-flash {
 .hl-shelf-controls {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     flex-wrap: wrap;
     flex: 1 1 auto;
     min-width: 0;
 }
 
-/* Neutral controls: native surfaces so the shelf blends with the
-   plain page background (theming stays in accent + covers) */
+/* Ghost text button (自定义书架 / 选择). Pinned: Obsidian's base
+   button rule re-adds a box via --input-shadow and outranks plain
+   classes — same treatment as the chromeless icon buttons. */
 .hl-shelf-scope-btn {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    min-height: 34px;
-    padding: 0 12px;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--hl-control-radius, 7px);
-    background: var(--background-secondary);
-    color: var(--text-normal);
+    min-height: 40px;
+    padding: 0 8px;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 7px;
+    color: var(--text-muted);
     font: inherit;
     font-size: .8em;
-    font-weight: 650;
+    font-weight: 600;
     cursor: pointer;
 }
 
 .hl-shelf-scope-btn:hover,
-.hl-shelf-select:hover { border-color: var(--hl-accent); color: var(--hl-accent); }
+.hl-shelf-select:hover { color: var(--text-normal); }
 
+.hl-shelf-scope-btn.is-active { color: var(--hl-accent); }
+
+/* Ghost select: native dropdown, chromeless trigger (text + chevron) */
 .hl-shelf-select {
-    min-height: 34px;
-    padding: 0 9px;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--hl-control-radius, 7px);
-    background: var(--background-secondary);
-    color: var(--text-normal);
+    min-height: 40px;
+    padding: 0 16px 0 6px;
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b9188' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right center;
+    color: var(--text-muted);
     font: inherit;
     font-size: .8em;
+    font-weight: 600;
     cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
+.hl-shelf-select:focus { outline: none; color: var(--text-normal); }
+
+/* View-size toggle: chromeless icon row */
 .hl-shelf-size-toggle {
     display: inline-flex;
     gap: 2px;
-    padding: 2px;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 9px;
-    background: var(--background-secondary);
+    padding: 0;
+    border: none;
+    background: none;
 }
 
-.hl-shelf-size-toggle .hl-view-btn { padding: 4px 6px; }
+.hl-shelf-size-toggle .hl-view-btn { padding: 6px; }
 
-/* Title search: body-only re-render keeps focus while typing */
+/* Title search: body-only re-render keeps focus while typing.
+   Editorial underline input — focus lights the rule in accent. */
 .hl-shelf-search {
-    flex: 0 1 150px;
+    flex: 0 1 168px;
     min-width: 100px;
-    min-height: 34px;
-    padding: 0 10px;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--hl-control-radius, 7px);
-    background: var(--background-secondary);
+    min-height: 40px;
+    padding: 6px 2px;
+    border: none;
+    border-bottom: 1px solid var(--background-modifier-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
     color: var(--text-normal);
     font: inherit;
     font-size: .8em;
@@ -8223,7 +8216,7 @@ mark.hl-pdf-flash {
 
 .hl-shelf-search:focus {
     outline: none;
-    border-color: var(--hl-accent);
+    border-bottom-color: var(--hl-accent);
 }
 
 .hl-shelf-search::placeholder { color: var(--text-faint); }
@@ -8812,9 +8805,7 @@ mark.hl-pdf-flash {
 
 @media (max-width: 700px) {
     .hl-shelf-page { padding: 0 16px; }
-    .hl-shelf-tab { padding: 7px 9px; }
-    .hl-shelf-tab-label { display: none; }
-    .hl-shelf-tab-icon svg { width: 17px; height: 17px; }
+    .hl-shelf-tab { padding: 6px 8px 10px; }
     .hl-shelf-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
 }
 
@@ -9017,9 +9008,8 @@ mark.hl-pdf-flash {
 }
 
 .hl-shelf-scope-btn.is-active {
-    border-color: var(--hl-accent);
     color: var(--hl-accent);
-    background: rgba(var(--hl-accent-rgb, 255, 143, 183), 0.12);
+    background: none;
 }
 
 /* ── Pagination bar (书籍) ────────────────────────────── */
@@ -9596,69 +9586,32 @@ mark.hl-pdf-flash {
     color: var(--hl-accent);
 }
 
-/* ── Compact shelf controls: slimmer vertical rhythm so the toolbar
-      and header never wrap on narrow windows ── */
-
-.hl-shelf-toolbar {
-    gap: 8px;
-    padding: 5px 0 8px;
-}
-
-.hl-shelf-scope-btn {
-    min-height: 30px;
-    padding: 0 10px;
-}
-
-.hl-shelf-select {
-    min-height: 30px;
-    padding: 0 8px;
-}
-
-.hl-shelf-search {
-    min-height: 30px;
-}
-
-/* View-size toggle: tight icon spacing on every platform (the
-   per-button padding rule is reinforced to win over older rules) */
-.hl-shelf-size-toggle {
-    gap: 1px !important;
-    padding: 1px !important;
-}
-
-.hl-shelf-size-toggle .hl-view-btn {
-    padding: 3px 5px !important;
-    gap: 0 !important;
-}
+/* ── Compact shelf controls: the ghost toolbar carries one 40px
+      rhythm everywhere; only the icon glyphs stay tight. ── */
 
 .hl-shelf-size-toggle .hl-view-btn svg {
-    width: 13px !important;
-    height: 13px !important;
+    width: 14px !important;
+    height: 14px !important;
 }
 
-/* Header (menu bar) buttons: slimmer */
-.hl-studio-topbar .hl-tool-btn,
-.hl-studio-topbar .hl-tool-review,
-.hl-studio-topbar .hl-studio-mode-toggle,
-.hl-studio-topbar .hl-studio-theme-select {
-    height: 30px;
-    min-height: 30px;
-    padding: 0 9px;
-    gap: 6px;
-}
-
-/* Light/dark toggle on tablets: the icon must stay visible no matter
-   which theme variables misbehave — pin color, size and box. */
+/* Light/dark gear on the shelf masthead: borderless icon; icon
+   visibility is pinned so no theme variable can blank it. */
 .hl-shelf-topbar .hl-studio-mode-toggle.hl-studio-icon-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    min-width: 30px;
-    height: 30px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
     padding: 0 !important;
+    border: none !important;
+    background: none !important;
+    box-shadow: none !important;
+    color: var(--text-muted) !important;
+}
+
+.hl-shelf-topbar .hl-studio-mode-toggle.hl-studio-icon-btn:hover {
     color: var(--text-normal) !important;
-    background: var(--background-secondary) !important;
-    border: 1px solid var(--background-modifier-border) !important;
 }
 
 .hl-shelf-topbar .hl-studio-mode-toggle svg {
@@ -9938,50 +9891,220 @@ mark.hl-pdf-flash {
 .is-phone .hl-shelf-scroll-top { bottom: max(24px, env(safe-area-inset-bottom)); }
 .is-phone .hl-shelf-library.has-pager { padding-bottom: 96px; }
 
-/* Topbar on phones: ONE row, six controls. Tab pills carry short
-   labels (近期/书架/统计); the three right-side buttons stay
-   icon-only and never wrap (the old flex-wrap pushed them onto a
-   second line). Tabs keep horizontal scroll as a pressure valve for
-   very narrow screens. */
+/* Topbar on phones: one flat text row. Five short labels (近期/书架/
+   统计/卡片集/外观设置) sit evenly spaced with no pills, borders or
+   backgrounds — web-nav style. Their combined width is far below any
+   phone screen, so the old two-line wrap is structurally gone. */
 .is-phone .hl-shelf-topbar {
-    flex-wrap: nowrap;
+    gap: 0;
+    min-height: 44px;
+    padding: 0 6px;
+    border-bottom: none;
+}
+
+/* Flat nav items: plain text, accent + short underline when active. */
+.hl-shelf-flatnav {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: space-evenly;
+    min-width: 0;
+    min-height: 44px;
+}
+
+.hl-shelf-flatnav-item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 10px 11px;
+    border: none;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: .84em;
+    font-weight: 600;
+    letter-spacing: .02em;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color .15s;
+}
+
+.hl-shelf-flatnav-item:hover { color: var(--text-normal); }
+
+.hl-shelf-flatnav-item.is-active {
+    color: var(--hl-accent);
+    font-weight: 700;
+}
+
+.hl-shelf-flatnav-item.is-active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 4px;
+    width: 16px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--hl-accent);
+}
+
+/* 近期阅读 last-read focus card: one horizontal strip — 「上次阅读」
+   label + relative time, small cover left, title / progress / resume
+   button right. Shared by phone (above the compact list) and desktop
+   (above the grid). */
+.hl-recent-focus {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin: 6px 2px 24px;
+    max-width: 520px;
+    padding: 12px 14px;
+    border: 1px solid var(--hl-ui-soft-line);
+    border-radius: 12px;
+    background: var(--hl-ui-card);
+    box-shadow: var(--hl-card-shadow);
+    cursor: pointer;
+}
+
+.hl-recent-focus:active { transform: scale(.99); }
+
+.hl-recent-focus-head {
+    display: flex;
+    align-items: center;
     gap: 6px;
-    padding: 8px 10px;
 }
 
-.is-phone .hl-shelf-topbar .hl-studio-topbar-identity { display: none; }
-
-.is-phone .hl-shelf-topbar .hl-studio-topbar-actions {
-    flex-wrap: nowrap;
-    flex-shrink: 0;
-    gap: 5px;
+.hl-recent-focus-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    color: var(--text-muted);
 }
 
-.is-phone .hl-shelf-topbar .hl-studio-topbar-button {
-    width: 32px;
-    padding: 0;
+.hl-recent-focus-time {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
 }
 
-.is-phone .hl-shelf-topbar .hl-studio-icon-btn { width: 32px; }
-.is-phone .hl-shelf-topbar .hl-tool-stats-label { display: none; }
+.hl-recent-focus-body {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
 
-.is-phone .hl-shelf-tabs {
+/* Cover width must be scoped tighter than .hl-book-cover's 100% */
+.hl-recent-focus-body .hl-book-cover {
+    flex: 0 0 auto;
+    width: 64px;
+    border-radius: 3px 5px 5px 3px;
+}
+
+.hl-recent-focus-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.hl-recent-focus-title {
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--text-normal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hl-recent-focus-cta {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1px;
+}
+
+/* Ink-filled resume action (theme action tokens; accent already
+   spends itself on the active tab underline). Pinned so Obsidian's
+   button chrome and hover surface cannot bleed through. */
+.hl-recent-focus-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 14px;
+    border: none !important;
+    border-radius: 8px;
+    background: var(--hl-ui-ink) !important;
+    box-shadow: none !important;
+    color: var(--hl-ui-card) !important;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.hl-recent-focus-btn:hover { opacity: .88; }
+
+.hl-recent-focus-btn svg { width: 13px; height: 13px; }
+
+/* List section header: label left, compact sort + format right */
+.hl-recent-rest-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 18px 2px 10px;
+}
+
+.hl-recent-rest-label {
+    font-size: .74em;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.hl-recent-rest-tools {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+}
+
+/* Phone: tighter card margins (the rest-list header adds its own gap);
+   the desktop max-width cap does not apply on small screens. */
+.is-phone .hl-recent-focus { margin: 4px 2px 2px; max-width: none; padding: 11px 12px; }
+.is-phone .hl-recent-focus-btn { height: 30px; padding: 0 12px; }
+
+/* Breathing room under the last row (floating back-to-top button) */
+.is-phone .hl-recent-phone { padding-bottom: 40px; }
+
+/* Phone studio header, two tiers: search gets a full row; the group /
+   sort / filter triggers + view / batch share one scrollable row. */
+.is-phone .hl-studio-content-header {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    padding: 6px 12px;
+}
+
+.is-phone .hl-studio-header-search {
+    flex: 1 1 100%;
+    width: auto;
+    min-height: 36px;
+}
+
+.is-phone .hl-studio-tools {
     flex: 1 1 auto;
     min-width: 0;
-    margin: 0 2px 0 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
 }
 
-.is-phone .hl-shelf-tab {
-    padding: 6px 8px;
-    gap: 4px;
-}
-
-.is-phone .hl-shelf-tab-label {
-    display: inline;
-    font-size: .72em;
-}
-
-.is-phone .hl-shelf-tab-icon svg { width: 15px; height: 15px; }
+.is-phone .hl-studio-tools::-webkit-scrollbar { display: none; }
+.is-phone .hl-studio-toolbar-right { flex: 0 0 auto; }
 
 /* Library toolbar, two tiers: shelf button + search share row 1; the
    filter cluster wraps onto a full-width, horizontally scrollable
@@ -10020,3 +10143,148 @@ mark.hl-pdf-flash {
 .is-phone .hl-scope-row { padding: 10px 8px 10px 12px; }
 .is-phone .hl-shelf-preset { padding: 10px 8px 10px 12px; }
 .is-phone .hl-shelf-preset-drag { width: 26px; height: 34px; }
+
+/* ── Chromeless pinning (final say) ─────────────────────
+   Obsidian's own control rules outrank plain classes: the global
+   button box re-adds a border via --input-shadow and a hover surface
+   via --interactive-hover, and input[type=...] sits at (0,1,1).
+   Every ghost control in the masthead system pins all three, the
+   same treatment .hl-shelf-fav-btn has always used. Selects pin
+   background-color only so their chevron background-image survives. */
+.hl-shelf-tab,
+.hl-shelf-flatnav-item,
+.hl-shelf-topbar .hl-studio-topbar-button,
+.hl-shelf-topbar .hl-studio-icon-btn,
+.hl-shelf-scope-btn,
+.hl-view-btn,
+.hl-studio-topbar .hl-tool-review,
+.hl-studio-topbar .hl-studio-mode-toggle,
+.hl-studio .hl-tool-batch,
+.hl-studio .hl-icon-btn,
+.hl-studio .hl-group-trigger,
+.hl-studio .hl-sort-trigger,
+.hl-studio .hl-filter-trigger,
+.hl-shelf-pager .hl-shelf-pager-btn {
+    border: none !important;
+    background: none !important;
+    box-shadow: none !important;
+}
+
+input.hl-shelf-search,
+input.hl-studio-header-search {
+    border: none !important;
+    border-bottom: 1px solid var(--background-modifier-border) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+}
+
+select.hl-shelf-select {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+}
+
+input.hl-shelf-search:focus,
+input.hl-studio-header-search:focus {
+    border-bottom-color: var(--hl-accent) !important;
+}
+
+/* Clicked search inputs and selects must not grow an accent focus
+   ring (masthead focus-visible rule above): the search line already
+   signals focus in accent; dropdowns signal by opening. */
+input.hl-shelf-search:focus-visible,
+input.hl-studio-header-search:focus-visible,
+select.hl-shelf-select:focus-visible,
+button.hl-shelf-menuselect:focus-visible,
+.hl-shelf-menuselect:focus-visible {
+    outline: none !important;
+}
+
+/* Ghost dropdown trigger: value text + chevron (opens below) */
+.hl-shelf-menuselect { gap: 5px; }
+.hl-shelf-menuselect-chev { display: inline-flex; color: var(--text-muted); opacity: .6; }
+.hl-shelf-menuselect-chev svg { width: 12px; height: 12px; }
+
+/* ── Phone studio header (mirrors the main.js-injected block) ──
+   Search lives in the topbar beside the brand; the content header is
+   one horizontally scrollable controls strip. */
+.is-phone .hl-studio-content-header {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto !important;
+    padding: 4px 12px !important;
+    scrollbar-width: none;
+}
+.is-phone .hl-studio-content-header::-webkit-scrollbar { display: none; }
+.is-phone .hl-studio-topbar { gap: 10px; }
+.is-phone .hl-studio-topbar-identity { flex: 1 1 auto; min-width: 0; gap: 10px; }
+.is-phone .hl-studio-topbar .hl-studio-header-search {
+    flex: 1 1 160px !important;
+    width: auto !important;
+    min-width: 120px;
+    max-width: 240px;
+    min-height: 36px !important;
+}
+.is-phone .hl-studio-tools { flex: 0 0 auto !important; flex-wrap: nowrap !important; }
+.is-phone .hl-studio-toolbar-right { flex: 0 0 auto !important; }
+.is-phone .hl-studio-toolbar-right { flex-wrap: nowrap !important; }
+
+/* Studio dropdowns mount on document.body: fixed positioning beats the
+   phone toolbar's scroll clipping. */
+.hl-studio-body-menu {
+    position: fixed !important;
+    top: auto !important;
+    left: auto !important;
+    z-index: 1000;
+}
+
+/* Compact controls: the whole strip must fit one phone row without
+   scrolling — zh labels need tighter type than the desktop defaults. */
+.is-phone .hl-studio-content-header { gap: 4px !important; }
+.is-phone .hl-studio-tools { gap: 2px !important; }
+.is-phone .hl-filter-trigger,
+.is-phone .hl-sort-trigger,
+.is-phone .hl-group-trigger {
+    min-height: 34px;
+    padding: 0 7px;
+    font-size: .74em;
+    gap: 4px;
+}
+.is-phone .hl-filter-trigger-chev svg { width: 10px !important; height: 10px !important; }
+.is-phone .hl-icon-btn { width: 28px; min-height: 34px; }
+.is-phone .hl-studio-toolbar-right { gap: 4px !important; }
+.is-phone .hl-view-btn { padding: 5px !important; }
+.is-phone .hl-view-btn svg { width: 13px !important; height: 13px !important; }
+.is-phone .hl-tool-batch { min-height: 0; padding: 5px 7px !important; }
+.is-phone .hl-tool-batch svg { width: 13px !important; height: 13px !important; }
+
+
+/* ── Phone highlight menu: one compact spec for every source (markdown /
+      pdf / epub) — slimmer vertical rhythm than the old mobile pill.
+      PDF carries one extra capture button; everything else identical. */
+.is-phone .hl-highlight-menu,
+.is-tablet .hl-highlight-menu,
+.hl-mobile-menu {
+    padding: 5px 12px !important;
+    gap: 10px !important;
+    min-height: 0;
+}
+.is-phone .hl-h-menu-colors,
+.is-tablet .hl-h-menu-colors,
+.hl-mobile-menu .hl-h-menu-colors { gap: 10px !important; }
+.is-phone .hl-h-color-dot,
+.is-tablet .hl-h-color-dot,
+.hl-mobile-menu .hl-h-color-dot { width: 20px !important; height: 20px !important; }
+.is-phone .hl-h-note-action,
+.is-tablet .hl-h-note-action,
+.hl-mobile-menu .hl-h-note-action { width: 24px !important; height: 24px !important; }
+.is-phone .hl-h-menu-item svg,
+.is-tablet .hl-h-menu-item svg,
+.hl-mobile-menu .hl-h-menu-item svg { width: 18px !important; height: 18px !important; }
+.is-phone .hl-h-note-action svg,
+.is-tablet .hl-h-note-action svg,
+.hl-mobile-menu .hl-h-note-action svg { width: 15px !important; height: 15px !important; }

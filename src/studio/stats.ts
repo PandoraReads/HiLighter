@@ -2,6 +2,7 @@
 // HiLighter - Studio stats / insights panel
 // ============================================================
 
+import { moment } from 'obsidian';
 import type { HighlightNote } from '../models';
 import { t } from '../i18n';
 import { getColors } from '../colors';
@@ -119,7 +120,7 @@ export function renderStatsPanel(view: StatsHost, parent: HTMLElement): void {
     // reading activity (progress updates ∪ highlight creation).
     const heatSection = container.createDiv('hl-insights-section');
     const heatHead = heatSection.createDiv('hl-insights-section-head');
-    heatHead.createDiv({ text: t('manager.insights.last6mo'), cls: 'hl-insights-section-title' });
+    heatHead.createDiv({ text: t('manager.insights.heatmap'), cls: 'hl-insights-section-title' });
     const heatToggle = heatHead.createDiv('hl-heat-source');
     const heatChart = heatSection.createDiv();
     const heatSources: Array<{ id: 'highlights' | 'reading'; labelKey: string; map: Map<string, number> }> = [
@@ -162,17 +163,46 @@ export function renderStatsPanel(view: StatsHost, parent: HTMLElement): void {
     renderRankList(filesCol, fileItems);
 }
 
+/**
+ * Activity heatmap: fixed 12px squares with month labels above, sparse
+ * weekday labels at the left, today ringed, tap a cell for a
+ * "date · count" bubble. The week count adapts to the container width
+ * (12–53) so the grid fills any screen without growing the cells.
+ * Footer: summary on the left, less/more legend on the right.
+ */
 function renderHeatmap(parent: HTMLElement, dayCounts: Map<string, number>): void {
-    const WEEKS = 27;
+    const CELL = 12;
+    const GAP = 3;
+    const MIN_WEEKS = 12;
+    const MAX_WEEKS = 53;
+    // Weekday label column + its gap eat into the width budget.
+    const width = Math.max(160, parent.clientWidth || 0);
+    const weeks = Math.max(MIN_WEEKS, Math.min(MAX_WEEKS,
+        Math.floor((width - 24 + GAP) / (CELL + GAP))));
+
     const today = new Date();
     const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const lastSunday = new Date(todayMid.getTime() - todayMid.getDay() * DAY);
-    const start = new Date(lastSunday.getTime() - (WEEKS - 1) * 7 * DAY);
-
+    const start = new Date(lastSunday.getTime() - (weeks - 1) * 7 * DAY);
     const max = Math.max(1, ...dayCounts.values());
 
-    const grid = parent.createDiv('hl-heatmap');
-    for (let w = 0; w < WEEKS; w++) {
+    const body = parent.createDiv('hl-heatmap-body');
+    const weekdays = body.createDiv('hl-heatmap-weekdays');
+    // Rows run Sunday→Saturday; label only Mon/Wed/Fri.
+    for (let d = 0; d < 7; d++) {
+        const label = d % 2 === 1 ? moment(new Date(start.getTime() + d * DAY)).format('dd') : '';
+        weekdays.createSpan({ text: label });
+    }
+
+    const main = body.createDiv('hl-heatmap-main');
+    const months = main.createDiv('hl-heatmap-months');
+    const grid = main.createDiv('hl-heatmap');
+
+    const labelPlan: Array<{ col: number; text: string }> = [];
+    let lastMonth = -1;
+    let total = 0;
+
+    for (let w = 0; w < weeks; w++) {
         const col = grid.createDiv('hl-heatmap-col');
         for (let d = 0; d < 7; d++) {
             const dayDate = new Date(start.getTime() + (w * 7 + d) * DAY);
@@ -181,19 +211,48 @@ function renderHeatmap(parent: HTMLElement, dayCounts: Map<string, number>): voi
                 continue;
             }
             const count = dayCounts.get(dayKey(dayDate)) || 0;
+            total += count;
             const cell = col.createDiv('hl-heatmap-cell');
             if (count > 0) {
                 const level = Math.max(1, Math.min(4, Math.ceil((count / max) * 4)));
                 cell.addClass('hl-level-' + level);
             }
-            cell.setAttribute('aria-label', `${dayKey(dayDate)}: ${count}`);
+            if (dayDate.getTime() === todayMid.getTime()) cell.addClass('is-today');
+            const tip = `${moment(dayDate).format('MMM D')} · ${t('bookshelf.badge.count', { count })}`;
+            cell.setAttribute('aria-label', tip);
+            cell.onclick = () => {
+                parent.querySelectorAll('.hl-heatmap-tip').forEach(el => el.remove());
+                const bubble = cell.createSpan({ cls: 'hl-heatmap-tip', text: tip });
+                window.setTimeout(() => bubble.remove(), 1600);
+            };
+        }
+        // A month label goes above the column owning its first Thursday.
+        const probe = new Date(start.getTime() + (w * 7 + 3) * DAY);
+        if (probe.getMonth() !== lastMonth) {
+            lastMonth = probe.getMonth();
+            labelPlan.push({ col: w, text: moment(probe).format('MMM') });
         }
     }
 
-    const legend = parent.createDiv('hl-heatmap-legend');
+    // Sparse the labels on narrow grids (phone) so they never overlap.
+    const minGap = weeks < 26 ? 8 : 4;
+    let lastLabelCol = -99;
+    labelPlan.forEach(({ col, text }) => {
+        if (col - lastLabelCol < minGap) return;
+        lastLabelCol = col;
+        const label = months.createSpan({ cls: 'hl-heatmap-month-label', text });
+        label.style.left = `${col * (CELL + GAP)}px`;
+    });
+
+    const foot = parent.createDiv('hl-heatmap-foot');
+    foot.createSpan({
+        cls: 'hl-heatmap-summary',
+        text: t('manager.insights.heatSummary', { weeks, count: total }),
+    });
+    const legend = foot.createDiv('hl-heatmap-legend');
     legend.createSpan({ text: t('manager.insights.less'), cls: 'hl-heatmap-legend-label' });
     for (let l = 0; l <= 4; l++) {
-        const c = legend.createDiv('hl-heatmap-cell hl-heatmap-legend-cell');
+        const c = legend.createDiv('hl-heatmap-cell');
         if (l > 0) c.addClass('hl-level-' + l);
     }
     legend.createSpan({ text: t('manager.insights.more'), cls: 'hl-heatmap-legend-label' });

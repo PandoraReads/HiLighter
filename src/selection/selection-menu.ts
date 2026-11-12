@@ -200,6 +200,27 @@ export function showHighlightMenu(
         top: `${y}px`,
         transform: 'translateX(-50%)',
     });
+
+    // Keep the pill on screen: the menu is centered on the selection, so
+    // text at the far left/right edge pushes half the pill off-screen
+    // (very visible on phones). Clamp against the viewport now that the
+    // visible menu has a measurable size.
+    const view = doc.defaultView ?? window;
+    const margin = 8;
+    const half = menu.offsetWidth / 2;
+    const viewportWidth = view.innerWidth ?? window.innerWidth;
+    let clampedX = x;
+    if (clampedX - half < margin) clampedX = margin + half;
+    if (clampedX + half > viewportWidth - margin) clampedX = Math.max(margin, viewportWidth - margin - half);
+    let clampedY = y;
+    const viewportHeight = view.innerHeight ?? window.innerHeight;
+    if (clampedY < margin) clampedY = margin;
+    if (clampedY + menu.offsetHeight > viewportHeight - margin) {
+        clampedY = Math.max(margin, viewportHeight - margin - menu.offsetHeight);
+    }
+    if (clampedX !== x || clampedY !== y) {
+        menu.setCssProps({ left: `${clampedX}px`, top: `${clampedY}px` });
+    }
 }
 
 export function hideHighlightMenu(plugin: SelectionMenuHost): void {

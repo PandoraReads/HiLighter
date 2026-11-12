@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { applyRecentPreferences, computeRecentSources } from '../src/bookshelf/recent-page';
+import {
+	applyRecentPreferences,
+	computeRecentSources,
+	splitFocusEntry,
+} from '../src/bookshelf/recent-page';
 import type { RecentSource } from '../src/bookshelf/recent-page';
 import type { ShelfKind } from '../src/bookshelf/scope';
 import type { HighlightNote } from '../src/models';
@@ -103,6 +107,46 @@ describe('recent page preferences (format filter + sort)', () => {
 		const input = [...sources];
 		applyRecentPreferences(sources, kindOf, titleOf, 'pdf', 'count');
 		expect(sources).toEqual(input);
+	});
+});
+
+describe('recent page focus split (phone continue-reading card)', () => {
+	interface Row { id: string; lastAt: number }
+	const rows: Row[] = [
+		{ id: 'a', lastAt: 100 },
+		{ id: 'b', lastAt: 900 },
+		{ id: 'c', lastAt: 500 },
+	];
+
+	it('picks the entry with the newest activity as the focus', () => {
+		const { focus, rest } = splitFocusEntry(rows);
+		expect(focus?.id).toBe('b');
+		expect(rest.map(row => row.id)).toEqual(['a', 'c']);
+	});
+
+	it('keeps the first entry on ties', () => {
+		const { focus, rest } = splitFocusEntry<Row>([
+			{ id: 'x', lastAt: 50 },
+			{ id: 'y', lastAt: 50 },
+		]);
+		expect(focus?.id).toBe('x');
+		expect(rest.map(row => row.id)).toEqual(['y']);
+	});
+
+	it('returns no focus for an empty list', () => {
+		expect(splitFocusEntry([])).toEqual({ focus: null, rest: [] });
+	});
+
+	it('yields an empty rest list for a single entry', () => {
+		const { focus, rest } = splitFocusEntry([{ id: 'only', lastAt: 5 }]);
+		expect(focus?.id).toBe('only');
+		expect(rest).toEqual([]);
+	});
+
+	it('does not mutate the input', () => {
+		const snapshot = [...rows];
+		splitFocusEntry(rows);
+		expect(rows).toEqual(snapshot);
 	});
 });
 

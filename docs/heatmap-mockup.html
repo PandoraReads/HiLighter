@@ -1,0 +1,292 @@
+<title>热力图设计稿</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root {
+	--bg: #f2f1ed; --panel: #fbfaf7; --panel-2: #f4f2ec;
+	--ink: #23261f; --muted: #6d7365; --line: #ddd9cf;
+	--accent: #557a69; --on-accent: #f7f9f7;
+	--shadow: 0 1px 2px rgba(35,38,31,.05), 0 12px 32px rgba(35,38,31,.07);
+	--hm-empty: #e6e4dc; --hm-1: #b7d6c2; --hm-2: #8dbfa0; --hm-3: #639c7b; --hm-4: #3d7455;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--bg: #141613; --panel: #1d201c; --panel-2: #22261f;
+		--ink: #ecebe4; --muted: #9aa294; --line: #333831;
+		--accent: #9fc2aa; --on-accent: #1c241e; color-scheme: dark;
+		--hm-empty: #2a2f28; --hm-1: #33503e; --hm-2: #477055; --hm-3: #6aa077; --hm-4: #96cd9f;
+	}
+}
+:root[data-theme="dark"] {
+	--bg: #141613; --panel: #1d201c; --panel-2: #22261f;
+	--ink: #ecebe4; --muted: #9aa294; --line: #333831;
+	--accent: #9fc2aa; --on-accent: #1c241e; color-scheme: dark;
+	--hm-empty: #2a2f28; --hm-1: #33503e; --hm-2: #477055; --hm-3: #6aa077; --hm-4: #96cd9f;
+}
+body {
+	background: var(--bg); color: var(--ink);
+	font-family: Inter, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.doc { max-width: 1120px; margin: 0 auto; padding-block: 44px 64px; }
+.doc-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; }
+.doc-head .head-main { flex: 1 1 420px; min-width: 0; }
+.eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .14em; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(24px, 3.4vw, 30px); font-weight: 750; text-wrap: balance; }
+.lede { margin: 10px 0 0; max-width: 74ch; font-size: 14px; line-height: 1.75; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--panel); }
+.seg button { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 16px; border: none; background: none; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.seg-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+.frame-card { margin-top: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); }
+.chip-rec { float: right; font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 3px 10px; }
+
+/* ── the heatmap component (shared by all frames) ── */
+.hm { color: var(--ink); }
+.hm-title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.hm-title h3 { margin: 0; font-size: 14.5px; font-weight: 700; }
+.hm-title .range { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hm-body { display: flex; gap: 6px; }
+.hm-weekdays { display: flex; flex-direction: column; gap: 3px; padding-top: 18px; }
+.hm-weekdays span { height: 12px; font-size: 9.5px; line-height: 12px; color: var(--muted); }
+.hm-main { flex: 1; min-width: 0; }
+.hm-months { display: flex; gap: 3px; height: 14px; margin-bottom: 4px; position: relative; }
+.hm-months span { position: absolute; top: 0; font-size: 10px; color: var(--muted); white-space: nowrap; }
+.hm-grid { display: flex; gap: 3px; }
+.hm-col { display: flex; flex-direction: column; gap: 3px; }
+.hm-cell { width: 12px; height: 12px; border-radius: 3px; background: var(--hm-empty); cursor: pointer; position: relative; }
+.hm-cell.l1 { background: var(--hm-1); } .hm-cell.l2 { background: var(--hm-2); }
+.hm-cell.l3 { background: var(--hm-3); } .hm-cell.l4 { background: var(--hm-4); }
+.hm-cell.today { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+.hm-foot { display: flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+.hm-foot .sw { width: 12px; height: 12px; border-radius: 3px; background: var(--hm-empty); display: inline-block; }
+.hm-foot .spacer { flex: 1; }
+.hm-tip {
+	position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+	background: var(--ink); color: var(--bg); font-size: 11px; font-weight: 600;
+	padding: 3px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none; z-index: 5;
+	font-variant-numeric: tabular-nums;
+}
+.hm-tip::after { content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 4px solid transparent; border-top-color: var(--ink); }
+
+/* range selector variant */
+.hm-range { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; margin-left: auto; }
+.hm-range button { font: inherit; font-size: 11.5px; font-weight: 600; padding: 4px 12px; border: none; background: none; color: var(--muted); cursor: pointer; }
+.hm-range button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+
+.phone { width: 100%; max-width: 340px; margin: 0 auto; border-radius: 26px; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); background: var(--panel); overflow: hidden; padding: 18px 16px 20px; }
+.caption { padding: 16px 6px 0; }
+.caption h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.caption p { margin: 7px 0 0; font-size: 13px; line-height: 1.75; color: var(--muted); max-width: 92ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips span { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+</style>
+
+<header class="doc-head">
+	<div class="head-main">
+		<p class="eyebrow">HILIGHTER · 统计数据</p>
+		<h1>热力图设计稿</h1>
+		<p class="lede">方块固定 12px 不再变大，新增月份和星期标注，点按方块显示「日期 · 条数」。方案 A 让列数随屏幕宽度自适应（手机约 4 个月，桌面最多一整年，始终铺满）；方案 B 加一个范围切换。右上角可切深浅色，方块可以点。</p>
+	</div>
+	<div>
+		<p class="seg-label">演示主题</p>
+		<div class="seg" role="group" aria-label="演示主题">
+			<button id="mode-light" aria-pressed="true">浅色</button>
+			<button id="mode-dark" aria-pressed="false">深色</button>
+		</div>
+	</div>
+</header>
+
+<section id="stage">
+	<div class="frame-card" style="margin-top:26px">
+		<span class="chip-rec">推荐</span>
+		<div id="hm-desktop-a" class="hm"></div>
+		<div class="caption">
+			<h3>方案 A · 自适应铺满（桌面宽度）</h3>
+			<p>方块永远是 12px，列数由容器宽度决定：这里约 1100px 宽，放下整年 53 周；手机上自动降到约 19 周（四个半月）。月份标注在顶部（该月第一列上方），左侧标一/三/五，今天的方块有一圈描边。点任意方块看「日期 · 条数」气泡。右上角显示实际统计范围。</p>
+			<div class="chips"><span>固定 12px 方块</span><span>列数自适应 12–53 周</span><span>月份 + 星期标注</span><span>点按出数值</span></div>
+		</div>
+	</div>
+
+	<div class="frame-card">
+		<div class="phone"><div id="hm-phone-a" class="hm"></div></div>
+		<div class="caption">
+			<h3>方案 A · 手机宽度</h3>
+			<p>同一组件在约 340px 宽下的样子：约 19 周，方块仍是 12px，标注自动稀疏（月份标签挤不下时自动隔月显示）。</p>
+			<div class="chips"><span>同组件自适应</span><span>约 19 周</span></div>
+		</div>
+	</div>
+
+	<div class="frame-card">
+		<div id="hm-desktop-b" class="hm"></div>
+		<div class="caption">
+			<h3>方案 B · 范围切换（对照）</h3>
+			<p>同样的方块语言，右上角加「近3月 / 近半年 / 近1年」幽灵切换，列数固定按所选范围、从左排起，不满宽时右侧留白。信息更可控，但多一个控件，且窄屏仍可能需要横向滑动。</p>
+			<div class="chips"><span>固定小方块</span><span>范围可选</span><span>多一个控件</span></div>
+		</div>
+	</div>
+</section>
+
+<script>
+(function () {
+	// ── theme toggle ──
+	var root = document.documentElement;
+	var light = document.getElementById('mode-light');
+	var dark = document.getElementById('mode-dark');
+	function setMode(mode) {
+		if (mode === 'dark') root.setAttribute('data-theme', 'dark');
+		else root.removeAttribute('data-theme');
+		light.setAttribute('aria-pressed', String(mode === 'light'));
+		dark.setAttribute('aria-pressed', String(mode === 'dark'));
+	}
+	light.addEventListener('click', function () { setMode('light'); });
+	dark.addEventListener('click', function () { setMode('dark'); });
+
+	// ── deterministic pseudo-data (a plausible reading year) ──
+	function countFor(date) {
+		var d = date.getDate(), m = date.getMonth();
+		var v = Math.sin(d * 1.7 + m * 2.3) * Math.sin(d * .31 + m) ;
+		var weekend = date.getDay() === 0 || date.getDay() === 6;
+		var base = v > .55 ? 5 : v > .2 ? 3 : v > -.2 ? (weekend ? 0 : 2) : v > -.6 ? 1 : 0;
+		if (m === 10 && d > 8) base = Math.max(base, 4);   // this month is busy
+		if (m === 5) base = Math.round(base * .4);          // june slump
+		return Math.max(0, Math.min(9, base + (d % 3 === 0 ? 2 : 0)));
+	}
+	function levelOf(count) {
+		if (count <= 0) return 0;
+		if (count <= 2) return 1;
+		if (count <= 4) return 2;
+		if (count <= 6) return 3;
+		return 4;
+	}
+
+	var MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+	var TODAY = new Date();
+
+	function buildHeatmap(host, weeks, opts) {
+		opts = opts || {};
+		host.innerHTML = '';
+
+		var title = document.createElement('div'); title.className = 'hm-title';
+		var h3 = document.createElement('h3'); h3.textContent = opts.title || '高亮热力图';
+		var range = document.createElement('span'); range.className = 'range';
+		var end = new Date(TODAY);
+		var start = new Date(end.getTime() - (weeks - 1) * 7 * 864e5 - end.getDay() * 864e5);
+		range.textContent = start.getMonth() + 1 + '月' + start.getDate() + '日 – ' + (end.getMonth() + 1) + '月' + end.getDate() + '日';
+		title.appendChild(h3); title.appendChild(range);
+		if (opts.ranges) {
+			var seg = document.createElement('span'); seg.className = 'hm-range';
+			opts.ranges.forEach(function (label, i) {
+				var b = document.createElement('button');
+				b.textContent = label;
+				if (i === opts.activeRange) b.setAttribute('aria-pressed', 'true');
+				b.addEventListener('click', function () {
+					seg.querySelectorAll('button').forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+					b.setAttribute('aria-pressed', 'true');
+				});
+				seg.appendChild(b);
+			});
+			title.appendChild(seg);
+		}
+		host.appendChild(title);
+
+		var body = document.createElement('div'); body.className = 'hm-body';
+		var wd = document.createElement('div'); wd.className = 'hm-weekdays';
+		['一','','三','','五','',''].forEach(function (w) {
+			var s = document.createElement('span'); s.textContent = w; wd.appendChild(s);
+		});
+		var main = document.createElement('div'); main.className = 'hm-main';
+
+		// month labels positioned over their first column
+		var months = document.createElement('div'); months.className = 'hm-months';
+		var grid = document.createElement('div'); grid.className = 'hm-grid';
+
+		var lastMonth = -1;
+		var labelPlan = []; // {col, text}
+		var todayMid = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate()).getTime();
+		var cols = [];
+		for (var w = 0; w < weeks; w++) {
+			var col = document.createElement('div'); col.className = 'hm-col';
+			for (var d = 0; d < 7; d++) {
+				var dayDate = new Date(start.getTime() + (w * 7 + d) * 864e5);
+				var cell = document.createElement('div'); cell.className = 'hm-cell';
+				var inFuture = dayDate.getTime() > todayMid;
+				if (!inFuture) {
+					var c = countFor(dayDate);
+					var lv = levelOf(c);
+					if (lv) cell.classList.add('l' + lv);
+					if (dayDate.getTime() === todayMid) cell.classList.add('today');
+					(function (cell, dayDate, c) {
+						cell.addEventListener('click', function (ev) {
+							ev.stopPropagation();
+							host.querySelectorAll('.hm-tip').forEach(function (t) { t.remove(); });
+							var tip = document.createElement('span'); tip.className = 'hm-tip';
+							tip.textContent = (dayDate.getMonth() + 1) + '月' + dayDate.getDate() + '日 · ' + c + ' 条';
+							cell.appendChild(tip);
+							window.setTimeout(function () { tip.remove(); }, 1600);
+						});
+					})(cell, dayDate, c);
+				} else {
+					cell.style.opacity = '.25';
+				}
+				col.appendChild(cell);
+			}
+			// month label plan: label when the month of this column's Thursday changes
+			var probe = new Date(start.getTime() + (w * 7 + 3) * 864e5);
+			if (probe.getMonth() !== lastMonth) {
+				lastMonth = probe.getMonth();
+				labelPlan.push({ col: w, text: MONTHS[lastMonth] });
+			}
+			cols.push(col);
+			grid.appendChild(col);
+		}
+		// sparse month labels when columns are narrow (phone)
+		var cellStep = 15; // 12px cell + 3px gap
+		var minGapLabels = opts.weeks < 24 ? 2 : 1;
+		var lastLabelCol = -99;
+		labelPlan.forEach(function (p) {
+			if (p.col - lastLabelCol < minGapLabels * 4) return; // keep labels apart
+			lastLabelCol = p.col;
+			var s = document.createElement('span');
+			s.textContent = p.text;
+			s.style.left = (p.col * cellStep) + 'px';
+			months.appendChild(s);
+		});
+
+		main.appendChild(months); main.appendChild(grid);
+		body.appendChild(wd); body.appendChild(main);
+		host.appendChild(body);
+
+		var foot = document.createElement('div'); foot.className = 'hm-foot';
+		var less = document.createElement('span'); less.textContent = '少';
+		foot.appendChild(less);
+		['', 'l1', 'l2', 'l3', 'l4'].forEach(function (lv) {
+			var sw = document.createElement('span'); sw.className = 'sw' + (lv ? ' ' + lv : '');
+			if (lv) sw.style.background = ''; // uses .l1-.l4 classes below
+			foot.appendChild(sw);
+		});
+		// style the legend swatches through cell classes
+		foot.querySelectorAll('.sw').forEach(function (sw, i) {
+			if (i > 0) sw.classList.add('hm-cell');
+		});
+		var more = document.createElement('span'); more.textContent = '多';
+		var total = document.createElement('span'); total.className = 'spacer';
+		var sum = document.createElement('span');
+		var n = 0; for (var i = 0; i < weeks * 7; i++) { var dd = new Date(start.getTime() + i * 864e5); if (dd.getTime() <= todayMid) n += countFor(dd); }
+		sum.textContent = '近 ' + weeks + ' 周 · ' + n + ' 条高亮';
+		foot.appendChild(more); foot.appendChild(total); foot.appendChild(sum);
+		host.appendChild(foot);
+	}
+
+	// legend swatch colors reuse cell palette
+	var extra = document.createElement('style');
+	extra.textContent = '.hm-foot .sw.l1{background:var(--hm-1)}.hm-foot .sw.l2{background:var(--hm-2)}.hm-foot .sw.l3{background:var(--hm-3)}.hm-foot .sw.l4{background:var(--hm-4)}';
+	document.head.appendChild(extra);
+
+	buildHeatmap(document.getElementById('hm-desktop-a'), 53);
+	buildHeatmap(document.getElementById('hm-phone-a'), 19);
+	buildHeatmap(document.getElementById('hm-desktop-b'), 26, { ranges: ['近3月', '近半年', '近1年'], activeRange: 1 });
+})();
+</script>

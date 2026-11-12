@@ -1,0 +1,413 @@
+<title>手机顶栏设计稿</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* ── Page tokens (follows viewer theme) ──
+   Layout: document header, then a responsive grid of phone frames,
+   then notes. App tokens live on .phone and flip with the demo toggle. */
+:root {
+	--bg: #f2f1ed;
+	--panel: #fbfaf7;
+	--panel-2: #f4f2ec;
+	--ink: #23261f;
+	--muted: #6d7365;
+	--line: #ddd9cf;
+	--accent: #557a69;
+	--on-accent: #f7f9f7;
+	--shadow: 0 1px 2px rgba(35, 38, 31, .05), 0 12px 32px rgba(35, 38, 31, .07);
+	--serif: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--bg: #141613;
+		--panel: #1d201c;
+		--panel-2: #22261f;
+		--ink: #ecebe4;
+		--muted: #9aa294;
+		--line: #333831;
+		--accent: #9fc2aa;
+		--on-accent: #1c241e;
+		--shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .35);
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--bg: #141613;
+	--panel: #1d201c;
+	--panel-2: #22261f;
+	--ink: #ecebe4;
+	--muted: #9aa294;
+	--line: #333831;
+	--accent: #9fc2aa;
+	--on-accent: #1c241e;
+	--shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .35);
+	color-scheme: dark;
+}
+body {
+	background: var(--bg);
+	color: var(--ink);
+	font-family: Inter, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.doc { max-width: 1240px; margin: 0 auto; padding-block: 44px 64px; }
+
+/* ── Header ── */
+.doc-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; }
+.doc-head .head-main { flex: 1 1 420px; min-width: 0; }
+.eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .14em; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(26px, 4vw, 34px); font-weight: 750; letter-spacing: .01em; text-wrap: balance; }
+.lede { margin: 10px 0 0; max-width: 68ch; font-size: 14px; line-height: 1.75; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--panel); }
+.seg button { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 16px; border: none; background: none; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.seg-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+/* ── Frames grid ── */
+.frames { margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.frame-card { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px 18px 0; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.chip-rec { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 3px 10px; }
+
+/* ── App tokens inside the phone (HiLighter editorial theme) ── */
+#stage .phone {
+	--app-bg: #eeeae1;
+	--app-surface: #f8f6f1;
+	--app-card: #fffcf7;
+	--app-ink: #272b28;
+	--app-muted: #646d65;
+	--app-line: #d8d8cc;
+	--app-accent: #557a69;
+	--app-accent-soft: rgba(85, 122, 105, .13);
+}
+#stage[data-appmode="dark"] .phone {
+	--app-bg: #171d1a;
+	--app-surface: #252c27;
+	--app-card: #2c342e;
+	--app-ink: #f0f0e8;
+	--app-muted: #a5afa5;
+	--app-line: #48564b;
+	--app-accent: #9fc2aa;
+	--app-accent-soft: rgba(159, 194, 170, .16);
+}
+
+.phone { width: 100%; max-width: 322px; margin: 0 auto; border-radius: 26px; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); background: var(--app-bg); overflow: hidden; }
+.app { display: flex; flex-direction: column; min-height: 472px; }
+.app, .app button { font-family: inherit; }
+
+/* Nav shared */
+.nav button { font: inherit; background: none; border: none; padding: 0; color: var(--app-muted); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.nav button:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; border-radius: 8px; }
+.nav svg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+/* 现状: pills row 1, icon squares row 2 */
+.nav-current { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 6px; }
+.nav-current .tabs { display: flex; gap: 2px; }
+.nav-current .pill, .nav-compact .pill { display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 650; white-space: nowrap; }
+.nav-current .pill.is-active { color: var(--app-accent); background: var(--app-accent-soft); }
+.nav-current .acts { display: flex; gap: 5px; justify-content: flex-end; }
+.icon-sq { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 7px; border: 1px solid var(--app-line); background: var(--app-surface); color: var(--app-ink); }
+
+/* 方案 A / A2: flat text nav */
+.nav-flat { display: flex; justify-content: space-evenly; align-items: center; min-height: 44px; padding: 2px 6px; }
+.nav-flat button { font-size: 13.5px; font-weight: 600; letter-spacing: .02em; padding: 8px 4px; transition: color .15s; }
+.nav-flat button:hover { color: var(--app-ink); }
+.nav-flat button.is-active { color: var(--app-accent); font-weight: 700; }
+.nav-flat.underline button { position: relative; padding-bottom: 11px; }
+.nav-flat.underline button.is-active::after { content: ""; position: absolute; left: 50%; transform: translateX(-50%); bottom: 4px; width: 16px; height: 2px; border-radius: 2px; background: var(--app-accent); }
+
+/* 方案 B: compact pills, one row */
+.nav-compact { display: flex; align-items: center; gap: 3px; min-height: 40px; padding: 5px 10px; }
+.nav-compact .pill { padding: 4px 9px; }
+.nav-compact .pill.is-active { color: var(--app-accent); background: var(--app-accent-soft); }
+.nav-compact .spacer { flex: 1 1 auto; }
+.nav-compact .icon-sq { width: 30px; height: 30px; }
+.nav .icon-sq.is-active { border-color: var(--app-accent); color: var(--app-accent); }
+
+/* Content sliver (identical in every frame) */
+.shot { display: flex; flex-direction: column; gap: 12px; flex: 1; padding: 6px 14px 18px; }
+.row-label { display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; color: var(--app-muted); }
+.row-label .aside { font-weight: 500; font-variant-numeric: tabular-nums; }
+.cont-card { display: flex; align-items: center; gap: 12px; background: var(--app-card); border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(43, 48, 40, .05), 0 5px 16px rgba(43, 48, 40, .045); }
+.cover-ec { flex: none; width: 54px; height: 76px; border-radius: 3px 5px 5px 3px; background: linear-gradient(90deg, rgba(0, 0, 0, .25), rgba(0, 0, 0, 0) 16%), #b5251d; color: #f7f3ec; font-family: var(--serif); font-size: 8.5px; line-height: 1.3; padding: 6px 5px; font-style: italic; }
+.cont-info { flex: 1; min-width: 0; }
+.cont-info .t { font-size: 14.5px; font-weight: 700; color: var(--app-ink); }
+.cont-info .m { margin-top: 3px; font-size: 11.5px; color: var(--app-muted); font-variant-numeric: tabular-nums; }
+.bar { margin-top: 9px; height: 4px; border-radius: 999px; background: var(--app-line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 62%; border-radius: inherit; background: var(--app-accent); }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tile .cov { aspect-ratio: 3 / 4; max-width: 100%; border-radius: 3px 5px 5px 3px; display: flex; align-items: flex-end; padding: 7px; color: #f5f2ea; font-family: var(--serif); font-size: 10.5px; line-height: 1.3; }
+.tile:nth-child(1) .cov { background: linear-gradient(90deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, 0) 16%), #26241f; }
+.tile:nth-child(2) .cov { background: linear-gradient(90deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, 0) 16%), #3f5e66; }
+.tile:nth-child(3) .cov { background: linear-gradient(90deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, 0) 16%), #7d5a44; }
+.tile .p { margin-top: 5px; text-align: center; font-size: 10.5px; color: var(--app-muted); font-variant-numeric: tabular-nums; }
+
+/* Captions */
+.caption { padding: 14px 4px 18px; }
+.caption h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.caption p { margin: 7px 0 0; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips span { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+
+/* Notes */
+.notes { max-width: 880px; margin: 42px auto 0; display: grid; gap: 16px; }
+.note { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; }
+.note h2 { margin: 0 0 10px; font-size: 15.5px; font-weight: 700; }
+.note p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.8; color: var(--muted); }
+.note p:last-child { margin-bottom: 0; }
+.note ul { margin: 0; padding-left: 1.2em; font-size: 13.5px; line-height: 1.9; color: var(--muted); }
+.note strong { color: var(--ink); font-weight: 650; }
+.note code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+
+@media (prefers-reduced-motion: reduce) {
+	.nav-flat button { transition: none; }
+}
+</style>
+
+<header class="doc-head">
+	<div class="head-main">
+		<p class="eyebrow">HILIGHTER · 书架视图</p>
+		<h1>手机顶栏设计稿</h1>
+		<p class="lede">五个入口（近期、书架、统计、卡片集、设置）并成一排、等距排开的纯文字导航，是下面方案 A 与 A2；方案 B 是保留气泡的紧凑版备选。手机画面里的按钮可以点按切换选中态，右上角可切换深浅色预览。</p>
+	</div>
+	<div>
+		<p class="seg-label">演示主题</p>
+		<div class="seg" role="group" aria-label="演示主题">
+			<button id="mode-light" aria-pressed="true">浅色</button>
+			<button id="mode-dark" aria-pressed="false">深色</button>
+		</div>
+	</div>
+</header>
+
+<section id="stage" class="frames" data-appmode="light">
+
+	<figure class="frame-card" style="margin:0">
+		<div class="phone">
+			<div class="app">
+				<div class="nav nav-current">
+					<div class="tabs">
+						<button class="pill is-active" aria-pressed="true">
+							<svg viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.3"/><path d="M3.5 3.5v4.8h4.8"/><path d="M12 7.5V12l3 2"/></svg>
+							<span>近期</span>
+						</button>
+						<button class="pill" aria-pressed="false">
+							<svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="4.2" height="16" rx="1.2"/><rect x="9.9" y="4" width="4.2" height="16" rx="1.2"/><path d="M16.9 4.6l3.5 15.2"/></svg>
+							<span>书架</span>
+						</button>
+						<button class="pill" aria-pressed="false">
+							<svg viewBox="0 0 24 24"><path d="M3.5 3.5v17h17"/><path d="M8.5 17v-6"/><path d="M13.5 17V8"/><path d="M18.5 17v-9"/></svg>
+							<span>统计</span>
+						</button>
+					</div>
+					<div class="acts">
+						<button class="icon-sq" aria-pressed="false" aria-label="卡片集">
+							<svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg>
+						</button>
+						<button class="icon-sq" aria-pressed="false" aria-label="设置">
+							<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/></svg>
+						</button>
+					</div>
+				</div>
+				<div class="shot">
+					<div class="row-label"><span>继续阅读</span><span class="aside">本周 12 张卡片</span></div>
+					<div class="cont-card">
+						<div class="cover-ec">The<br>Economist</div>
+						<div class="cont-info">
+							<div class="t">《经济学人》精读</div>
+							<div class="m">11·08 刊 · 已读 62%</div>
+							<div class="bar"><i></i></div>
+						</div>
+					</div>
+					<div class="row-label"><span>书架</span></div>
+					<div class="tiles">
+						<div class="tile"><div class="cov">纽约客</div><div class="p">45%</div></div>
+						<div class="tile"><div class="cov">原则</div><div class="p">78%</div></div>
+						<div class="tile"><div class="cov">深度工作</div><div class="p">12%</div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<figcaption class="caption">
+			<h3>现状（你手机上看到的）</h3>
+			<p>三个页签占一行，卡片集与设置被挤到第二行；气泡与右侧按钮带边框和底色，整体高度约 52px，显得拥挤。</p>
+			<div class="chips"><span>两行</span><span>行高约 52px</span><span>气泡 + 边框</span></div>
+		</figcaption>
+	</figure>
+
+	<figure class="frame-card" style="margin:0">
+		<span class="chip-rec">推荐</span>
+		<div class="phone" data-interactive>
+			<div class="app">
+				<div class="nav nav-flat" role="tablist">
+					<button class="is-active" aria-pressed="true">近期</button>
+					<button aria-pressed="false">书架</button>
+					<button aria-pressed="false">统计</button>
+					<button aria-pressed="false">卡片集</button>
+					<button aria-pressed="false">设置</button>
+				</div>
+				<div class="shot">
+					<div class="row-label"><span>继续阅读</span><span class="aside">本周 12 张卡片</span></div>
+					<div class="cont-card">
+						<div class="cover-ec">The<br>Economist</div>
+						<div class="cont-info">
+							<div class="t">《经济学人》精读</div>
+							<div class="m">11·08 刊 · 已读 62%</div>
+							<div class="bar"><i></i></div>
+						</div>
+					</div>
+					<div class="row-label"><span>书架</span></div>
+					<div class="tiles">
+						<div class="tile"><div class="cov">纽约客</div><div class="p">45%</div></div>
+						<div class="tile"><div class="cov">原则</div><div class="p">78%</div></div>
+						<div class="tile"><div class="cov">深度工作</div><div class="p">12%</div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<figcaption class="caption">
+			<h3>方案 A · 扁平文字导航</h3>
+			<p>五个入口一排、等距排开，像网页导航：无气泡、无边框、无底色，直接是文字。选中项用主题色和加重字重区分，行高从 52px 收到 44px，五个纯文字标签的总宽度远小于屏幕，结构上不可能再换行。</p>
+			<div class="chips"><span>单行</span><span>行高 44px</span><span>等距排开</span><span>无框无底</span></div>
+		</figcaption>
+	</figure>
+
+	<figure class="frame-card" style="margin:0">
+		<div class="phone" data-interactive>
+			<div class="app">
+				<div class="nav nav-flat underline" role="tablist">
+					<button class="is-active" aria-pressed="true">近期</button>
+					<button aria-pressed="false">书架</button>
+					<button aria-pressed="false">统计</button>
+					<button aria-pressed="false">卡片集</button>
+					<button aria-pressed="false">设置</button>
+				</div>
+				<div class="shot">
+					<div class="row-label"><span>继续阅读</span><span class="aside">本周 12 张卡片</span></div>
+					<div class="cont-card">
+						<div class="cover-ec">The<br>Economist</div>
+						<div class="cont-info">
+							<div class="t">《经济学人》精读</div>
+							<div class="m">11·08 刊 · 已读 62%</div>
+							<div class="bar"><i></i></div>
+						</div>
+					</div>
+					<div class="row-label"><span>书架</span></div>
+					<div class="tiles">
+						<div class="tile"><div class="cov">纽约客</div><div class="p">45%</div></div>
+						<div class="tile"><div class="cov">原则</div><div class="p">78%</div></div>
+						<div class="tile"><div class="cov">深度工作</div><div class="p">12%</div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<figcaption class="caption">
+			<h3>方案 A2 · 文字 + 短下划线</h3>
+			<p>与 A 完全一致，只给选中项加一条 2px 短下划线，选中位置一眼可见，更接近常见网页导航的指示习惯。既然你要的是「直接是文字」，A 是纯度最高的版本，A2 供对照。</p>
+			<div class="chips"><span>单行</span><span>行高 44px</span><span>选中加下划线</span></div>
+		</figcaption>
+	</figure>
+
+	<figure class="frame-card" style="margin:0">
+		<div class="phone" data-interactive>
+			<div class="app">
+				<div class="nav nav-compact">
+					<button class="pill is-active" aria-pressed="true">
+						<svg viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.3"/><path d="M3.5 3.5v4.8h4.8"/><path d="M12 7.5V12l3 2"/></svg>
+						<span>近期</span>
+					</button>
+					<button class="pill" aria-pressed="false">
+						<svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="4.2" height="16" rx="1.2"/><rect x="9.9" y="4" width="4.2" height="16" rx="1.2"/><path d="M16.9 4.6l3.5 15.2"/></svg>
+						<span>书架</span>
+					</button>
+					<button class="pill" aria-pressed="false">
+						<svg viewBox="0 0 24 24"><path d="M3.5 3.5v17h17"/><path d="M8.5 17v-6"/><path d="M13.5 17V8"/><path d="M18.5 17v-9"/></svg>
+						<span>统计</span>
+					</button>
+					<span class="spacer"></span>
+					<button class="icon-sq" aria-pressed="false" aria-label="卡片集">
+						<svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg>
+					</button>
+					<button class="icon-sq" aria-pressed="false" aria-label="设置">
+						<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/></svg>
+					</button>
+				</div>
+				<div class="shot">
+					<div class="row-label"><span>继续阅读</span><span class="aside">本周 12 张卡片</span></div>
+					<div class="cont-card">
+						<div class="cover-ec">The<br>Economist</div>
+						<div class="cont-info">
+							<div class="t">《经济学人》精读</div>
+							<div class="m">11·08 刊 · 已读 62%</div>
+							<div class="bar"><i></i></div>
+						</div>
+					</div>
+					<div class="row-label"><span>书架</span></div>
+					<div class="tiles">
+						<div class="tile"><div class="cov">纽约客</div><div class="p">45%</div></div>
+						<div class="tile"><div class="cov">原则</div><div class="p">78%</div></div>
+						<div class="tile"><div class="cov">深度工作</div><div class="p">12%</div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<figcaption class="caption">
+			<h3>方案 B · 紧凑气泡（保守备选）</h3>
+			<p>保留现在的气泡与右侧图标按钮，按你说的把高度减一点：气泡内边距 6px 收到 4px，图标按钮 32px 收到 30px，整行压到 40px 并强制单行。改动最小，但卡片集、设置仍是图标，不如文字直白。</p>
+			<div class="chips"><span>单行</span><span>行高 40px</span><span>保留气泡</span><span>改动最小</span></div>
+		</figcaption>
+	</figure>
+
+</section>
+
+<section class="notes">
+	<div class="note">
+		<h2>关于「仍然是分行」</h2>
+		<p>我核对过 PandoraBooks 部署目录：<code>styles.css</code> 与 <code>main.js</code> 都和源码一致，手机顶栏规则从 v2.8.5 起就是 <code>flex-wrap: nowrap</code> 的单行布局。手机上仍看到两行，最可能是 iCloud 还没把新版样式同步到手机（旧版顶栏确实是会换行的 <code>flex-wrap: wrap</code>）。方案 A / A2 / B 都不依赖这条修复，纯文字五项总宽度远小于屏幕，结构上不会再换行。</p>
+	</div>
+	<div class="note">
+		<h2>实施要点</h2>
+		<ul>
+			<li><strong>方案 A / A2：</strong><code>view.ts</code> 的 <code>buildHeader</code> 加手机分支，三个页签与卡片集、设置并排渲染成同一排文字按钮（手机上省去图标，卡片集与设置显示文字标签）；<code>styles.css</code> 重写 <code>.is-phone</code> 顶栏规则（<code>space-evenly</code>、44px 行高、无背景无边框）。A2 只是多一条选中下划线。</li>
+			<li><strong>方案 B：</strong>只改 <code>styles.css</code>：<code>.is-phone</code> 下顶栏 40px、气泡内边距 4px 9px、图标按钮 30px，其余不动。</li>
+			<li><strong>三案共同：</strong>品牌文字在手机上继续隐藏；设置的弹出菜单（主题 + 深浅色）不变；思维导图页签在手机上继续隐藏。</li>
+			<li><strong>验收：</strong>实施后重建 <code>main.js</code>，连同 <code>styles.css</code> 拷贝到 PandoraBooks，手机端确认 iCloud 同步完成（文件大小与电脑端一致）后再看效果。</li>
+		</ul>
+	</div>
+	<div class="note">
+		<h2>怎么定</h2>
+		<p>看完设计稿回复 <strong>A</strong>、<strong>A2</strong> 或 <strong>B</strong> 即可；想调细节（字号、字重、间距、下划线长短、行高再收一点）直接说，我改完稿再确认，通过后才动代码。</p>
+	</div>
+</section>
+
+<script>
+(function () {
+	var stage = document.getElementById('stage');
+	var light = document.getElementById('mode-light');
+	var dark = document.getElementById('mode-dark');
+
+	function setMode(mode) {
+		stage.setAttribute('data-appmode', mode);
+		light.setAttribute('aria-pressed', String(mode === 'light'));
+		dark.setAttribute('aria-pressed', String(mode === 'dark'));
+		try { localStorage.setItem('hl-nav-demo-mode', mode); } catch (err) { /* private mode */ }
+	}
+	light.addEventListener('click', function () { setMode('light'); });
+	dark.addEventListener('click', function () { setMode('dark'); });
+
+	try {
+		var saved = localStorage.getItem('hl-nav-demo-mode');
+		if (saved === 'dark' || saved === 'light') setMode(saved);
+	} catch (err) { /* keep default light */ }
+
+	stage.addEventListener('click', function (event) {
+		var btn = event.target.closest('.phone[data-interactive] .nav button');
+		if (!btn) return;
+		var group = btn.parentElement;
+		var buttons = group.querySelectorAll('button');
+		buttons.forEach(function (other) {
+			var active = other === btn;
+			other.classList.toggle('is-active', active);
+			other.setAttribute('aria-pressed', String(active));
+		});
+	});
+})();
+</script>

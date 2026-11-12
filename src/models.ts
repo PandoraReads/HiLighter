@@ -358,7 +358,10 @@ export const DEFAULT_SETTINGS: HiLighterSettings = {
     translationTargetLang: '中文',
     highlightShortcut: '',
     useShortcut: false,
-    syncEnabled: false,
+    // Sync ships ON: highlights live in per-device IndexedDB, so without
+    // the vault sync file a fresh install silently shows empty shelves on
+    // every other device (the exact confusion that prompted the default).
+    syncEnabled: true,
     syncFilePath: '.hilighter/sync-data.json',
     syncOnUnload: true,
     syncAutoImport: true,

@@ -536,13 +536,18 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	private initMobileSupport() {
-		this.registerDomEvent(document, 'touchend', (evt: TouchEvent) => {
+		// iOS long-press selection CANCELS the touch (touchcancel) instead
+		// of ending it, and the cancellation lands before the selection has
+		// settled — listen for both ends and check twice.
+		const onTouchEnd = (evt: TouchEvent): void => {
 			if (this.highlightMenu && this.highlightMenu.contains(evt.target as Node)) return;
 
 			const target = evt.target as HTMLElement;
 			const doc = target.ownerDocument || document;
-			window.setTimeout(() => {
+			let shown = false;
+			const check = (): void => {
 				void (async () => {
+					if (shown) return;
 					const sel = doc.getSelection();
 					const selection = sel?.toString().trim();
 
@@ -557,14 +562,48 @@ export default class HiLighterPlugin extends Plugin {
 						const rect = range.getBoundingClientRect();
 						const context = await this.captureContext(selection, target, leaf);
 						context.leaf = leaf;
+						shown = true;
 						this.showHighlightMenu(selection, context, rect.left + rect.width / 2, rect.bottom + 20, doc);
-					} else {
+					} else if (!shown) {
 						if (this.highlightMenu && !this.highlightMenu.contains(target)) {
 							this.hideHighlightMenu();
 						}
 					}
 				})();
-			}, 500);
+			};
+			window.setTimeout(check, 500);
+			window.setTimeout(check, 1200);
+		};
+		this.registerDomEvent(document, 'touchend', onTouchEnd);
+		this.registerDomEvent(document, 'touchcancel', onTouchEnd);
+
+		// Belt and braces: iOS selection can also settle without any
+		// usable touch event inside the webview — selectionchange always
+		// fires, so debounce it and show the menu once a non-collapsed
+		// selection stabilizes (skip while the menu is already up).
+		let selTimer: number | null = null;
+		this.registerDomEvent(document, 'selectionchange', () => {
+			if (selTimer !== null) window.clearTimeout(selTimer);
+			selTimer = window.setTimeout(() => {
+				selTimer = null;
+				if (this.highlightMenu && this.highlightMenu.style.display !== 'none') return;
+				const sel = document.getSelection();
+				const selection = sel?.toString().trim() ?? '';
+				if (!sel || !selection || selection.length > 2000 || sel.rangeCount === 0) return;
+				const range = sel.getRangeAt(0);
+				if (range.collapsed) return;
+				const target = (range.commonAncestorContainer as HTMLElement).parentElement ?? document.body;
+				void (async () => {
+					let leaf: WorkspaceLeaf | null = null;
+					this.app.workspace.iterateAllLeaves(l => {
+						if (l.view.containerEl.contains(target)) leaf = l;
+					});
+					const rect = range.getBoundingClientRect();
+					const context = await this.captureContext(selection, target, leaf);
+					context.leaf = leaf;
+					this.showHighlightMenu(selection, context, rect.left + rect.width / 2, rect.bottom + 20, document);
+				})();
+			}, 600);
 		});
 	}
 
@@ -585,11 +624,24 @@ export default class HiLighterPlugin extends Plugin {
 		hideHighlightMenu(this);
 	}
 
+	/** Sidebar auto-open gate: only the FIRST highlight of a session
+	 *  reveals the highlight sidebar. Later highlights never re-open it
+	 *  (reading flow stays undisturbed), and phones — which have no
+	 *  ribbon entry — get their way in through this hook. */
+	private sidebarRevealed = false;
+
+	private revealHighlightSidebarOnce(): void {
+		if (this.sidebarRevealed) return;
+		this.sidebarRevealed = true;
+		void this.activateView(HIGHLIGHT_VIEW_TYPE, 'right');
+	}
+
 	/** Applies a highlight from the selection menu (markdown / pdf / epub branches). */
 	async applyHighlight(text: string, context: HighlightContext, color: string, note = '', draft?: HighlightNote) {
 		// EPUB selections: DB-only anchor (CFI) + live annotation
 		if (context?.anchorType === 'epub' && context?.cfi) {
 			await this.applyEpubHighlight(text, context, color, note, draft);
+			this.revealHighlightSidebarOnce();
 			return;
 		}
 
@@ -599,6 +651,7 @@ export default class HiLighterPlugin extends Plugin {
 			: null;
 		if (context?.pdfPage != null || pdfView) {
 			await this.applyPdfHighlight(text, context, color, pdfView || context?.leaf?.view, note, draft);
+			this.revealHighlightSidebarOnce();
 			return;
 		}
 
@@ -627,6 +680,7 @@ export default class HiLighterPlugin extends Plugin {
 				anchorType: 'note', contextQuote: context?.lineText || text,
 			});
 			this.refreshAllViews();
+			this.revealHighlightSidebarOnce();
 			new Notice(t('notePopup.saved'));
 			return;
 		}
@@ -673,6 +727,7 @@ export default class HiLighterPlugin extends Plugin {
 			};
 
 			await db.addHighlightNote(highlightEntry);
+			this.revealHighlightSidebarOnce();
 
 			this.app.workspace.iterateAllLeaves((leaf) => {
 				if (leaf.view.getViewType() === HIGHLIGHT_VIEW_TYPE) {

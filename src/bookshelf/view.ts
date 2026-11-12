@@ -5,7 +5,7 @@
 // folder-scoped book shelf, and entries to cards / mind map / stats.
 // Theme + light-dark controls live here (moved from the studio
 // topbar); FSRS review keeps its entry in the card studio. Phones
-// keep the original sidebar flows.
+// render the same pages under a flat five-entry text nav.
 
 import { ItemView, WorkspaceLeaf, Notice, Platform, setIcon, Menu, TFile, TFolder } from 'obsidian';
 import type { TAbstractFile } from 'obsidian';
@@ -29,25 +29,22 @@ import { withFavoriteDeletion, withoutFavoriteDeletion } from '../sync/shelf-col
 
 export type BookshelfTab = 'recent' | 'library' | 'cards' | 'mindmap' | 'stats';
 
-const TABS: Array<{ id: BookshelfTab; labelKey: string; shortKey?: string; icon: string }> = [
+const TABS: Array<{ id: BookshelfTab; labelKey: string; shortKey?: string }> = [
 	{
 		id: 'recent',
 		labelKey: 'bookshelf.tab.recent',
 		shortKey: 'bookshelf.tab.recent.short',
-		icon: 'history',
 	},
 	{
 		id: 'library',
 		labelKey: 'bookshelf.tab.library',
 		shortKey: 'bookshelf.tab.library.short',
-		icon: 'library-big',
 	},
-	{ id: 'mindmap', labelKey: 'bookshelf.tab.mindmap', icon: 'git-fork' },
+	{ id: 'mindmap', labelKey: 'bookshelf.tab.mindmap' },
 	{
 		id: 'stats',
 		labelKey: 'bookshelf.tab.stats',
 		shortKey: 'bookshelf.tab.stats.short',
-		icon: 'bar-chart-3',
 	},
 ];
 
@@ -402,11 +399,14 @@ export class BookshelfView extends ItemView {
 	// ── Header: brand + tabs + actions in one row ──
 
 	private buildHeader(parent: HTMLElement): void {
+		// Phones use the flat text nav: five entries, one row, no pills.
+		if (Platform.isPhone) {
+			this.buildPhoneHeader(parent);
+			return;
+		}
 		const bar = parent.createDiv('hl-studio-topbar hl-shelf-topbar');
 		const identity = bar.createDiv('hl-studio-topbar-identity');
 		identity.createSpan({ text: 'HiLighter', cls: 'hl-studio-topbar-brand' });
-		identity.createSpan({ text: '/', cls: 'hl-studio-topbar-separator' });
-		identity.createSpan({ text: t('bookshelf.viewName'), cls: 'hl-studio-topbar-title' });
 
 		// Inline tab row between the brand and the right-side actions
 		const tabs = bar.createDiv('hl-shelf-tabs');
@@ -415,14 +415,15 @@ export class BookshelfView extends ItemView {
 		const actions = bar.createDiv('hl-studio-topbar-actions');
 
 		// Card studio entry (moved here from the tab bar): opens the
-		// full cards view in the main area.
+		// full cards view in the main area. Ghost text action with a
+		// small grid icon — borderless, matching the tab row.
 		const cardsLabel = t('bookshelf.tab.cards');
 		const cardsBtn = actions.createEl('button', {
-			cls: 'hl-tool-btn hl-studio-topbar-button',
+			cls: 'hl-studio-topbar-button',
 			attr: { 'aria-label': cardsLabel, title: cardsLabel },
 		});
 		setIcon(cardsBtn, 'layout-grid');
-		cardsBtn.createSpan({ text: cardsLabel, cls: 'hl-tool-stats-label' });
+		cardsBtn.createSpan({ text: cardsLabel });
 		cardsBtn.onclick = () => this.openTab('cards');
 
 		// Appearance settings: one gear button covering both the theme
@@ -430,10 +431,50 @@ export class BookshelfView extends ItemView {
 		// instead of the old select + toggle pair.
 		const appearanceLabel = t('bookshelf.appearance.settings');
 		const appearanceBtn = actions.createEl('button', {
-			cls: 'hl-tool-btn hl-studio-mode-toggle hl-studio-icon-btn',
+			cls: 'hl-studio-mode-toggle hl-studio-icon-btn',
 			attr: { 'aria-label': appearanceLabel, title: appearanceLabel },
 		});
 		setIcon(appearanceBtn, 'settings-2');
+		appearanceBtn.onclick = (event) => this.openAppearanceMenu(event);
+	}
+
+	/**
+	 * Phone header: one flat, evenly spaced text row — the three tabs
+	 * plus the card-studio entry and the appearance menu. No pills, no
+	 * borders, no icons: five short labels can never overflow the row,
+	 * which structurally kills the old two-line wrap.
+	 */
+	private buildPhoneHeader(parent: HTMLElement): void {
+		const bar = parent.createDiv('hl-studio-topbar hl-shelf-topbar');
+		const nav = bar.createDiv('hl-shelf-flatnav');
+
+		VISIBLE_TABS.forEach(tab => {
+			const active = this.activeTab === tab.id;
+			const btn = nav.createEl('button', {
+				cls: `hl-shelf-flatnav-item ${active ? 'is-active' : ''}`,
+				attr: { role: 'tab', 'aria-selected': String(active), title: t(tab.labelKey) },
+			});
+			btn.createSpan({ text: t(tab.shortKey ?? tab.labelKey) });
+			btn.onclick = () => this.openTab(tab.id);
+		});
+
+		// Card studio entry: opens the full cards view in the main area.
+		const cardsLabel = t('bookshelf.tab.cards');
+		const cardsBtn = nav.createEl('button', {
+			cls: 'hl-shelf-flatnav-item',
+			attr: { 'aria-label': cardsLabel, title: cardsLabel },
+		});
+		cardsBtn.createSpan({ text: cardsLabel });
+		cardsBtn.onclick = () => this.openTab('cards');
+
+		// Appearance settings: same theme + light/dark menu as the
+		// desktop gear button, opened from a text entry.
+		const appearanceLabel = t('bookshelf.appearance.settings');
+		const appearanceBtn = nav.createEl('button', {
+			cls: 'hl-shelf-flatnav-item',
+			attr: { 'aria-label': appearanceLabel, title: appearanceLabel },
+		});
+		appearanceBtn.createSpan({ text: appearanceLabel });
 		appearanceBtn.onclick = (event) => this.openAppearanceMenu(event);
 	}
 
@@ -489,15 +530,11 @@ export class BookshelfView extends ItemView {
 		const tabBar = parent;
 		VISIBLE_TABS.forEach(tab => {
 			const active = this.activeTab === tab.id;
-			// Phones squeeze the topbar into one row: short labels keep the
-			// three tabs and the three action icons side by side.
-			const labelKey = Platform.isPhone && tab.shortKey ? tab.shortKey : tab.labelKey;
 			const btn = tabBar.createEl('button', {
 				cls: `hl-shelf-tab ${active ? 'is-active' : ''}`,
 				attr: { role: 'tab', 'aria-selected': String(active), title: t(tab.labelKey) },
 			});
-			setIcon(btn.createSpan({ cls: 'hl-shelf-tab-icon' }), tab.icon);
-			btn.createSpan({ text: t(labelKey), cls: 'hl-shelf-tab-label' });
+			btn.createSpan({ text: t(tab.labelKey), cls: 'hl-shelf-tab-label' });
 			btn.onclick = () => this.openTab(tab.id);
 		});
 	}

@@ -52,6 +52,46 @@ function coverVariant(path: string): number {
 	return hash % 6;
 }
 
+/**
+ * Creates the cover frame — variant index + shimmer placeholder, plus
+ * the optional format badge — inside a card element. The grid and the
+ * phone focus card share it.
+ */
+export function createBookCover(
+	parent: HTMLElement,
+	path: string,
+	kind: string,
+	opts?: { badge?: boolean },
+): HTMLElement {
+	const cover = parent.createDiv('hl-book-cover');
+	cover.setAttribute('data-variant', String(coverVariant(path)));
+	cover.createDiv('hl-book-cover-shimmer');
+	if (opts?.badge) {
+		const kindBadge = cover.createSpan({ cls: 'hl-book-kind' });
+		setIcon(kindBadge.createSpan({ cls: 'hl-book-kind-icon' }), KIND_ICON[kind] ?? 'file');
+		kindBadge.createSpan({ cls: 'hl-book-kind-label', text: KIND_SHORT[kind] ?? '' });
+	}
+	return cover;
+}
+
+/**
+ * Progress bar row (track + fill + percent). Shared by grid cards and
+ * the phone continue-reading focus card.
+ */
+export function renderBookProgress(parent: HTMLElement, progress: number): void {
+	const bar = parent.createDiv('hl-book-progress');
+	if (progress >= 100) bar.setAttribute('data-done', 'true');
+	bar.setAttribute('role', 'progressbar');
+	bar.setAttribute('aria-valuemin', '0');
+	bar.setAttribute('aria-valuemax', '100');
+	bar.setAttribute('aria-valuenow', String(progress));
+	bar.setAttribute('aria-label', t('bookshelf.meta.progressOf', { value: progress }));
+	const track = bar.createDiv('hl-book-progress-track');
+	track.createDiv({ cls: 'hl-book-progress-fill' })
+		.setCssProps({ width: `${progress}%` });
+	bar.createSpan({ cls: 'hl-book-progress-pct', text: `${progress}%` });
+}
+
 /** Opens any shelf file with its native viewer (md / pdf / epub). */
 export async function openShelfFile(app: App, path: string): Promise<void> {
 	await app.workspace.openLinkText(path, '', false);
@@ -140,9 +180,7 @@ export function renderBookGrid(
 		card.setAttribute('role', 'button');
 		card.setAttribute('tabindex', '0');
 
-		const cover = card.createDiv('hl-book-cover');
-		cover.setAttribute('data-variant', String(coverVariant(entry.file.path)));
-		cover.createDiv('hl-book-cover-shimmer');
+		const cover = createBookCover(card, entry.file.path, kind, { badge: true });
 		covers.push(cover);
 
 		if (opts.selection) {
@@ -151,11 +189,6 @@ export function renderBookGrid(
 			setIcon(check, 'check');
 			if (opts.selection.isSelected(entry.file.path)) card.addClass('is-selected');
 		}
-
-		// Format badge: top-right pill with icon + short label
-		const kindBadge = cover.createSpan({ cls: 'hl-book-kind' });
-		setIcon(kindBadge.createSpan({ cls: 'hl-book-kind-icon' }), KIND_ICON[kind] ?? 'file');
-		kindBadge.createSpan({ cls: 'hl-book-kind-label', text: KIND_SHORT[kind] ?? '' });
 
 		// Favorite heart: bottom-right, chromeless, hidden until hover
 		// (always shown when favorited or on touch devices).
@@ -194,17 +227,7 @@ export function renderBookGrid(
 		info.createDiv({ cls: 'hl-book-title', text: entry.file.basename });
 		info.createDiv({ cls: 'hl-book-sub', text: coverMetaLine(entry, opts.subtitle) });
 		if (typeof entry.progress === 'number') {
-			const bar = info.createDiv('hl-book-progress');
-			if (entry.progress >= 100) bar.setAttribute('data-done', 'true');
-			bar.setAttribute('role', 'progressbar');
-			bar.setAttribute('aria-valuemin', '0');
-			bar.setAttribute('aria-valuemax', '100');
-			bar.setAttribute('aria-valuenow', String(entry.progress));
-			bar.setAttribute('aria-label', t('bookshelf.meta.progressOf', { value: entry.progress }));
-			const track = bar.createDiv('hl-book-progress-track');
-			track.createDiv({ cls: 'hl-book-progress-fill' })
-				.setCssProps({ width: `${entry.progress}%` });
-			bar.createSpan({ cls: 'hl-book-progress-pct', text: `${entry.progress}%` });
+			renderBookProgress(info, entry.progress);
 		}
 
 		const open = () => { void openShelfFile(host.app, entry.file.path); };
@@ -251,15 +274,43 @@ export function renderBookGrid(
 	}, IO_FALLBACK_DELAY_MS);
 }
 
+/**
+ * Mounts a single entry's cover outside the grid (phone focus card).
+ * The card element carrying `data-path` must wrap the cover; its
+ * `.hl-book-title` / `.hl-book-sub` children, when present, receive
+ * the same metadata updates as grid cards.
+ */
+export function mountBookCover(
+	host: GridHost,
+	coverEl: HTMLElement,
+	entry: BookEntry,
+	cache: ShelfCoverCache,
+	opts?: { caption?: boolean; bare?: boolean; subtitle?: (entry: BookEntry) => string },
+): Promise<void> {
+	return mountCover(host, coverEl, [entry], cache, {
+		subtitle: opts?.subtitle ?? (() => ''),
+		caption: opts?.caption ?? true,
+		bare: opts?.bare ?? false,
+	});
+}
+
 /** Loads metadata for one card and swaps the shimmer for a real cover. */
 async function mountCover(
 	host: GridHost,
 	coverEl: HTMLElement,
 	entries: BookEntry[],
 	cache: ShelfCoverCache,
-	opts: { subtitle: (entry: BookEntry) => string },
+	opts: {
+		subtitle: (entry: BookEntry) => string;
+		/** Raster covers carry the title scrim; standalone mounts can skip it. */
+		caption?: boolean;
+		/** Generated covers omit their title text. */
+		bare?: boolean;
+	},
 ): Promise<void> {
-	const path = coverEl.parentElement?.getAttribute('data-path') ?? '';
+	// The card carrying data-path may wrap the cover directly (grid)
+	// or through an intermediate row (focus card) — walk up to it.
+	const path = coverEl.closest('[data-path]')?.getAttribute('data-path') ?? '';
 	const entry = entries.find(e => e.file.path === path);
 	if (!entry || !coverEl.isConnected) return;
 
@@ -268,7 +319,7 @@ async function mountCover(
 	if (!coverEl.isConnected) return;
 
 	coverEl.querySelector('.hl-book-cover-shimmer')?.remove();
-	const card = coverEl.parentElement;
+	const card = coverEl.closest('[data-path]');
 	if (!card) return;
 
 	if (meta.coverSrc) {
@@ -282,14 +333,17 @@ async function mountCover(
 		img.onerror = () => {
 			img.remove();
 			if (!coverEl.querySelector('.hl-book-cover-gen')) {
-				mountGeneratedCover(coverEl, meta.title || entry.file.basename);
+				mountGeneratedCover(coverEl, meta.title || entry.file.basename, { bare: opts.bare });
 			}
 		};
 		// Title rides on the cover itself (bottom scrim) — the card keeps
-		// only the meta line below.
-		mountCoverCaption(coverEl, meta.title || entry.file.basename);
+		// only the meta line below. Standalone mounts (focus card) show
+		// the title beside the cover and skip the scrim.
+		if (opts.caption !== false) {
+			mountCoverCaption(coverEl, meta.title || entry.file.basename);
+		}
 	} else {
-		mountGeneratedCover(coverEl, meta.title || entry.file.basename);
+		mountGeneratedCover(coverEl, meta.title || entry.file.basename, { bare: opts.bare });
 	}
 
 	const titleEl = card.querySelector('.hl-book-title');
@@ -305,13 +359,13 @@ async function mountCover(
 }
 
 /** Mounts the gradient cover card (no raster image available). */
-function mountGeneratedCover(coverEl: HTMLElement, title: string): void {
+function mountGeneratedCover(coverEl: HTMLElement, title: string, opts?: { bare?: boolean }): void {
 	const generated = coverEl.createDiv('hl-book-cover-gen');
 	generated.setAttribute('data-variant', coverEl.getAttribute('data-variant') ?? '0');
 	// Open-book mark centered on the gradient
 	const mark = generated.createDiv('hl-cover-gen-mark');
 	setIcon(mark, 'book-open');
-	generated.createDiv({ cls: 'hl-cover-gen-title', text: title });
+	if (!opts?.bare) generated.createDiv({ cls: 'hl-cover-gen-title', text: title });
 }
 
 /** Mounts the bottom title scrim over a raster cover. */

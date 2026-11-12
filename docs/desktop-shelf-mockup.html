@@ -1,0 +1,449 @@
+<title>桌面书架顶栏设计稿</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* ── Page tokens (follows viewer theme) ──
+   Layout: document header, three stacked desktop-window frames
+   (现状 / 方案 A / 方案 B), then notes. App tokens live inside the
+   frames and flip with the demo toggle. */
+:root {
+	--bg: #f2f1ed;
+	--panel: #fbfaf7;
+	--panel-2: #f4f2ec;
+	--ink: #23261f;
+	--muted: #6d7365;
+	--line: #ddd9cf;
+	--accent: #557a69;
+	--on-accent: #f7f9f7;
+	--shadow: 0 1px 2px rgba(35, 38, 31, .05), 0 12px 32px rgba(35, 38, 31, .07);
+	--serif: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--bg: #141613; --panel: #1d201c; --panel-2: #22261f;
+		--ink: #ecebe4; --muted: #9aa294; --line: #333831;
+		--accent: #9fc2aa; --on-accent: #1c241e;
+		--shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .35);
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--bg: #141613; --panel: #1d201c; --panel-2: #22261f;
+	--ink: #ecebe4; --muted: #9aa294; --line: #333831;
+	--accent: #9fc2aa; --on-accent: #1c241e;
+	--shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .35);
+	color-scheme: dark;
+}
+body {
+	background: var(--bg);
+	color: var(--ink);
+	font-family: Inter, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.doc { max-width: 1180px; margin: 0 auto; padding-block: 44px 64px; }
+
+/* ── Header ── */
+.doc-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; }
+.doc-head .head-main { flex: 1 1 420px; min-width: 0; }
+.eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .14em; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(26px, 4vw, 34px); font-weight: 750; letter-spacing: .01em; text-wrap: balance; }
+.lede { margin: 10px 0 0; max-width: 72ch; font-size: 14px; line-height: 1.75; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--panel); }
+.seg button { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 16px; border: none; background: none; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.seg-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+/* ── Desktop window frames ── */
+.frame-card { margin-top: 26px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; box-shadow: var(--shadow); }
+.chip-rec { float: right; font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 3px 10px; }
+
+/* App tokens inside the window (HiLighter editorial theme) */
+#stage .win {
+	--app-bg: #eeeae1;
+	--app-surface: #f8f6f1;
+	--app-card: #fffcf7;
+	--app-ink: #272b28;
+	--app-muted: #646d65;
+	--app-line: #d8d8cc;
+	--app-soft-line: #e8e7dc;
+	--app-accent: #557a69;
+	--app-accent-soft: rgba(85, 122, 105, .13);
+}
+#stage[data-appmode="dark"] .win {
+	--app-bg: #171d1a;
+	--app-surface: #252c27;
+	--app-card: #2c342e;
+	--app-ink: #f0f0e8;
+	--app-muted: #a5afa5;
+	--app-line: #48564b;
+	--app-soft-line: #3d493f;
+	--app-accent: #9fc2aa;
+	--app-accent-soft: rgba(159, 194, 170, .16);
+}
+
+.win { width: 100%; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); background: var(--app-bg); overflow: hidden; }
+.win-bar { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: var(--app-surface); border-bottom: 1px solid var(--app-soft-line); }
+.win-dot { width: 10px; height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--app-muted) 45%, transparent); }
+.win-title { margin-left: 8px; font-size: 11.5px; color: var(--app-muted); letter-spacing: .03em; }
+.win-body { padding: 0 clamp(18px, 3vw, 34px) 22px; font-family: inherit; }
+
+/* Shared svg behavior inside windows */
+.win svg { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Content sliver (identical in every frame) */
+.shelf-label { margin: 18px 2px 10px; font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--app-muted); }
+.shelf-label .aside { float: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 18px; }
+.tile .cov { aspect-ratio: 3 / 4; max-width: 100%; border-radius: 4px 6px 6px 4px; display: flex; align-items: flex-end; padding: 10px; color: #f5f2ea; font-family: var(--serif); font-size: 13px; line-height: 1.35; }
+.tile:nth-child(1) .cov { background: linear-gradient(90deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, 0) 16%), #b5251d; }
+.tile:nth-child(2) .cov { background: linear-gradient(90deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, 0) 16%), #26241f; }
+.tile:nth-child(3) .cov { background: linear-gradient(90deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, 0) 16%), #3f5e66; }
+.tile:nth-child(4) .cov { background: linear-gradient(90deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, 0) 16%), #7d5a44; }
+.tile:nth-child(5) .cov { background: linear-gradient(90deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, 0) 16%), #55606e; }
+.tile:nth-child(6) .cov { background: linear-gradient(90deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, 0) 16%), #6e5570; }
+.tile .t { margin-top: 7px; font-size: 12.5px; font-weight: 650; color: var(--app-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .p { margin-top: 3px; font-size: 11px; color: var(--app-muted); font-variant-numeric: tabular-nums; }
+
+/* ════ 现状 frame ════ */
+.cur-top { display: flex; align-items: center; gap: 10px; min-height: 52px; }
+.cur-brand { font-weight: 750; color: var(--app-ink); }
+.cur-sep { color: var(--app-muted); opacity: .55; }
+.cur-title { font-size: .86em; color: var(--app-muted); }
+.cur-tabs { display: flex; gap: 2px; flex: 1 1 auto; min-width: 0; margin: 0 4px; }
+.cur-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border: none; background: none; border-radius: 999px; font: inherit; font-size: .84em; font-weight: 650; color: var(--app-muted); cursor: pointer; white-space: nowrap; }
+.cur-pill svg { width: 15px; height: 15px; }
+.cur-pill.is-active { color: var(--app-accent); background: var(--app-accent-soft); }
+.cur-actions { display: flex; align-items: center; gap: 9px; }
+.cur-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 11px; border: 1px solid var(--app-line); border-radius: 7px; background: var(--app-surface); color: var(--app-ink); font: inherit; font-size: .78em; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.cur-btn svg { width: 14px; height: 14px; }
+.cur-btn.sq { width: 34px; padding: 0; justify-content: center; }
+.cur-tools { display: flex; align-items: center; gap: 10px; padding: 6px 0 10px; border-bottom: 1px solid var(--app-line); flex-wrap: wrap; }
+.cur-search { min-height: 34px; width: 170px; padding: 0 10px; border: 1px solid var(--app-line); border-radius: 7px; background: var(--app-surface); color: var(--app-ink); font: inherit; font-size: .8em; }
+.cur-search::placeholder { color: var(--app-muted); }
+.cur-select { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 9px; border: 1px solid var(--app-line); border-radius: 7px; background: var(--app-surface); color: var(--app-ink); font-size: .8em; cursor: pointer; white-space: nowrap; }
+.cur-select svg { width: 12px; height: 12px; opacity: .7; }
+.cur-count { margin-left: auto; font-size: .8em; color: var(--app-muted); font-variant-numeric: tabular-nums; }
+.cur-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; min-height: 30px; border: none; background: none; color: var(--app-muted); cursor: pointer; border-radius: 7px; }
+.cur-icon svg { width: 16px; height: 16px; }
+.cur-icon.is-active { color: var(--app-accent); }
+.cur-size { display: inline-flex; border: 1px solid var(--app-line); border-radius: 7px; overflow: hidden; }
+.cur-size button { display: inline-flex; padding: 6px 8px; border: none; background: var(--app-surface); color: var(--app-muted); cursor: pointer; }
+.cur-size button svg { width: 14px; height: 14px; }
+.cur-size button.is-active { color: var(--app-accent); background: var(--app-accent-soft); }
+
+/* ════ 方案 A：报头式 ════ */
+.ma-head { display: flex; align-items: center; gap: 22px; min-height: 56px; padding: 6px 0; border-bottom: 1px solid var(--app-soft-line); }
+.ma-brand { font-family: var(--serif); font-size: 1.12em; font-weight: 700; letter-spacing: .01em; color: var(--app-ink); }
+.ma-brand .vol { font-size: .62em; font-weight: 500; color: var(--app-muted); letter-spacing: .08em; margin-left: 8px; }
+.ma-nav { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.ma-tab { position: relative; background: none; border: none; padding: 6px 10px 10px; font: inherit; font-size: .84em; font-weight: 600; letter-spacing: .02em; color: var(--app-muted); cursor: pointer; white-space: nowrap; transition: color .15s; }
+.ma-tab:hover { color: var(--app-ink); }
+.ma-tab.is-active { color: var(--app-accent); font-weight: 700; }
+.ma-tab.is-active::after { content: ""; position: absolute; left: 50%; transform: translateX(-50%); bottom: 3px; width: 16px; height: 2px; border-radius: 2px; background: var(--app-accent); }
+.ma-actions { display: flex; align-items: center; gap: 14px; }
+.ma-textbtn { background: none; border: none; font: inherit; font-size: .84em; font-weight: 600; color: var(--app-muted); cursor: pointer; padding: 6px 4px; transition: color .15s; }
+.ma-textbtn:hover { color: var(--app-ink); }
+.ma-gear { background: none; border: none; color: var(--app-muted); cursor: pointer; padding: 6px; border-radius: 7px; }
+.ma-gear svg { width: 17px; height: 17px; }
+.ma-gear:hover { color: var(--app-ink); }
+.ma-tools { display: flex; align-items: center; gap: 4px; min-height: 44px; flex-wrap: wrap; }
+.ma-ghost { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; padding: 8px 8px; font: inherit; font-size: .8em; font-weight: 600; color: var(--app-muted); cursor: pointer; white-space: nowrap; min-height: 40px; border-radius: 7px; transition: color .15s; }
+.ma-ghost:hover { color: var(--app-ink); }
+.ma-ghost svg { width: 12px; height: 12px; opacity: .65; }
+.ma-ghost strong { font-weight: 650; color: var(--app-ink); }
+.ma-search { background: none; border: none; border-bottom: 1px solid var(--app-line); border-radius: 0; min-height: 40px; width: 168px; padding: 6px 2px; font: inherit; font-size: .8em; color: var(--app-ink); margin: 0 8px; }
+.ma-search::placeholder { color: var(--app-muted); }
+.ma-search:focus { outline: none; border-bottom-color: var(--app-accent); }
+.ma-count { margin-left: auto; font-size: .78em; color: var(--app-muted); font-variant-numeric: tabular-nums; padding: 0 6px; }
+.ma-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; min-height: 40px; border: none; background: none; color: var(--app-muted); cursor: pointer; border-radius: 7px; }
+.ma-icon svg { width: 16px; height: 16px; }
+.ma-icon:hover, .ma-textbtn:hover { color: var(--app-ink); }
+.ma-icon.is-active { color: var(--app-accent); }
+
+/* ════ 方案 B：双横带 ════ */
+.bb-band { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding: 8px 14px; background: var(--app-surface); border: 1px solid var(--app-line); border-radius: 12px; }
+.bb-brand { font-weight: 750; color: var(--app-ink); }
+.bb-sep { color: var(--app-muted); opacity: .55; }
+.bb-title { font-size: .86em; color: var(--app-muted); margin-right: 10px; }
+.bb-tabs { display: flex; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.bb-pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: none; background: none; border-radius: 999px; font: inherit; font-size: .82em; font-weight: 650; color: var(--app-muted); cursor: pointer; white-space: nowrap; }
+.bb-pill svg { width: 14px; height: 14px; }
+.bb-pill.is-active { color: var(--app-accent); background: var(--app-accent-soft); }
+.bb-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 11px; border: 1px solid var(--app-line); border-radius: 8px; background: var(--app-card); color: var(--app-ink); font: inherit; font-size: .78em; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.bb-btn svg { width: 14px; height: 14px; }
+.bb-btn.sq { width: 34px; padding: 0; justify-content: center; }
+.bb-search { min-height: 34px; width: 168px; padding: 0 10px; border: 1px solid var(--app-line); border-radius: 8px; background: var(--app-card); color: var(--app-ink); font: inherit; font-size: .8em; }
+.bb-search::placeholder { color: var(--app-muted); }
+.bb-select { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 9px; border: 1px solid var(--app-line); border-radius: 8px; background: var(--app-card); color: var(--app-ink); font-size: .8em; cursor: pointer; white-space: nowrap; }
+.bb-select svg { width: 12px; height: 12px; opacity: .7; }
+.bb-count { margin-left: auto; font-size: .8em; color: var(--app-muted); font-variant-numeric: tabular-nums; }
+.bb-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; min-height: 34px; border: none; background: none; color: var(--app-muted); cursor: pointer; border-radius: 8px; }
+.bb-icon svg { width: 16px; height: 16px; }
+.bb-icon.is-active { color: var(--app-accent); }
+.bb-size { display: inline-flex; border: 1px solid var(--app-line); border-radius: 8px; overflow: hidden; }
+.bb-size button { display: inline-flex; padding: 6px 8px; border: none; background: var(--app-card); color: var(--app-muted); cursor: pointer; }
+.bb-size button svg { width: 14px; height: 14px; }
+.bb-size button.is-active { color: var(--app-accent); background: var(--app-accent-soft); }
+
+/* Captions + notes */
+.caption { padding: 16px 6px 0; }
+.caption h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.caption p { margin: 7px 0 0; font-size: 13px; line-height: 1.75; color: var(--muted); max-width: 88ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips span { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+.notes { margin-top: 42px; display: grid; gap: 16px; }
+.note { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; }
+.note h2 { margin: 0 0 10px; font-size: 15.5px; font-weight: 700; }
+.note p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.8; color: var(--muted); }
+.note p:last-child { margin-bottom: 0; }
+.note ul { margin: 0; padding-left: 1.2em; font-size: 13.5px; line-height: 1.9; color: var(--muted); }
+.note strong { color: var(--ink); font-weight: 650; }
+.note code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+
+@media (prefers-reduced-motion: reduce) {
+	.ma-tab, .ma-ghost, .ma-textbtn { transition: none; }
+}
+</style>
+
+<header class="doc-head">
+	<div class="head-main">
+		<p class="eyebrow">HILIGHTER · 桌面 / 平板</p>
+		<h1>桌面书架顶栏设计稿</h1>
+		<p class="lede">针对「顶部两行菜单不统一」的两个重设计方案：方案 A 把两行统一成编辑部报头式的「刊头 + 安静控件」，延续手机端选定的文字导航语言；方案 B 把两行装进同样的圆角横带，靠重复容器求统一。窗口里的页签和按钮可以点按，右上角切换深浅色。</p>
+	</div>
+	<div>
+		<p class="seg-label">演示主题</p>
+		<div class="seg" role="group" aria-label="演示主题">
+			<button id="mode-light" aria-pressed="true">浅色</button>
+			<button id="mode-dark" aria-pressed="false">深色</button>
+		</div>
+	</div>
+</header>
+
+<section id="stage" data-appmode="light">
+
+	<!-- ════ 现状 ════ -->
+	<div class="frame-card">
+		<div class="win" data-interactive>
+			<div class="win-bar">
+				<span class="win-dot"></span><span class="win-dot"></span><span class="win-dot"></span>
+				<span class="win-title">Obsidian — HiLighter 书架 · 书籍</span>
+			</div>
+			<div class="win-body">
+				<div class="cur-top" data-group="nav">
+					<span class="cur-brand">HiLighter</span>
+					<span class="cur-sep">/</span>
+					<span class="cur-title">书架</span>
+					<div class="cur-tabs">
+						<button class="cur-pill"><svg viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.3"/><path d="M3.5 3.5v4.8h4.8"/><path d="M12 7.5V12l3 2"/></svg>近期阅读</button>
+						<button class="cur-pill is-active"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="4.2" height="16" rx="1.2"/><rect x="9.9" y="4" width="4.2" height="16" rx="1.2"/><path d="M16.9 4.6l3.5 15.2"/></svg>书籍</button>
+						<button class="cur-pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="18" r="2.6"/><circle cx="6" cy="6" r="2.6"/><circle cx="18" cy="6" r="2.6"/><path d="M18 8.6v1.6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8.6"/><path d="M12 12.4v3"/></svg>思维导图</button>
+						<button class="cur-pill"><svg viewBox="0 0 24 24"><path d="M3.5 3.5v17h17"/><path d="M8.5 17v-6"/><path d="M13.5 17V8"/><path d="M18.5 17v-9"/></svg>统计数据</button>
+					</div>
+					<div class="cur-actions">
+						<button class="cur-btn"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg>卡片集</button>
+						<button class="cur-btn sq"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/></svg></button>
+					</div>
+				</div>
+				<div class="cur-tools">
+					<button class="cur-btn"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="4.2" height="16" rx="1.2"/><rect x="9.9" y="4" width="4.2" height="16" rx="1.2"/><path d="M16.9 4.6l3.5 15.2"/></svg>自定义书架</button>
+					<input class="cur-search" placeholder="搜索书名" aria-label="搜索书名">
+					<span class="cur-select">按标题排序 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+					<span class="cur-select">全部格式 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+					<span class="cur-select">全部标签 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+					<button class="cur-btn"><svg viewBox="0 0 24 24"><path d="M3 7l2 2 3.5-3.5"/><path d="M3 17l2 2 3.5-3.5"/><path d="M12.5 6.5h8M12.5 12h8M12.5 17.5h8"/></svg>选择</button>
+					<span class="cur-count">128 本</span>
+					<button class="cur-icon"><svg viewBox="0 0 24 24"><path d="M5 19a8.5 8.5 0 1 1 14 0"/><path d="M12 15l3.2-4.2"/><circle cx="12" cy="15" r="1.1"/></svg></button>
+					<button class="cur-icon"><svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button>
+					<span class="cur-size">
+						<button class="is-active"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg></button>
+						<button><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.2"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.2"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.2"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.2"/></svg></button>
+						<button><svg viewBox="0 0 24 24"><path d="M8.5 6h12M8.5 12h12M8.5 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button>
+					</span>
+				</div>
+				<div class="shelf-label"><span class="aside">共 128 本 · 第 1 / 7 页</span>自定义书架</div>
+				<div class="tiles">
+					<div class="tile"><div class="cov">The Economist<br>精读</div><div class="t">经济学人精读</div><div class="p">62%</div></div>
+					<div class="tile"><div class="cov">纽约客</div><div class="t">纽约客选篇</div><div class="p">45%</div></div>
+					<div class="tile"><div class="cov">原则</div><div class="t">原则</div><div class="p">78%</div></div>
+					<div class="tile"><div class="cov">深度工作</div><div class="t">深度工作</div><div class="p">12%</div></div>
+					<div class="tile"><div class="cov">鞋狗</div><div class="t">鞋狗</div><div class="p">30%</div></div>
+					<div class="tile"><div class="cov">思考，快与慢</div><div class="t">思考，快与慢</div><div class="p">100%</div></div>
+				</div>
+			</div>
+		</div>
+		<div class="caption">
+			<h3>现状（桌面 · 书籍页）</h3>
+			<p>第一行是透明底、无边框的胶囊页签和圆角按钮；第二行一下子换成清一色带边框的下拉、输入框和图标，还压一条底部分隔线。两行的高度（52 / 46）、圆角（999 / 7）、底色（透明 / 灰面）三套语言并存，视觉重心互相打架，这是「不统一」的根源。</p>
+			<div class="chips"><span>两行三套控件语言</span><span>胶囊 vs 边框框</span><span>图标页签较重</span></div>
+		</div>
+	</div>
+
+	<!-- ════ 方案 A ════ -->
+	<div class="frame-card">
+		<span class="chip-rec">推荐</span>
+		<div class="win" data-interactive>
+			<div class="win-bar">
+				<span class="win-dot"></span><span class="win-dot"></span><span class="win-dot"></span>
+				<span class="win-title">Obsidian — HiLighter 书架 · 书籍</span>
+			</div>
+			<div class="win-body">
+				<div class="ma-head">
+					<span class="ma-brand">HiLighter<span class="vol">书架</span></span>
+					<div class="ma-nav" data-group="nav">
+						<button class="ma-tab">近期阅读</button>
+						<button class="ma-tab is-active">书籍</button>
+						<button class="ma-tab">思维导图</button>
+						<button class="ma-tab">统计数据</button>
+					</div>
+					<div class="ma-actions">
+						<button class="ma-textbtn">卡片集</button>
+						<button class="ma-gear"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/></svg></button>
+					</div>
+				</div>
+				<div class="ma-tools">
+					<button class="ma-ghost">自定义书架 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+					<input class="ma-search" placeholder="搜索书名" aria-label="搜索书名">
+					<button class="ma-ghost"><strong>按标题</strong> <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+					<button class="ma-ghost">全部格式 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+					<button class="ma-ghost">全部标签 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+					<button class="ma-ghost">选择 <svg viewBox="0 0 24 24"><path d="M3 7l2 2 3.5-3.5"/><path d="M3 17l2 2 3.5-3.5"/><path d="M12.5 6.5h8M12.5 12h8M12.5 17.5h8"/></svg></button>
+					<span class="ma-count">128 本</span>
+					<button class="ma-icon"><svg viewBox="0 0 24 24"><path d="M5 19a8.5 8.5 0 1 1 14 0"/><path d="M12 15l3.2-4.2"/><circle cx="12" cy="15" r="1.1"/></svg></button>
+					<button class="ma-icon"><svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button>
+					<button class="ma-icon is-active"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg></button>
+					<button class="ma-icon"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.2"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.2"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.2"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.2"/></svg></button>
+					<button class="ma-icon"><svg viewBox="0 0 24 24"><path d="M8.5 6h12M8.5 12h12M8.5 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button>
+				</div>
+				<div class="shelf-label"><span class="aside">共 128 本 · 第 1 / 7 页</span>自定义书架</div>
+				<div class="tiles">
+					<div class="tile"><div class="cov">The Economist<br>精读</div><div class="t">经济学人精读</div><div class="p">62%</div></div>
+					<div class="tile"><div class="cov">纽约客</div><div class="t">纽约客选篇</div><div class="p">45%</div></div>
+					<div class="tile"><div class="cov">原则</div><div class="t">原则</div><div class="p">78%</div></div>
+					<div class="tile"><div class="cov">深度工作</div><div class="t">深度工作</div><div class="p">12%</div></div>
+					<div class="tile"><div class="cov">鞋狗</div><div class="t">鞋狗</div><div class="p">30%</div></div>
+					<div class="tile"><div class="cov">思考，快与慢</div><div class="t">思考，快与慢</div><div class="p">100%</div></div>
+				</div>
+			</div>
+		</div>
+		<div class="caption">
+			<h3>方案 A · 编辑部报头（推荐）</h3>
+			<p>整页当作一本刊物的首页：第一行是刊头——衬线体 HiLighter 加小字「书架」，页签变成纯文字加短下划线（和手机端同一种语言，桌面去掉图标），右侧只剩「卡片集」文字按钮和一个无框齿轮，刊头下一根细分割线。第二行全部换成「幽灵控件」：下拉只剩文字和小箭头、搜索是一条下划线输入、图标全部无框，统一 40px 行高。两行共用一套颜色（灰字-黑字-主题色）和一个高度节奏（56 / 44），控件再多是同一张面孔。</p>
+			<div class="chips"><span>与手机端同一导航语言</span><span>零边框控件</span><span>56 / 44 高度节奏</span><span>衬线刊头</span></div>
+		</div>
+	</div>
+
+	<!-- ════ 方案 B ════ -->
+	<div class="frame-card">
+		<div class="win" data-interactive>
+			<div class="win-bar">
+				<span class="win-dot"></span><span class="win-dot"></span><span class="win-dot"></span>
+				<span class="win-title">Obsidian — HiLighter 书架 · 书籍</span>
+			</div>
+			<div class="win-body">
+				<div class="bb-band">
+					<span class="bb-brand">HiLighter</span>
+					<span class="bb-sep">/</span>
+					<span class="bb-title">书架</span>
+					<div class="bb-tabs" data-group="nav">
+						<button class="bb-pill"><svg viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.3"/><path d="M3.5 3.5v4.8h4.8"/><path d="M12 7.5V12l3 2"/></svg>近期阅读</button>
+						<button class="bb-pill is-active"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="4.2" height="16" rx="1.2"/><rect x="9.9" y="4" width="4.2" height="16" rx="1.2"/><path d="M16.9 4.6l3.5 15.2"/></svg>书籍</button>
+						<button class="bb-pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="18" r="2.6"/><circle cx="6" cy="6" r="2.6"/><circle cx="18" cy="6" r="2.6"/><path d="M18 8.6v1.6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8.6"/><path d="M12 12.4v3"/></svg>思维导图</button>
+						<button class="bb-pill"><svg viewBox="0 0 24 24"><path d="M3.5 3.5v17h17"/><path d="M8.5 17v-6"/><path d="M13.5 17V8"/><path d="M18.5 17v-9"/></svg>统计数据</button>
+					</div>
+					<button class="bb-btn"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg>卡片集</button>
+					<button class="bb-btn sq"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/></svg></button>
+				</div>
+				<div class="bb-band">
+					<button class="bb-btn"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="4.2" height="16" rx="1.2"/><rect x="9.9" y="4" width="4.2" height="16" rx="1.2"/><path d="M16.9 4.6l3.5 15.2"/></svg>自定义书架</button>
+					<input class="bb-search" placeholder="搜索书名" aria-label="搜索书名">
+					<span class="bb-select">按标题 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+					<span class="bb-select">全部格式 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+					<span class="bb-select">全部标签 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+					<button class="bb-btn"><svg viewBox="0 0 24 24"><path d="M3 7l2 2 3.5-3.5"/><path d="M3 17l2 2 3.5-3.5"/><path d="M12.5 6.5h8M12.5 12h8M12.5 17.5h8"/></svg>选择</button>
+					<span class="bb-count">128 本</span>
+					<button class="bb-icon"><svg viewBox="0 0 24 24"><path d="M5 19a8.5 8.5 0 1 1 14 0"/><path d="M12 15l3.2-4.2"/><circle cx="12" cy="15" r="1.1"/></svg></button>
+					<button class="bb-icon"><svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button>
+					<span class="bb-size">
+						<button class="is-active"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2"/></svg></button>
+						<button><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.2"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.2"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.2"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.2"/></svg></button>
+						<button><svg viewBox="0 0 24 24"><path d="M8.5 6h12M8.5 12h12M8.5 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button>
+					</span>
+				</div>
+				<div class="shelf-label"><span class="aside">共 128 本 · 第 1 / 7 页</span>自定义书架</div>
+				<div class="tiles">
+					<div class="tile"><div class="cov">The Economist<br>精读</div><div class="t">经济学人精读</div><div class="p">62%</div></div>
+					<div class="tile"><div class="cov">纽约客</div><div class="t">纽约客选篇</div><div class="p">45%</div></div>
+					<div class="tile"><div class="cov">原则</div><div class="t">原则</div><div class="p">78%</div></div>
+					<div class="tile"><div class="cov">深度工作</div><div class="t">深度工作</div><div class="p">12%</div></div>
+					<div class="tile"><div class="cov">鞋狗</div><div class="t">鞋狗</div><div class="p">30%</div></div>
+					<div class="tile"><div class="cov">思考，快与慢</div><div class="t">思考，快与慢</div><div class="p">100%</div></div>
+				</div>
+			</div>
+		</div>
+		<div class="caption">
+			<h3>方案 B · 双横带（保守）</h3>
+			<p>控件语言保持现状（边框下拉、边框按钮、胶囊页签），但把两行分别装进同样的圆角横带里：同一个底色、同一条边框、同一个 12px 圆角、同一套 34px 控件高度，靠「容器重复」达成统一。改动几乎只在 CSS，风险最小；代价是比现在更「工具栏软件」，与 editorial 主题的纸感气质不贴。</p>
+			<div class="chips"><span>保留现有控件</span><span>容器统一</span><span>改动最小</span></div>
+		</div>
+	</div>
+
+</section>
+
+<section class="notes">
+	<div class="note">
+		<h2>两个方案共同的原则</h2>
+		<ul>
+			<li><strong>一个高度节奏：</strong>第一行刊头/横带 56px，第二行控件 44px，行内所有控件同一高度，不再出现 30 / 34 / 46 混排。</li>
+			<li><strong>一套颜色语言：</strong>灰字 = 未选中，黑字 = 悬停/当前值，主题色只给「选中的页签 / 激活的筛选」，一个页面同时只有一处主题色高亮。</li>
+			<li><strong>近期阅读页自动受益：</strong>它的第二行只有排序 + 格式两个下拉，换成同一套控件语言后两行关系立刻一致。</li>
+			<li><strong>平板：</strong>沿用同一设计，窄宽度时第二行控件照旧折行成两层（现有行为），视觉语言不变。</li>
+		</ul>
+	</div>
+	<div class="note">
+		<h2>实施要点</h2>
+		<ul>
+			<li><strong>方案 A：</strong><code>view.ts</code> 页签去图标改纯文字（下划线选中）；<code>styles.css</code> 重写顶栏与工具栏控件皮肤——下拉改 <code>appearance:none</code> 的幽灵样式（文字+箭头）、搜索改下划线输入、图标按钮去边框、去掉工具栏底部分隔线；品牌行改衬线体。逻辑零改动，全是皮肤。</li>
+			<li><strong>方案 B：</strong>只动 <code>styles.css</code>：顶栏与工具栏各包一层横带容器样式（或给现有容器加底色/边框/圆角），统一控件高度与圆角。</li>
+			<li>两个方案都不改任何交互逻辑（下拉、菜单、多选、分页全部保持）。</li>
+		</ul>
+	</div>
+	<div class="note">
+		<h2>怎么定</h2>
+		<p>看完设计稿回复 <strong>A</strong> 或 <strong>B</strong>；要调细节（衬线品牌是否保留、页签要不要留图标、下划线搜索的宽度、横带圆角大小等）直接说，改完稿再确认，通过后才动代码。</p>
+	</div>
+</section>
+
+<script>
+(function () {
+	var stage = document.getElementById('stage');
+	var light = document.getElementById('mode-light');
+	var dark = document.getElementById('mode-dark');
+
+	function setMode(mode) {
+		stage.setAttribute('data-appmode', mode);
+		light.setAttribute('aria-pressed', String(mode === 'light'));
+		dark.setAttribute('aria-pressed', String(mode === 'dark'));
+		try { localStorage.setItem('hl-desktop-demo-mode', mode); } catch (err) { /* private mode */ }
+	}
+	light.addEventListener('click', function () { setMode('light'); });
+	dark.addEventListener('click', function () { setMode('dark'); });
+
+	try {
+		var saved = localStorage.getItem('hl-desktop-demo-mode');
+		if (saved === 'dark' || saved === 'light') setMode(saved);
+	} catch (err) { /* keep default light */ }
+
+	stage.addEventListener('click', function (event) {
+		var btn = event.target.closest('.win[data-interactive] button');
+		if (!btn) return;
+		var group = btn.closest('[data-group]') || btn.parentElement;
+		if (!group) return;
+		var buttons = group.querySelectorAll('button');
+		buttons.forEach(function (other) {
+			other.classList.toggle('is-active', other === btn);
+		});
+	});
+})();
+</script>

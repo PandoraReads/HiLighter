@@ -6,7 +6,7 @@
 // Toolbar: search | group | sort | filter | view | batch
 // The header is persistent across body re-renders (search keeps focus).
 
-import { setIcon } from 'obsidian';
+import { Platform, setIcon } from 'obsidian';
 import { t } from '../i18n';
 import { getColors } from '../colors';
 import { dueCount, newCount } from '../fsrs';
@@ -15,6 +15,73 @@ import { toggleBatchMode } from './batch';
 import { startFsrsSession } from './review/session';
 import type { HighlightManagerView } from './studio-view';
 import type { StudioGroupBy, StudioSortBy } from './studio-state';
+
+/**
+ * Phone studio header layout, delivered from main.js. Phones have shown
+ * stale styles.css delivery while main.js syncs fine, so the two-tier
+ * header rules (search owns row 1; triggers + view/batch share a
+ * scrollable row 2) are injected as a <style> tag instead of relying
+ * on styles.css reaching the device.
+ */
+const PHONE_STUDIO_CSS = `
+.is-phone .hl-studio-content-header {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto !important;
+    padding: 4px 12px !important;
+    scrollbar-width: none;
+}
+.is-phone .hl-studio-content-header::-webkit-scrollbar { display: none; }
+.is-phone .hl-studio-topbar { gap: 10px; }
+.is-phone .hl-studio-topbar-identity { flex: 1 1 auto; min-width: 0; gap: 10px; }
+.is-phone .hl-studio-topbar .hl-studio-header-search {
+    flex: 1 1 160px !important;
+    width: auto !important;
+    min-width: 120px;
+    max-width: 240px;
+    min-height: 36px !important;
+}
+.is-phone .hl-studio-tools { flex: 0 0 auto !important; flex-wrap: nowrap !important; }
+.is-phone .hl-studio-toolbar-right { flex: 0 0 auto !important; }
+.is-phone .hl-studio-toolbar-right { flex-wrap: nowrap !important; }
+.hl-studio-body-menu {
+    position: fixed !important;
+    top: auto !important;
+    left: auto !important;
+    z-index: 1000;
+}
+
+/* Compact controls: the whole strip must fit one phone row without
+   scrolling — zh labels need tighter type than the desktop defaults. */
+.is-phone .hl-studio-content-header { gap: 4px !important; }
+.is-phone .hl-studio-tools { gap: 2px !important; }
+.is-phone .hl-filter-trigger,
+.is-phone .hl-sort-trigger,
+.is-phone .hl-group-trigger {
+    min-height: 34px;
+    padding: 0 7px;
+    font-size: .74em;
+    gap: 4px;
+}
+.is-phone .hl-filter-trigger-chev svg { width: 10px !important; height: 10px !important; }
+.is-phone .hl-icon-btn { width: 28px; min-height: 34px; }
+.is-phone .hl-studio-toolbar-right { gap: 4px !important; }
+.is-phone .hl-view-btn { padding: 5px !important; }
+.is-phone .hl-view-btn svg { width: 13px !important; height: 13px !important; }
+.is-phone .hl-tool-batch { min-height: 0; padding: 5px 7px !important; }
+.is-phone .hl-tool-batch svg { width: 13px !important; height: 13px !important; }
+
+`;
+
+function ensurePhoneStudioStyles(): void {
+    if (!Platform.isPhone) return;
+    if (document.getElementById('hilighter-phone-studio-css')) return;
+    const el = document.head.createEl('style', { attr: { id: 'hilighter-phone-studio-css' } });
+    el.textContent = PHONE_STUDIO_CSS;
+}
+
 
 /** Applies icon + tooltip matching the current collapse state. */
 export function refreshCollapseButton(view: HighlightManagerView): void {
@@ -33,8 +100,9 @@ export function buildStudioTopbar(view: HighlightManagerView, parent: HTMLElemen
     const bar = parent.createDiv('hl-studio-topbar');
     const identity = bar.createDiv('hl-studio-topbar-identity');
     identity.createSpan({ text: 'HiLighter', cls: 'hl-studio-topbar-brand' });
-    identity.createSpan({ text: '/', cls: 'hl-studio-topbar-separator' });
-    identity.createSpan({ text: t('manager.viewName'), cls: 'hl-studio-topbar-title' });
+    // Phones: the view label yields its spot to the search input, which
+    // buildToolbar mounts into the identity row.
+    if (!Platform.isPhone) identity.createSpan({ text: t('manager.viewName'), cls: 'hl-studio-topbar-title' });
 
     const actions = bar.createDiv('hl-studio-topbar-actions');
     const reviewWrap = actions.createDiv('hl-tool-wrap');
@@ -63,12 +131,17 @@ function renderCollapseControl(view: HighlightManagerView, parent: HTMLElement):
 
 /** Builds the persistent toolbar header into the content pane. */
 export function buildToolbar(view: HighlightManagerView, parent: HTMLElement): HTMLElement {
+    ensurePhoneStudioStyles();
     const header = parent.createDiv('hl-studio-content-header');
 
-    // ── Left cluster: search + group + sort + filter ──
-    const tools = header.createDiv('hl-studio-tools');
+    // Phones mount the search beside the brand in the topbar; the header
+    // itself is one horizontally scrollable controls strip.
+    const searchHost = Platform.isPhone
+        ? (parent.querySelector<HTMLElement>('.hl-studio-topbar .hl-studio-topbar-identity') ?? header)
+        : header;
 
-    const searchInput = tools.createEl('input', {
+    // ── Search leads the header directly ──
+    const searchInput = searchHost.createEl('input', {
         cls: 'hl-studio-header-search',
         attr: { type: 'text', placeholder: t('manager.search.placeholder'), value: view.searchQuery }
     });
@@ -76,6 +149,21 @@ export function buildToolbar(view: HighlightManagerView, parent: HTMLElement): H
         view.searchQuery = searchInput.value;
         view.renderMainContent();
     };
+    if (Platform.isPhone) {
+        // The on-screen keyboard shrinks the viewport, which flings the
+        // absolute bottom-corner FAB stack into the middle of the page —
+        // hide it while typing and bring it back on blur.
+        const toggleFabs = (hidden: boolean): void => {
+            document.querySelectorAll('.hl-studio-fab-stack').forEach(el => {
+                el.toggleClass('is-hidden', hidden);
+            });
+        };
+        searchInput.addEventListener('focus', () => toggleFabs(true));
+        searchInput.addEventListener('blur', () => toggleFabs(false));
+    }
+
+    // ── Left cluster: group + sort + filter ──
+    const tools = header.createDiv('hl-studio-tools');
 
     // Group-by dropdown (replaces the old left icon rail)
     const groupWrap = tools.createDiv('hl-filter-dropdown-wrap');
@@ -137,6 +225,53 @@ export function buildToolbar(view: HighlightManagerView, parent: HTMLElement): H
 }
 
 // ============================================================
+// Body-anchored dropdown menus
+// ============================================================
+// The phone toolbar scrolls horizontally, and an absolutely positioned
+// child inside a scroll box is clipped — dropdowns never showed on
+// phones. Menus mount on document.body with fixed positioning (the
+// same approach as the bookshelf's dropdowns) on every platform.
+
+let studioMenu: { el: HTMLElement; onClose: (rerender: boolean) => void } | null = null;
+
+function closeStudioMenus(rerenderControls = true): void {
+    const current = studioMenu;
+    studioMenu = null;
+    document.removeEventListener('pointerdown', onStudioMenuPointerDown, true);
+    document.removeEventListener('keydown', onStudioMenuKeydown, true);
+    if (!current) return;
+    current.el.remove();
+    current.onClose(rerenderControls);
+}
+
+function onStudioMenuPointerDown(event: PointerEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.hl-studio-body-menu')) return;
+    if (target?.closest('.hl-filter-trigger, .hl-sort-trigger, .hl-group-trigger')) return;
+    closeStudioMenus();
+}
+
+function onStudioMenuKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') closeStudioMenus();
+}
+
+function openStudioMenu(cls: string, anchor: HTMLElement, onClose: (rerender: boolean) => void): HTMLElement {
+    closeStudioMenus(false);
+    const menu = document.body.createDiv(`${cls} hl-studio-body-menu`);
+    const rect = anchor.getBoundingClientRect();
+    menu.setCssProps({ left: `${rect.left}px`, top: `${rect.bottom + 6}px`, visibility: 'hidden' });
+    window.setTimeout(() => {
+        if (!menu.isConnected) return;
+        const left = Math.max(8, Math.min(rect.left, document.documentElement.clientWidth - menu.offsetWidth - 8));
+        menu.setCssProps({ left: `${left}px`, top: `${rect.bottom + 6}px`, visibility: 'visible' });
+    }, 0);
+    studioMenu = { el: menu, onClose };
+    document.addEventListener('pointerdown', onStudioMenuPointerDown, true);
+    document.addEventListener('keydown', onStudioMenuKeydown, true);
+    return menu;
+}
+
+// ============================================================
 // 分组 (group by) control
 // ============================================================
 
@@ -152,12 +287,12 @@ function groupModes(): Array<{ id: StudioGroupBy; label: string; icon: string }>
 }
 
 function renderGroupControl(view: HighlightManagerView, wrap: HTMLElement): void {
+    closeStudioMenus(false);
     wrap.empty();
     const modes = groupModes();
     const current = modes.find(m => m.id === view.groupBy) ?? modes[0]!;
 
     const trigger = wrap.createDiv(`hl-group-trigger ${view.groupDropdownOpen ? 'is-open' : ''}`);
-    setIcon(trigger.createSpan({ cls: 'hl-filter-trigger-icon' }), 'layers');
     trigger.createSpan({ cls: 'hl-filter-trigger-label', text: groupByLabel(view.groupBy) || current.label });
     setIcon(trigger.createSpan({ cls: 'hl-filter-trigger-chev' }), 'chevron-down');
     trigger.setAttribute('aria-label', t('manager.toolbar.groupBy'));
@@ -168,7 +303,10 @@ function renderGroupControl(view: HighlightManagerView, wrap: HTMLElement): void
     };
 
     if (view.groupDropdownOpen) {
-        const menu = wrap.createDiv('hl-group-dropdown');
+        const menu = openStudioMenu('hl-group-dropdown', wrap, rerender => {
+            view.groupDropdownOpen = false;
+            if (rerender) renderGroupControl(view, wrap);
+        });
         const list = menu.createDiv('hl-filter-dropdown-list');
         modes.forEach(m => {
             const sel = m.id === view.groupBy;
@@ -195,6 +333,7 @@ function renderGroupControl(view: HighlightManagerView, wrap: HTMLElement): void
 // ============================================================
 
 function renderSortControl(view: HighlightManagerView, wrap: HTMLElement): void {
+    closeStudioMenus(false);
     wrap.empty();
     const modes: Array<{ id: StudioSortBy; icon: string; label: string }> = [
         { id: 'source_order', icon: 'list-ordered', label: t('manager.sort.source_order.label') },
@@ -206,7 +345,6 @@ function renderSortControl(view: HighlightManagerView, wrap: HTMLElement): void 
     const current = modes.find(m => m.id === view.sortBy) ?? modes[0]!;
 
     const trigger = wrap.createDiv(`hl-sort-trigger ${view.sortDropdownOpen ? 'is-open' : ''}`);
-    setIcon(trigger.createSpan({ cls: 'hl-filter-trigger-icon' }), 'arrow-up-down');
     trigger.createSpan({ cls: 'hl-filter-trigger-label', text: current.label });
     setIcon(trigger.createSpan({ cls: 'hl-filter-trigger-chev' }), 'chevron-down');
     trigger.setAttribute('aria-label', t('manager.sort.label'));
@@ -217,7 +355,10 @@ function renderSortControl(view: HighlightManagerView, wrap: HTMLElement): void 
     };
 
     if (view.sortDropdownOpen) {
-        const menu = wrap.createDiv('hl-sort-dropdown');
+        const menu = openStudioMenu('hl-sort-dropdown', wrap, rerender => {
+            view.sortDropdownOpen = false;
+            if (rerender) renderSortControl(view, wrap);
+        });
         const list = menu.createDiv('hl-filter-dropdown-list');
         modes.forEach(m => {
             const sel = m.id === view.sortBy;
@@ -241,6 +382,7 @@ function renderSortControl(view: HighlightManagerView, wrap: HTMLElement): void 
 // ============================================================
 
 function renderFilterControl(view: HighlightManagerView, wrap: HTMLElement): void {
+    closeStudioMenus(false);
     wrap.empty();
     const items = collectFilterItems(view.highlights, view.groupBy, getColors(view.plugin.settings));
     if (items.length === 0) return;
@@ -249,7 +391,6 @@ function renderFilterControl(view: HighlightManagerView, wrap: HTMLElement): voi
     const selCount = view.selectedGroups.size;
 
     const trigger = wrap.createDiv(`hl-filter-trigger ${selCount > 0 ? 'has-selection' : ''} ${view.filterDropdownOpen ? 'is-open' : ''}`);
-    setIcon(trigger.createSpan({ cls: 'hl-filter-trigger-icon' }), 'funnel');
     trigger.createSpan({
         cls: 'hl-filter-trigger-label',
         text: selCount > 0 ? `${dimLabel} · ${selCount}` : dimLabel
@@ -263,7 +404,10 @@ function renderFilterControl(view: HighlightManagerView, wrap: HTMLElement): voi
     };
 
     if (view.filterDropdownOpen) {
-        const menu = wrap.createDiv('hl-filter-dropdown');
+        const menu = openStudioMenu('hl-filter-dropdown', wrap, rerender => {
+            view.filterDropdownOpen = false;
+            if (rerender) renderFilterControl(view, wrap);
+        });
 
         if (selCount > 0) {
             const clearRow = menu.createDiv({ cls: 'hl-filter-clear-row', text: t('manager.filter.clear') });
@@ -309,7 +453,6 @@ function renderReviewControl(view: HighlightManagerView, wrap: HTMLElement): voi
         cls: `hl-tool-btn hl-tool-review ${inSession ? 'is-active' : ''}`,
         attr: { 'aria-label': t('manager.mode.review'), title: t('manager.mode.review') }
     });
-    setIcon(btn, 'graduation-cap');
     // Due-count badge
     if (due > 0) {
         btn.createSpan({ cls: 'hl-tool-badge', text: String(due), attr: { 'aria-label': t('fsrs.dueBadge') } });

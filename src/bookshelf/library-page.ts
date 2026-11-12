@@ -14,7 +14,7 @@ import { withFavoriteDeletion, withoutFavoriteDeletion } from '../sync/shelf-col
 import { renderBookGrid, type BookEntry, type GridHost } from './book-card';
 import { BookMetaModal } from './book-meta-modal';
 import type { ShelfCoverCache } from './covers';
-import { appendFormatFilter, effectiveCoverSize } from './shelf-toolbar';
+import { appendFormatFilter, createMenuSelect, effectiveCoverSize, type MenuSelectCtl } from './shelf-toolbar';
 import { ShelfScopeModal } from './shelf-scope-modal';
 import { toggleShelfDropdown } from './shelf-menu';
 import { matchesBookTitle } from './title-match';
@@ -178,37 +178,38 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	// horizontally under the full-width search (desktop unchanged).
 	const controls = toolbar.createDiv('hl-shelf-controls');
 
-	// Sort select
+	// Sort: ghost dropdown (always opens below the trigger)
 	const sortWrap = controls.createDiv('hl-shelf-sort-wrap');
-	const sortSelect = sortWrap.createEl('select', {
-		cls: 'hl-shelf-select',
-		attr: { 'aria-label': t('bookshelf.library.sort.label') },
-	});
-	SORT_OPTIONS.forEach(option => sortSelect.createEl('option', {
-		text: t(option.labelKey),
-		value: option.id,
-	}));
-	sortSelect.value = settings.bookshelfSortBy || 'title';
-	sortSelect.onchange = () => {
-		plugin.settings.bookshelfSortBy = sortSelect.value as ShelfSortBy;
-		ctx.setPage(1);
-		void plugin.saveSettings().then(() => ctx.onScopeChange());
-	};
+	createMenuSelect(
+		sortWrap,
+		t('bookshelf.library.sort.label'),
+		SORT_OPTIONS.map(option => ({ id: option.id, label: t(option.labelKey) })),
+		settings.bookshelfSortBy || 'title',
+		(next) => {
+			plugin.settings.bookshelfSortBy = next as ShelfSortBy;
+			ctx.setPage(1);
+			void plugin.saveSettings().then(() => ctx.onScopeChange());
+		},
+	);
 
 	// Format filter (shared with the recent page)
 	appendFormatFilter(plugin, controls, ctx.onScopeChange);
 
-	// Tag filter select (options refreshed by renderBody as tags change)
+	// Tag filter dropdown (options refreshed by renderBody as tags change)
 	const tagWrap = controls.createDiv('hl-shelf-sort-wrap');
-	const tagSelect = tagWrap.createEl('select', {
-		cls: 'hl-shelf-select',
-		attr: { 'aria-label': t('bookshelf.library.tags'), 'data-role': 'tag-filter' },
-	});
-	tagSelect.onchange = () => {
-		ctx.setTagFilter(tagSelect.value || null);
-		ctx.setPage(1);
-		ctx.onSearchChange();
-	};
+	const tagCtl = createMenuSelect(
+		tagWrap,
+		t('bookshelf.library.tags'),
+		[],
+		'',
+		(next) => {
+			ctx.setTagFilter(next || null);
+			ctx.setPage(1);
+			ctx.onSearchChange();
+		},
+	);
+	tagCtl.trigger.setAttribute('data-role', 'tag-filter');
+	tagSelectCtls.set(tagCtl.trigger, tagCtl);
 
 	// Multi-select toggle (batch tag / delete)
 	const selectLabel = t('bookshelf.library.select');
@@ -229,10 +230,6 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 	// spacing stays a tight 8px (the count's old solo auto-margin is
 	// what scattered them).
 	const tail = controls.createDiv('hl-shelf-tail');
-
-	// Book count (kept in the toolbar; refreshed by renderBody)
-	const count = tail.createDiv('hl-shelf-count');
-	count.setAttribute('aria-live', 'polite');
 
 	// Reading-progress filter: chromeless icon button left of the heart;
 	// a Menu popup picks 计划读 / 正在读 / 已读完 / 全部.
@@ -299,6 +296,10 @@ function buildToolbar(host: GridHost, parent: HTMLElement, ctx: LibraryPageCtx):
 			};
 		});
 	}
+
+	// Book count closes the tail (refreshed by renderBody)
+	const count = tail.createDiv('hl-shelf-count');
+	count.setAttribute('aria-live', 'polite');
 
 	return toolbar;
 }
@@ -637,20 +638,24 @@ function scrollPageToTop(bar: HTMLElement): void {
 	if (scroll) scroll.scrollTop = 0;
 }
 
-/** Rebuilds the tag-filter select options (tags change with batching). */
+/** Live tag-filter dropdown controllers, keyed by their trigger element. */
+const tagSelectCtls = new WeakMap<HTMLElement, MenuSelectCtl>();
+
+/** Rebuilds the tag-filter dropdown options (tags change with batching). */
 function refreshTagOptions(toolbar: HTMLElement, bookTags: Record<string, string[]>, ctx: LibraryPageCtx): void {
-	const select = toolbar.querySelector<HTMLSelectElement>('select[data-role="tag-filter"]');
-	if (!select) return;
+	const trigger = toolbar.querySelector<HTMLElement>('[data-role="tag-filter"]');
+	const ctl = trigger ? tagSelectCtls.get(trigger) : undefined;
+	if (!ctl) return;
+	const tags = collectBookTags(bookTags);
 	const current = ctx.getTagFilter();
-	select.empty();
-	select.createEl('option', { text: t('bookshelf.library.tagsAll'), value: '' });
-	collectBookTags(bookTags).forEach(({ tag, count }) => {
-		select.createEl('option', { text: `${tag} · ${count}`, value: tag });
-	});
-	// Drop a vanished selection (its books were untagged / deleted).
-	select.value = current && collectBookTags(bookTags).some(item => item.tag === current)
-		? current
-		: '';
+	ctl.refresh(
+		[
+			{ id: '', label: t('bookshelf.library.tagsAll') },
+			...tags.map(({ tag, count }) => ({ id: tag, label: `${tag} · ${count}` })),
+		],
+		// Drop a vanished selection (its books were untagged / deleted).
+		current && tags.some(item => item.tag === current) ? current : '',
+	);
 }
 
 /** Updates card check marks + the batch stack without a body re-render. */

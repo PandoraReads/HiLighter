@@ -1,0 +1,234 @@
+<title>上次阅读卡片设计稿</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root {
+	--bg: #f2f1ed; --panel: #fbfaf7; --panel-2: #f4f2ec;
+	--ink: #23261f; --muted: #6d7365; --line: #ddd9cf;
+	--accent: #557a69; --on-accent: #f7f9f7;
+	--shadow: 0 1px 2px rgba(35,38,31,.05), 0 12px 32px rgba(35,38,31,.07);
+	--serif: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--bg: #141613; --panel: #1d201c; --panel-2: #22261f;
+		--ink: #ecebe4; --muted: #9aa294; --line: #333831;
+		--accent: #9fc2aa; --on-accent: #1c241e; color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--bg: #141613; --panel: #1d201c; --panel-2: #22261f;
+	--ink: #ecebe4; --muted: #9aa294; --line: #333831;
+	--accent: #9fc2aa; --on-accent: #1c241e; color-scheme: dark;
+}
+body {
+	background: var(--bg); color: var(--ink);
+	font-family: Inter, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.doc { max-width: 1080px; margin: 0 auto; padding-block: 44px 64px; }
+.doc-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; }
+.doc-head .head-main { flex: 1 1 420px; min-width: 0; }
+.eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .14em; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(24px, 3.4vw, 30px); font-weight: 750; text-wrap: balance; }
+.lede { margin: 10px 0 0; max-width: 72ch; font-size: 14px; line-height: 1.75; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--panel); }
+.seg button { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 16px; border: none; background: none; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.seg-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+/* App tokens inside frames */
+#stage .win {
+	--app-bg: #eeeae1; --app-surface: #f8f6f1; --app-card: #fffcf7;
+	--app-ink: #272b28; --app-muted: #646d65; --app-line: #d8d8cc; --app-soft-line: #e8e7dc;
+	--app-accent: #557a69;
+	--app-action-bg: #272b28; --app-action-ink: #fffcf7;
+}
+#stage[data-appmode="dark"] .win {
+	--app-bg: #171d1a; --app-surface: #252c27; --app-card: #2c342e;
+	--app-ink: #f0f0e8; --app-muted: #a5afa5; --app-line: #48564b; --app-soft-line: #3d493f;
+	--app-accent: #9fc2aa;
+	--app-action-bg: #f0f0e8; --app-action-ink: #171d1a;
+}
+.frame-card { margin-top: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; box-shadow: var(--shadow); }
+.chip-rec { float: right; font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 3px 10px; }
+.win { width: 100%; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); background: var(--app-bg); overflow: hidden; }
+.win-bar { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: var(--app-surface); border-bottom: 1px solid var(--app-soft-line); }
+.win-dot { width: 10px; height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--app-muted) 45%, transparent); }
+.win-title { margin-left: 8px; font-size: 11.5px; color: var(--app-muted); }
+.win-body { padding: 10px clamp(16px, 3vw, 30px) 20px; }
+
+/* toolbar strip hint (ghost, as shipped) */
+.tools { display: flex; align-items: center; gap: 6px; margin-bottom: 18px; color: var(--app-muted); font-size: 12.5px; font-weight: 600; }
+.tools .ghost { display: inline-flex; align-items: center; gap: 5px; padding: 8px 6px; }
+.tools .chev { font-size: 9px; opacity: .6; }
+.tools .search { margin-left: 4px; border-bottom: 1px solid var(--app-line); padding: 6px 2px; width: 150px; color: var(--app-muted); }
+
+/* ── The new focus card: horizontal strip ── */
+.focus {
+	background: var(--app-card);
+	border: 1px solid var(--app-soft-line);
+	border-radius: 12px;
+	box-shadow: 0 1px 2px rgba(43,48,40,.04), 0 5px 16px rgba(43,48,40,.045);
+	padding: 12px 14px;
+	max-width: 640px;
+	cursor: pointer;
+}
+.focus-head { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; }
+.focus-head .label { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--app-muted); }
+.focus-head .time { margin-left: auto; font-size: 11px; color: var(--app-muted); font-variant-numeric: tabular-nums; }
+.focus-body { display: flex; align-items: center; gap: 14px; }
+.focus-cover {
+	flex: none; width: 52px; aspect-ratio: 2 / 3; border-radius: 3px 5px 5px 3px;
+	background: linear-gradient(90deg, rgba(0,0,0,.28), rgba(0,0,0,0) 16%), #b5251d;
+	color: #f7f3ec; font-family: var(--serif); font-style: italic; font-size: 7px; line-height: 1.3;
+	display: flex; align-items: flex-end; padding: 5px 4px;
+	box-shadow: 0 2px 6px rgba(0,0,0,.18);
+}
+.focus-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+.focus-title {
+	font-size: 15.5px; font-weight: 700; color: var(--app-ink);
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.focus-meta { font-size: 11.5px; color: var(--app-muted); margin-top: -4px; font-variant-numeric: tabular-nums; }
+.focus-row { display: flex; align-items: center; gap: 10px; }
+.focus-cta-row { display: flex; justify-content: flex-end; margin-top: 1px; }
+.focus-track { flex: 1; height: 4px; border-radius: 999px; background: var(--app-line); overflow: hidden; }
+.focus-fill { display: block; height: 100%; width: 62%; border-radius: inherit; background: var(--app-accent); }
+.focus-pct { flex: none; min-width: 30px; font-size: 11.5px; color: var(--app-muted); text-align: right; font-variant-numeric: tabular-nums; }
+.focus-cta {
+	flex: none; display: inline-flex; align-items: center; gap: 6px;
+	height: 32px; padding: 0 14px; border: none; border-radius: 8px;
+	background: var(--app-action-bg); color: var(--app-action-ink);
+	font-size: 12.5px; font-weight: 650; cursor: pointer;
+}
+.focus-cta svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* phone preview */
+.phone { width: 100%; max-width: 330px; margin: 0 auto; border-radius: 26px; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); background: var(--app-bg); overflow: hidden; padding-bottom: 6px; }
+
+.caption { padding: 16px 6px 0; }
+.caption h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.caption p { margin: 7px 0 0; font-size: 13px; line-height: 1.75; color: var(--muted); max-width: 88ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips span { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+.note { margin-top: 28px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 22px; font-size: 13.5px; line-height: 1.8; color: var(--muted); }
+.note h2 { margin: 0 0 8px; font-size: 15px; color: var(--ink); }
+.note strong { color: var(--ink); font-weight: 650; }
+</style>
+
+<header class="doc-head">
+	<div class="head-main">
+		<p class="eyebrow">HILIGHTER · 近期阅读</p>
+		<h1>上次阅读卡片设计稿</h1>
+		<p class="lede">窄条样式：左上角「上次阅读」小标题，左侧小封面，右侧书名、进度条，「继续阅读」按钮在进度条下方。手机与桌面同一设计。右上角可切换深浅色。</p>
+	</div>
+	<div>
+		<p class="seg-label">演示主题</p>
+		<div class="seg" role="group" aria-label="演示主题">
+			<button id="mode-light" aria-pressed="true">浅色</button>
+			<button id="mode-dark" aria-pressed="false">深色</button>
+		</div>
+	</div>
+</header>
+
+<section id="stage" data-appmode="light">
+
+	<div class="frame-card">
+		<span class="chip-rec">推荐</span>
+		<div class="win">
+			<div class="win-bar">
+				<span class="win-dot"></span><span class="win-dot"></span><span class="win-dot"></span>
+				<span class="win-title">Obsidian — HiLighter · 近期阅读</span>
+			</div>
+			<div class="win-body">
+				<div class="tools">
+					<span class="ghost">最近阅读 <span class="chev">▾</span></span>
+					<span class="ghost">全部格式 <span class="chev">▾</span></span>
+					<span class="search">搜索书名…</span>
+				</div>
+				<div class="focus">
+					<div class="focus-head">
+						<span class="label">上次阅读</span>
+						<span class="time">2 小时前</span>
+					</div>
+					<div class="focus-body">
+						<div class="focus-cover">The<br>Economist</div>
+						<div class="focus-info">
+							<div class="focus-title">《经济学人》精读</div>
+							<div class="focus-row">
+								<span class="focus-track"><span class="focus-fill"></span></span>
+								<span class="focus-pct">62%</span>
+							</div>
+							<div class="focus-cta-row">
+								<button class="focus-cta"><svg viewBox="0 0 24 24"><path d="M5 4.5v15l14-7.5z"/></svg>继续阅读</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="caption">
+			<h3>方案 A（按钮下置版）</h3>
+			<p>横窄条：卡内左上「上次阅读」小标题（右侧相对时间），左 52px 小封面，右侧依次是书名单行、进度条 + 百分比、下方靠右的墨色「继续阅读」按钮。整卡可点打开书，按钮同效；长按仍是书籍菜单。按钮用墨色（主题的 action 色）而不是强调色——页面里页签下划线已经用了强调色，一页只留一处绿。</p>
+			<div class="chips"><span>窄条 52px 封面</span><span>书名 → 进度条 → 按钮</span><span>墨色按钮</span><span>整卡可点</span></div>
+		</div>
+	</div>
+
+	<div class="frame-card">
+		<div class="phone">
+			<div class="win-bar" style="border-radius: 0">
+				<span class="win-dot"></span><span class="win-dot"></span><span class="win-dot"></span>
+				<span class="win-title">HiLighter · 近期阅读</span>
+			</div>
+			<div class="win-body" style="padding: 10px 14px 14px;">
+				<div class="focus" style="max-width: none; padding: 11px 12px;">
+					<div class="focus-head">
+						<span class="label">上次阅读</span>
+						<span class="time">2 小时前</span>
+					</div>
+					<div class="focus-body" style="gap: 12px;">
+						<div class="focus-cover">The<br>Economist</div>
+						<div class="focus-info" style="gap: 8px;">
+							<div class="focus-title" style="font-size: 14.5px;">《经济学人》精读</div>
+							<div class="focus-row" style="gap: 8px;">
+								<span class="focus-track"><span class="focus-fill"></span></span>
+								<span class="focus-pct">62%</span>
+							</div>
+							<div class="focus-cta-row">
+								<button class="focus-cta" style="height: 30px; padding: 0 12px;">继续阅读</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="caption">
+			<h3>手机端（同一设计）</h3>
+			<p>同一张卡在手机上的样子：内边距和按钮尺寸微收，进度条一行只剩「条 + 百分比」，按钮在下方，窄屏也不挤。手机上这张卡仍置于「其他近期」列表上方。</p>
+			<div class="chips"><span>与桌面同构</span><span>进度行不换行</span></div>
+		</div>
+	</div>
+
+</section>
+
+<div class="note">
+	<h2>说明</h2>
+	<p>现在线上那张卡封面巨大的直接原因是重构时封面上少挂了一个宽度约束类（封面按网格样式撑满了整卡），实施新设计时一并修掉。这版就是方案 A 的按钮下置修改稿；没问题回复确认，或继续说要调的地方，确认后我再动代码。</p>
+</div>
+
+<script>
+(function () {
+	var stage = document.getElementById('stage');
+	var light = document.getElementById('mode-light');
+	var dark = document.getElementById('mode-dark');
+	function setMode(mode) {
+		stage.setAttribute('data-appmode', mode);
+		light.setAttribute('aria-pressed', String(mode === 'light'));
+		dark.setAttribute('aria-pressed', String(mode === 'dark'));
+	}
+	light.addEventListener('click', function () { setMode('light'); });
+	dark.addEventListener('click', function () { setMode('dark'); });
+})();
+</script>

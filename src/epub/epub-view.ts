@@ -16,7 +16,7 @@
 
 import ePubLib from 'epubjs';
 import type { Book, Rendition, Contents, NavItem } from 'epubjs';
-import { FileView, Notice, WorkspaceLeaf, setIcon, TFile } from 'obsidian';
+import { FileView, Notice, Platform, WorkspaceLeaf, setIcon, TFile } from 'obsidian';
 import type HiLighterPlugin from '../main';
 import type { EpubBookmark, HighlightNote } from '../models';
 import { t } from '../i18n';
@@ -125,6 +125,7 @@ export class EpubView extends FileView {
         this.contentEl.empty();
         this.contentEl.addClass('hl-epub-view');
         this.buildShell();
+        if (Platform.isMobile) this.startSelectionPoller();
         // Close dropdown menus when clicking anywhere outside them.
         this.registerDomEvent(document, 'pointerdown', (evt: PointerEvent) => {
             const target = evt.target as HTMLElement | null;
@@ -651,8 +652,68 @@ export class EpubView extends FileView {
     private wireRendition(rendition: Rendition): void {
         // Selection → the shared highlight menu (context = epub cfi anchor)
         rendition.on('selected', (cfiRange: string, contents: Contents) => {
+            this.showSelectionMenu(cfiRange, contents.window);
+        });
+
+        this.wireRenditionLifecycle(rendition);
+    }
+
+    /**
+     * Shows the highlight menu for a live selection in `win` (the epub
+     * iframe window), anchored at the epub.js CFI range.
+     */
+    /**
+     * Selection poller (phones): iOS iframe events proved unreliable —
+     * touchend/touchcancel/selectionchange listeners wired straight into
+     * the live section document never fired. PDF and markdown work off
+     * main-document events, which iframes cannot use. So instead of
+     * waiting for events, poll every iframe's selection from the parent
+     * once a second and surface the menu when a NEW non-empty selection
+     * appears. registerInterval cleans up with the view.
+     */
+    private startSelectionPoller(): void {
+        let lastText = '';
+        this.registerInterval(window.setInterval(() => {
             try {
-                const win = contents.window;
+                const menu = this.plugin.highlightMenu;
+                const menuUp = !!menu && menu.style.display !== 'none';
+                let anySelection = false;
+                for (const frame of Array.from(this.contentEl.querySelectorAll('iframe'))) {
+                    const win = frame.contentWindow;
+                    const doc = frame.contentDocument;
+                    if (!win || !doc) continue;
+                    const sel = win.getSelection();
+                    const text = sel?.toString().trim() ?? '';
+                    if (text) anySelection = true;
+                    if (!sel || !text || text.length > 2000 || sel.rangeCount === 0) continue;
+                    if (menuUp) { lastText = text; return; }
+                    if (text === lastText) return;
+                    const range = sel.getRangeAt(0);
+                    if (range.collapsed) continue;
+                    const live = (this.rendition?.getContents?.() as unknown as Contents[] | undefined)
+                        ?.find(c => c.document === doc);
+                    if (!live) {
+                        continue;
+                    }
+                    lastText = text;
+                    this.showSelectionMenu(live.cfiFromRange(range), win);
+                    return;
+                }
+                // Event-free dismissal: a tap in the book clears the
+                // selection; once no iframe holds one, an epub-owned
+                // menu must not linger on screen.
+                if (!anySelection && menuUp
+                    && (this.plugin as unknown as { lastContext?: { anchorType?: string } }).lastContext?.anchorType === 'epub') {
+                    menu!.setCssProps({ display: 'none' });
+                }
+            } catch {
+                // poll layer — never surface errors
+            }
+        }, 1000));
+    }
+
+    private showSelectionMenu(cfiRange: string, win: Window): void {
+        try {
                 const text = win.getSelection()?.toString().trim() ?? '';
                 if (!text || text.length > 2000) return;
 
@@ -681,20 +742,150 @@ export class EpubView extends FileView {
                     cfi: cfiRange,
                     contextQuote: text.slice(0, 300),
                 }, x, y, document);
-            } catch {
-                // selection plumbing varies; never break reading
-            }
-        });
+        } catch {
+            // selection plumbing varies; never break reading
+        }
+    }
+
+    /**
+     * Touch fallback inside the chapter iframe. epub.js emits 'selected'
+     * from selectionchange, but on phones that path is unreliable — and
+     * iOS long-press selection ends in touchcancel, not touchend. The
+     * parent document's listeners cannot see into the iframe at all, so
+     * the iframe gets its own trigger, checked twice to outlast the
+     * gesture-cancel / selection-settle race.
+     */
+    private wiredSelectionDocs = new WeakSet<Document>();
+
+    private attachSelectionTrigger(contents: Contents): void {
+        this.attachSelectionTriggerDoc(contents.document, contents.window, () => contents);
+    }
+
+    /** Listener core bound to a live iframe document. `contentsAt`
+     *  re-resolves the epub.js Contents for CFI generation. */
+    private attachSelectionTriggerDoc(
+        doc: Document,
+        win: Window,
+        contentsAt: () => Contents | undefined,
+    ): void {
+        if (this.wiredSelectionDocs.has(doc)) return;
+        this.wiredSelectionDocs.add(doc);
+        // Taps in the book dismiss the highlight menu: the main
+        // document's listeners cannot see iframe taps at all.
+        try {
+            doc.addEventListener('pointerdown', () => {
+                const hlMenu = this.plugin.highlightMenu;
+                if (hlMenu) hlMenu.setCssProps({ display: 'none' });
+            }, { passive: true, capture: true });
+        } catch {
+            // dismissal layer — never surface errors
+        }
+        try {
+            const fire = (kind: string): void => {
+                let shown = false;
+                const check = (): void => {
+                    try {
+                        if (shown) return;
+                        const sel = win.getSelection();
+                        const text = sel?.toString().trim() ?? '';
+                        if (!sel || !text || text.length > 2000 || sel.rangeCount === 0) return;
+                        const range = sel.getRangeAt(0);
+                        if (range.collapsed) return;
+                        const live = contentsAt();
+                        if (!live) {
+                            return;
+                        }
+                        shown = true;
+                        this.showSelectionMenu(live.cfiFromRange(range), win);
+                    } catch {
+                        // selection plumbing varies; never break reading
+                    }
+                };
+                window.setTimeout(check, 500);
+                window.setTimeout(check, 1200);
+            };
+            doc.addEventListener('touchend', () => fire('touchend'), { passive: true });
+            doc.addEventListener('touchcancel', () => fire('touchcancel'), { passive: true });
+
+            // Debounced selectionchange: fires on every platform and on
+            // every iOS gesture, unlike the touch events. Skipped while a
+            // menu is already up so it never fights the epub.js 'selected'
+            // path (which usually wins the race at 250ms).
+            let selTimer: number | null = null;
+            doc.addEventListener('selectionchange', () => {
+                if (selTimer !== null) window.clearTimeout(selTimer);
+                selTimer = window.setTimeout(() => {
+                    selTimer = null;
+                    try {
+                        const menu = this.plugin.highlightMenu;
+                        if (menu && menu.style.display !== 'none') return;
+                        const sel = win.getSelection();
+                        const text = sel?.toString().trim() ?? '';
+                        if (!sel || !text || text.length > 2000 || sel.rangeCount === 0) return;
+                        const range = sel.getRangeAt(0);
+                        if (range.collapsed) return;
+                        const live = contentsAt();
+                        if (!live) {
+                            return;
+                        }
+                        this.showSelectionMenu(live.cfiFromRange(range), win);
+                    } catch (err) {
+                    }
+                }, 600);
+            });
+        } catch {
+            // selection layer — never surface errors
+        }
+    }
+
+    /** Section lifecycle wiring: annotation replay, per-section listener
+     *  attachment, and read-position persistence. */
+    private wireRenditionLifecycle(rendition: Rendition): void {
+        // Continuous scrolling keeps SEVERAL section iframes alive at
+        // once — wire every one of them (selection may happen in any),
+        // deduped because 'rendered' re-fires for visible neighbours.
+        const wired = new WeakSet<Contents>();
+        // Belt and braces: poll the live DOM iframes directly — contents
+        // objects can be stale/missing while the visible iframe works.
+        const wireVisibleIframes = (): void => {
+            this.contentEl.querySelectorAll('iframe').forEach(frame => {
+                const iframeDoc = frame.contentDocument;
+                const iframeWin = frame.contentWindow;
+                if (!iframeDoc || !iframeWin) return;
+                this.attachSelectionTriggerDoc(iframeDoc, iframeWin, () => {
+                    const all = (this.rendition?.getContents?.() as unknown as Contents[] | undefined) ?? [];
+                    return all.find(c => c.document === iframeDoc);
+                });
+            });
+        };
 
         // Replay annotations on every section render — epub.js 0.3.93 has
         // no automatic re-attach after a page turn.
-        rendition.on('rendered', (_section: unknown, view: unknown) => {
+        rendition.on('rendered', () => {
             void this.syncAnnotations();
-            const contents = (view as { contents?: Contents } | undefined)?.contents
-                ?? (this.rendition?.getContents?.() as unknown as Contents[] | undefined)?.[0];
-            if (!contents) return;
-            this.attachIframeDismiss(contents);
-            if (this.readingMode === 'page') this.attachSwipe(contents);
+            // Phones expose the section contents asynchronously — getContents()
+            // may still return nothing at event time. Retry briefly; without
+            // this, none of the per-section listeners (dismiss, selection
+            // menu trigger, swipe) ever attach on slow devices.
+            let tries = 0;
+            const wire = (): void => {
+                const all = (this.rendition?.getContents?.() as unknown as Contents[] | undefined) ?? [];
+                if (all.length === 0) {
+                    tries += 1;
+                    if (tries < 10) window.setTimeout(wire, 200);
+                    return;
+                }
+                all.forEach((contents, index) => {
+                    if (wired.has(contents)) return;
+                    wired.add(contents);
+                    this.attachIframeDismiss(contents);
+                    this.attachSelectionTrigger(contents);
+                    if (this.readingMode === 'page') this.attachSwipe(contents);
+                });
+            };
+            wire();
+            wireVisibleIframes();
+            [600, 1500, 3000].forEach(ms => window.setTimeout(wireVisibleIframes, ms));
         });
 
         // Persist read position + chapter title. Explicit jumps (toc /
@@ -744,7 +935,15 @@ export class EpubView extends FileView {
      *  on page turns / section swaps — re-attached per render. */
     private attachIframeDismiss(contents: Contents): void {
         try {
-            contents.document.addEventListener('pointerdown', () => this.closeMenu(), {
+            contents.document.addEventListener('pointerdown', () => {
+                this.closeMenu();
+                // The shared highlight menu also dismisses here: taps in
+                // the book never reach the main document's listeners
+                // (iframe boundary), so without this the selection menu
+                // would linger on screen forever on phones.
+                const hlMenu = this.plugin.highlightMenu;
+                if (hlMenu) hlMenu.setCssProps({ display: 'none' });
+            }, {
                 passive: true,
                 capture: true,
             });

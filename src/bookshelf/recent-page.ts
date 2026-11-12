@@ -5,10 +5,20 @@
 // aggregated from the highlight database, with a sort + format
 // filter toolbar.
 
-import { TFile } from 'obsidian';
+import { Platform, TFile, setIcon } from 'obsidian';
 import { t } from '../i18n';
 import type { HighlightNote, ShelfFormatFilter, ShelfRecentSortBy } from '../models';
-import { renderBookGrid, relativeTime, type BookEntry, type GridHost } from './book-card';
+import {
+	createBookCover,
+	mountBookCover,
+	openShelfFile,
+	renderBookGrid,
+	renderBookProgress,
+	relativeTime,
+	type BookEntry,
+	type GridHost,
+} from './book-card';
+import { openBookMenu } from './book-actions';
 import { BookMetaModal } from './book-meta-modal';
 import type { ShelfCoverCache } from './covers';
 import { shelfKind, type ShelfKind } from './scope';
@@ -71,34 +81,38 @@ export function applyRecentPreferences(
 	return filtered;
 }
 
-/** Renders the recent-reading page: toolbar + activity grid. */
-export function renderRecentPage(
+/**
+ * Splits recent entries into the continue-reading focus (newest
+ * activity, regardless of the chosen sort) and the remaining list.
+ */
+export function splitFocusEntry<T extends { lastAt: number }>(
+	entries: T[],
+): { focus: T | null; rest: T[] } {
+	if (entries.length === 0) return { focus: null, rest: [] };
+	let focusIndex = 0;
+	let focusLastAt = entries[0]!.lastAt;
+	entries.forEach((entry, index) => {
+		if (entry.lastAt > focusLastAt) {
+			focusIndex = index;
+			focusLastAt = entry.lastAt;
+		}
+	});
+	return {
+		focus: entries[focusIndex] ?? null,
+		rest: entries.filter((_, index) => index !== focusIndex),
+	};
+}
+
+/** Builds the rendered entries from raw highlights + current prefs. */
+function recentBookEntries(
 	host: GridHost,
-	parent: HTMLElement,
 	highlights: HighlightNote[],
-	cache: ShelfCoverCache,
-	notify: {
-		onSettingsChange: () => void;
-		favorites?: {
-			isFavorite: (path: string) => boolean;
-			onToggle: (path: string) => void;
-		};
-	},
-): void {
+	format: ShelfFormatFilter,
+	sortBy: ShelfRecentSortBy,
+): BookEntry[] {
 	const plugin = host.plugin;
-
-	const toolbar = parent.createDiv('hl-shelf-toolbar');
-	appendRecentSort(plugin, toolbar, notify.onSettingsChange);
-	appendFormatFilter(plugin, toolbar, notify.onSettingsChange);
-
-	// Toolbar outside the scroll zone (books never pass behind it).
-	const scroll = parent.createDiv('hl-shelf-scroll');
-	const body = scroll.createDiv('hl-shelf-recent');
-	const format = plugin.settings.bookshelfFormatFilter || 'all';
-	const sortBy = plugin.settings.bookshelfRecentSortBy || 'recent';
-
-	const entries: BookEntry[] = [];
 	const bookMeta = plugin.settings.bookshelfBookMeta ?? {};
+	const entries: BookEntry[] = [];
 	for (const source of applyRecentPreferences(
 		computeRecentSources(highlights),
 		path => {
@@ -120,13 +134,53 @@ export function renderRecentPage(
 			});
 		}
 	}
+	return entries;
+}
+
+/** Renders the recent-reading page: toolbar + activity grid. */
+export function renderRecentPage(
+	host: GridHost,
+	parent: HTMLElement,
+	highlights: HighlightNote[],
+	cache: ShelfCoverCache,
+	notify: {
+		onSettingsChange: () => void;
+		favorites?: {
+			isFavorite: (path: string) => boolean;
+			onToggle: (path: string) => void;
+		};
+	},
+): void {
+	const plugin = host.plugin;
+	const format = plugin.settings.bookshelfFormatFilter || 'all';
+	const sortBy = plugin.settings.bookshelfRecentSortBy || 'recent';
+	const entries = recentBookEntries(host, highlights, format, sortBy);
+	const subtitle = (entry: BookEntry): string => t('bookshelf.recent.subtitle', {
+		count: entry.count,
+		time: relativeTime(entry.lastAt),
+	});
+
+	// Phones: continue-reading focus card + compact list below.
+	if (Platform.isPhone) {
+		renderPhoneRecent(host, parent, entries, cache, notify, { format, subtitle });
+		return;
+	}
+
+	const toolbar = parent.createDiv('hl-shelf-toolbar');
+	appendRecentSort(plugin, toolbar, notify.onSettingsChange);
+	appendFormatFilter(plugin, toolbar, notify.onSettingsChange);
+
+	// Toolbar outside the scroll zone (books never pass behind it).
+	const scroll = parent.createDiv('hl-shelf-scroll');
+	const body = scroll.createDiv('hl-shelf-recent');
+
+	// Continue-reading focus card leads the page; the full list follows.
+	const { focus } = splitFocusEntry(entries);
+	if (focus) buildFocusCard(host, body, focus, cache, notify, { subtitle });
 
 	renderBookGrid(host, body, entries, cache, {
 		size: effectiveCoverSize(plugin.settings.bookshelfCoverSize),
-		subtitle: (entry) => t('bookshelf.recent.subtitle', {
-			count: entry.count,
-			time: relativeTime(entry.lastAt),
-		}),
+		subtitle,
 		emptyText: format === 'all'
 			? t('bookshelf.recent.empty')
 			: t('bookshelf.recent.emptyFiltered', { format: t(`bookshelf.kind.${format}`) }),
@@ -134,6 +188,136 @@ export function renderRecentPage(
 		meta: {
 			// The recent page re-renders wholesale; progress bars refresh
 			// with it.
+			onEdit: file => new BookMetaModal(host.app, plugin, file, notify.onSettingsChange).open(),
+			onChanged: notify.onSettingsChange,
+		},
+	});
+}
+
+/**
+ * Last-read focus card, one horizontal strip: 「上次阅读」 label +
+ * relative time, small cover on the left, then title, progress and a
+ * right-aligned 「继续阅读」 button. Shared by the phone page (above
+ * the compact list) and the desktop / tablet page (above the grid).
+ */
+function buildFocusCard(
+	host: GridHost,
+	parent: HTMLElement,
+	focus: BookEntry,
+	cache: ShelfCoverCache,
+	notify: {
+		onSettingsChange: () => void;
+		favorites?: {
+			isFavorite: (path: string) => boolean;
+			onToggle: (path: string) => void;
+		};
+	},
+	opts: { subtitle: (entry: BookEntry) => string },
+): void {
+	const plugin = host.plugin;
+	const kind = shelfKind(focus.file.extension) ?? 'markdown';
+
+	const card = parent.createDiv('hl-recent-focus');
+	card.setAttribute('data-path', focus.file.path);
+	card.setAttribute('role', 'button');
+	card.setAttribute('tabindex', '0');
+
+	const head = card.createDiv('hl-recent-focus-head');
+	head.createSpan({ cls: 'hl-recent-focus-eyebrow', text: t('bookshelf.recent.lastRead') });
+	const lastTime = relativeTime(focus.lastAt);
+	if (lastTime) head.createSpan({ cls: 'hl-recent-focus-time', text: lastTime });
+
+	const body = card.createDiv('hl-recent-focus-body');
+	const cover = createBookCover(body, focus.file.path, kind);
+	const info = body.createDiv('hl-recent-focus-info');
+	info.createDiv({ cls: 'hl-book-title hl-recent-focus-title', text: focus.file.basename });
+	if (typeof focus.progress === 'number') {
+		renderBookProgress(info, focus.progress);
+	}
+	const resumeLabel = t('bookshelf.recent.continue');
+	const cta = info.createDiv('hl-recent-focus-cta').createEl('button', {
+		cls: 'hl-recent-focus-btn',
+		attr: { 'aria-label': resumeLabel, title: resumeLabel },
+	});
+	setIcon(cta, 'play');
+	cta.createSpan({ text: resumeLabel });
+
+	void mountBookCover(host, cover, focus, cache, { caption: false, bare: true, subtitle: opts.subtitle });
+
+	const open = (): void => { void openShelfFile(host.app, focus.file.path); };
+	card.onclick = open;
+	cta.onclick = open;
+	card.onkeydown = (event) => {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			open();
+		}
+	};
+	card.addEventListener('contextmenu', (event) => {
+		event.preventDefault();
+		openBookMenu(host, focus.file, event, {
+			onEditMeta: file => new BookMetaModal(host.app, plugin, file, notify.onSettingsChange).open(),
+			onChanged: notify.onSettingsChange,
+			favorites: notify.favorites,
+		});
+	});
+}
+
+/**
+ * Phone 近期阅读 layout: the newest book as a continue-reading focus
+ * card (cover + title + meta + progress), then the remaining books as
+ * a compact list. Sort / format selects move into the list header —
+ * the top of the page belongs to the focus card alone.
+ */
+function renderPhoneRecent(
+	host: GridHost,
+	parent: HTMLElement,
+	entries: BookEntry[],
+	cache: ShelfCoverCache,
+	notify: {
+		onSettingsChange: () => void;
+		favorites?: {
+			isFavorite: (path: string) => boolean;
+			onToggle: (path: string) => void;
+		};
+	},
+	opts: {
+		format: ShelfFormatFilter;
+		subtitle: (entry: BookEntry) => string;
+	},
+): void {
+	const plugin = host.plugin;
+	const scroll = parent.createDiv('hl-shelf-scroll');
+	const body = scroll.createDiv('hl-shelf-recent hl-recent-phone');
+
+	if (entries.length === 0) {
+		const empty = body.createDiv('hl-shelf-empty');
+		empty.createDiv({
+			cls: 'hl-shelf-empty-text',
+			text: opts.format === 'all'
+				? t('bookshelf.recent.empty')
+				: t('bookshelf.recent.emptyFiltered', { format: t(`bookshelf.kind.${opts.format}`) }),
+		});
+		return;
+	}
+
+	const { focus, rest } = splitFocusEntry(entries);
+	if (!focus) return;
+	buildFocusCard(host, body, focus, cache, notify, { subtitle: opts.subtitle });
+
+	if (rest.length === 0) return;
+	const head = body.createDiv('hl-recent-rest-head');
+	head.createSpan({ cls: 'hl-recent-rest-label', text: t('bookshelf.recent.more') });
+	const tools = head.createDiv('hl-recent-rest-tools');
+	appendRecentSort(plugin, tools, notify.onSettingsChange);
+	appendFormatFilter(plugin, tools, notify.onSettingsChange);
+
+	renderBookGrid(host, body, rest, cache, {
+		size: 'list',
+		subtitle: opts.subtitle,
+		emptyText: '',
+		favorites: notify.favorites,
+		meta: {
 			onEdit: file => new BookMetaModal(host.app, plugin, file, notify.onSettingsChange).open(),
 			onChanged: notify.onSettingsChange,
 		},
