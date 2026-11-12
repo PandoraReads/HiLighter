@@ -145,7 +145,7 @@ export class MindMapEngine {
         this.applyLeafBorders(init.tree);
         this.mindMap = new MindMap({
             el: init.el,
-            data: init.tree as unknown as Record<string, unknown>,
+            data: init.tree,
             layout: init.layout,
             // `theme` only accepts a preset name string; custom styles go
             // through `themeConfig` (deep-merged over the default theme).

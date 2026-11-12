@@ -188,7 +188,7 @@ interface EpubBookLike {
  */
 async function readEpubViaEpubjs(data: ArrayBuffer): Promise<Partial<ShelfMeta> | null> {
 	let book: EpubBookLike | null = null;
-	const killTimer = setTimeout(() => {
+	const killTimer = window.setTimeout(() => {
 		try {
 			book?.destroy?.();
 		} catch {
@@ -215,7 +215,7 @@ async function readEpubViaEpubjs(data: ArrayBuffer): Promise<Partial<ShelfMeta> 
 	} catch {
 		return null;
 	} finally {
-		clearTimeout(killTimer);
+		window.clearTimeout(killTimer);
 		try {
 			book?.destroy?.();
 		} catch {
@@ -568,19 +568,19 @@ export class ShelfCoverCache {
 					resolved = true;
 					resolve(value);
 				};
-				const timer = setTimeout(() => {
+				const timer = window.setTimeout(() => {
 					console.error('[HiLighter] cover read timed out:', file.path);
 					releaseOnce();
 					resolveOnce(fallbackMeta(file, kind));
 				}, this.timeoutMs);
 				void job().then(
 					value => {
-						clearTimeout(timer);
+						window.clearTimeout(timer);
 						releaseOnce();
 						resolveOnce(value);
 					},
 					() => {
-						clearTimeout(timer);
+						window.clearTimeout(timer);
 						releaseOnce();
 						resolveOnce(fallbackMeta(file, kind));
 					},

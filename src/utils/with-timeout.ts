@@ -17,10 +17,10 @@ export function withTimeout<T>(
 		const settleOnce = (value: T): void => {
 			if (settled) return;
 			settled = true;
-			clearTimeout(timer);
+			window.clearTimeout(timer);
 			resolve(value);
 		};
-		const timer = setTimeout(() => settleOnce(fallback()), ms);
+		const timer = window.setTimeout(() => settleOnce(fallback()), ms);
 		promise.then(
 			value => settleOnce(value),
 			() => settleOnce(fallback()),

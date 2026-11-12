@@ -11,7 +11,6 @@ import {
 	View,
 	moment
 } from 'obsidian';
-import type { Vault } from 'obsidian';
 import { CoverStore } from './bookshelf/cover-store';
 import { HiLighterSettingTab, DEFAULT_SETTINGS } from './settings';
 import type { HiLighterSettings } from './models';
@@ -93,8 +92,7 @@ export default class HiLighterPlugin extends Plugin {
 		if (!this.coverStoreInstance) {
 			// configDir is the active config folder (.obsidian unless the
 			// user overrode it); the file lives beside data.json.
-			const vaultWithConfig = this.app.vault as Vault & { configDir?: string };
-			const configDir = vaultWithConfig.configDir ?? '.obsidian';
+			const configDir = this.app.vault.configDir;
 			const pluginDir = this.manifest.dir || 'hilighter';
 			this.coverStoreInstance = new CoverStore(
 				this.app.vault.adapter,
@@ -274,7 +272,6 @@ export default class HiLighterPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'pdf-screenshot-card', name: t('pdf.captureCommand'),
-			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: '9' }],
 			checkCallback: (checking: boolean) => {
 				const view = this.app.workspace.getMostRecentLeaf()?.view;
 				if (view?.getViewType() !== 'pdf') return false;
@@ -284,7 +281,6 @@ export default class HiLighterPlugin extends Plugin {
 		});
 		this.addCommand({
 			id: 'open-pdf-highlight-toolbar', name: t('pdf.openToolbar'),
-			hotkeys: [{ modifiers: ['Mod', 'Shift'], key: 'H' }],
 			checkCallback: (checking: boolean) => {
 				const leaf = this.app.workspace.getMostRecentLeaf();
 				const view = leaf?.view;

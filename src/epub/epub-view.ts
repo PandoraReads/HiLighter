@@ -560,7 +560,7 @@ export class EpubView extends FileView {
             const data = await this.plugin.app.vault.readBinary(file);
             if (seq !== this.loadSeq) return;
 
-            const book = ePubLib(data as unknown as string) as unknown as Book;
+            const book = ePubLib(data as unknown as string);
             // Page mode: one paginated iframe per section (swipe left/right).
             // Scroll mode: continuous manager + scrolled flow — the whole book
             // becomes one vertical scroll.
@@ -704,7 +704,7 @@ export class EpubView extends FileView {
                 // menu must not linger on screen.
                 if (!anySelection && menuUp
                     && (this.plugin as unknown as { lastContext?: { anchorType?: string } }).lastContext?.anchorType === 'epub') {
-                    menu!.setCssProps({ display: 'none' });
+                    menu.setCssProps({ display: 'none' });
                 }
             } catch {
                 // poll layer — never surface errors
@@ -829,7 +829,8 @@ export class EpubView extends FileView {
                             return;
                         }
                         this.showSelectionMenu(live.cfiFromRange(range), win);
-                    } catch (err) {
+                    } catch {
+                        // selection poll layer — never surface errors
                     }
                 }, 600);
             });

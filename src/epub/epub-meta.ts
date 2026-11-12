@@ -14,7 +14,7 @@ export interface EpubOpfMeta {
 	coverType?: string;
 }
 
-export type XmlParser = { parseFromString(source: string, mimeType: string): XMLDocument };
+export type XmlParser = { parseFromString: (source: string, mimeType: string) => XMLDocument };
 
 const XML_MIME = 'application/xml';
 
@@ -23,7 +23,7 @@ interface ParseFn {
 }
 
 function parserFn(parser: XmlParser): ParseFn {
-	return (parser as unknown as { parseFromString: ParseFn }).parseFromString;
+	return parser.parseFromString;
 }
 
 /**

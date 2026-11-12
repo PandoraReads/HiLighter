@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
+    test: {
+        setupFiles: ['./tests/setup.ts'],
+    },
     resolve: {
         alias: {
             // The obsidian npm package is types-only; point runtime imports at a stub.

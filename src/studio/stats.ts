@@ -2,7 +2,7 @@
 // HiLighter - Studio stats / insights panel
 // ============================================================
 
-import { moment } from 'obsidian';
+import { formatDate } from '../utils/moment-format';
 import type { HighlightNote } from '../models';
 import { t } from '../i18n';
 import { getColors } from '../colors';
@@ -190,7 +190,7 @@ function renderHeatmap(parent: HTMLElement, dayCounts: Map<string, number>): voi
     const weekdays = body.createDiv('hl-heatmap-weekdays');
     // Rows run Sunday→Saturday; label only Mon/Wed/Fri.
     for (let d = 0; d < 7; d++) {
-        const label = d % 2 === 1 ? moment(new Date(start.getTime() + d * DAY)).format('dd') : '';
+        const label = d % 2 === 1 ? formatDate(new Date(start.getTime() + d * DAY), 'dd') : '';
         weekdays.createSpan({ text: label });
     }
 
@@ -218,7 +218,7 @@ function renderHeatmap(parent: HTMLElement, dayCounts: Map<string, number>): voi
                 cell.addClass('hl-level-' + level);
             }
             if (dayDate.getTime() === todayMid.getTime()) cell.addClass('is-today');
-            const tip = `${moment(dayDate).format('MMM D')} · ${t('bookshelf.badge.count', { count })}`;
+            const tip = `${formatDate(dayDate, 'MMM D')} · ${t('bookshelf.badge.count', { count })}`;
             cell.setAttribute('aria-label', tip);
             cell.onclick = () => {
                 parent.querySelectorAll('.hl-heatmap-tip').forEach(el => el.remove());
@@ -230,7 +230,7 @@ function renderHeatmap(parent: HTMLElement, dayCounts: Map<string, number>): voi
         const probe = new Date(start.getTime() + (w * 7 + 3) * DAY);
         if (probe.getMonth() !== lastMonth) {
             lastMonth = probe.getMonth();
-            labelPlan.push({ col: w, text: moment(probe).format('MMM') });
+            labelPlan.push({ col: w, text: formatDate(probe, 'MMM') });
         }
     }
 

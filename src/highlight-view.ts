@@ -3,7 +3,7 @@
 // HiLighter - Highlight Notes Sidebar View
 // ============================================================
 
-import { App, ItemView, WorkspaceLeaf, Notice, setIcon, MarkdownView, TFile, MarkdownRenderer, Modal, Platform } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, setIcon, MarkdownView, TFile, MarkdownRenderer, Platform } from 'obsidian';
 import { db } from './db';
 import type HiLighterPlugin from './main';
 import type { HighlightNote } from './models';
@@ -27,7 +27,7 @@ import { shouldSubmitChat } from './studio/chat-submit';
 import { sortArticlePaths } from './studio/article-sort';
 import { orderHierarchy, visibleRelation } from './studio/card-hierarchy';
 import { CARD_DRAG_MIME, CARD_DRAG_BATCH_MIME, dragCardIds, parseDraggedCardIds } from './studio/card-drag-selection';
-import { renderCardLayout, renderSidebarCardLayout } from './card-layout';
+import { renderSidebarCardLayout } from './card-layout';
 import { HighlightDetailModal } from './studio/modals';
 import { SidebarBatchTagModal } from './studio/sidebar-batch-modal';
 import { editCardTags, type BatchTagOperation } from './studio/sidebar-batch-tags';

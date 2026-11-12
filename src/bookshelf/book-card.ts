@@ -5,8 +5,9 @@
 // IntersectionObserver; files without a raster cover (markdown, or a
 // failed pdf render) get a generated gradient cover.
 
-import { setIcon, moment, TFile } from 'obsidian';
+import { setIcon, TFile } from 'obsidian';
 import type { App } from 'obsidian';
+import { formatFromNow } from '../utils/moment-format';
 import type HiLighterPlugin from '../main';
 import { t } from '../i18n';
 import { shelfKind } from './scope';
@@ -376,5 +377,5 @@ function mountCoverCaption(coverEl: HTMLElement, title: string): void {
 /** Relative-time formatter for the recent page subtitle. */
 export function relativeTime(timestamp: number): string {
 	if (!timestamp) return '';
-	return moment(timestamp).fromNow();
+	return formatFromNow(timestamp);
 }

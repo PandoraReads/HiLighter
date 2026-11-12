@@ -36,5 +36,7 @@ export default tseslint.config(
 		"src/mocks/*.cjs",
 		// Ambient module shim for the untyped simple-mind-map dependency
 		"src/mindmap/simple-mind-map.d.ts",
+		// Node-only test shim that must define a global `window`
+		"tests/setup.ts",
 	]),
 );

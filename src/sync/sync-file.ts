@@ -92,7 +92,7 @@ export function parseSyncPayload(content: string): ParsedSyncPayload {
 
     return {
         ok: true,
-        version: obj.version as SyncPayloadVersion,
+        version: obj.version,
         exportedAt: typeof obj.exportedAt === 'number' ? obj.exportedAt : null,
         writerId: typeof obj.writerId === 'string' ? obj.writerId : null,
         count: typeof obj.count === 'number' ? obj.count : obj.highlights.length,

@@ -87,7 +87,7 @@ export class CoverStore {
 	private loaded = false;
 	private loading: Promise<void> | null = null;
 	private dirty = false;
-	private flushTimer: ReturnType<typeof setTimeout> | null = null;
+	private flushTimer: number | null = null;
 	private broken = false;
 
 	constructor(adapter: CoverStoreAdapter, filePath: string) {
@@ -149,7 +149,7 @@ export class CoverStore {
 
 	private scheduleFlush(): void {
 		if (this.flushTimer !== null) return;
-		this.flushTimer = setTimeout(() => {
+		this.flushTimer = window.setTimeout(() => {
 			this.flushTimer = null;
 			void this.flush();
 		}, FLUSH_DEBOUNCE_MS);
@@ -158,7 +158,7 @@ export class CoverStore {
 	/** Persists pending changes immediately (also used on unload). */
 	async flush(): Promise<void> {
 		if (this.flushTimer !== null) {
-			clearTimeout(this.flushTimer);
+			window.clearTimeout(this.flushTimer);
 			this.flushTimer = null;
 		}
 		if (!this.dirty || this.broken || !this.loaded) return;

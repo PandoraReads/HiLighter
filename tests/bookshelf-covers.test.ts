@@ -129,7 +129,7 @@ describe('CoverStore', () => {
 		store.put('b.epub', entry({ mtime: 7, title: 'B' }));
 		await store.flush();
 		expect(adapter.written.length).toBe(1);
-		const reopened = new CoverStore(memoryAdapter(adapter.written[0]!), 'covers.json');
+		const reopened = new CoverStore(memoryAdapter(adapter.written[0]), 'covers.json');
 		await reopened.ready();
 		expect(reopened.get('b.epub', 7)?.title).toBe('B');
 	});

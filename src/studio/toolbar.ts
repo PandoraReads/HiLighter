@@ -16,72 +16,9 @@ import { startFsrsSession } from './review/session';
 import type { HighlightManagerView } from './studio-view';
 import type { StudioGroupBy, StudioSortBy } from './studio-state';
 
-/**
- * Phone studio header layout, delivered from main.js. Phones have shown
- * stale styles.css delivery while main.js syncs fine, so the two-tier
- * header rules (search owns row 1; triggers + view/batch share a
- * scrollable row 2) are injected as a <style> tag instead of relying
- * on styles.css reaching the device.
- */
-const PHONE_STUDIO_CSS = `
-.is-phone .hl-studio-content-header {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    align-items: center;
-    gap: 6px;
-    overflow-x: auto !important;
-    padding: 4px 12px !important;
-    scrollbar-width: none;
-}
-.is-phone .hl-studio-content-header::-webkit-scrollbar { display: none; }
-.is-phone .hl-studio-topbar { gap: 10px; }
-.is-phone .hl-studio-topbar-identity { flex: 1 1 auto; min-width: 0; gap: 10px; }
-.is-phone .hl-studio-topbar .hl-studio-header-search {
-    flex: 1 1 160px !important;
-    width: auto !important;
-    min-width: 120px;
-    max-width: 240px;
-    min-height: 36px !important;
-}
-.is-phone .hl-studio-tools { flex: 0 0 auto !important; flex-wrap: nowrap !important; }
-.is-phone .hl-studio-toolbar-right { flex: 0 0 auto !important; }
-.is-phone .hl-studio-toolbar-right { flex-wrap: nowrap !important; }
-.hl-studio-body-menu {
-    position: fixed !important;
-    top: auto !important;
-    left: auto !important;
-    z-index: 1000;
-}
-
-/* Compact controls: the whole strip must fit one phone row without
-   scrolling — zh labels need tighter type than the desktop defaults. */
-.is-phone .hl-studio-content-header { gap: 4px !important; }
-.is-phone .hl-studio-tools { gap: 2px !important; }
-.is-phone .hl-filter-trigger,
-.is-phone .hl-sort-trigger,
-.is-phone .hl-group-trigger {
-    min-height: 34px;
-    padding: 0 7px;
-    font-size: .74em;
-    gap: 4px;
-}
-.is-phone .hl-filter-trigger-chev svg { width: 10px !important; height: 10px !important; }
-.is-phone .hl-icon-btn { width: 28px; min-height: 34px; }
-.is-phone .hl-studio-toolbar-right { gap: 4px !important; }
-.is-phone .hl-view-btn { padding: 5px !important; }
-.is-phone .hl-view-btn svg { width: 13px !important; height: 13px !important; }
-.is-phone .hl-tool-batch { min-height: 0; padding: 5px 7px !important; }
-.is-phone .hl-tool-batch svg { width: 13px !important; height: 13px !important; }
-
-`;
-
-function ensurePhoneStudioStyles(): void {
-    if (!Platform.isPhone) return;
-    if (document.getElementById('hilighter-phone-studio-css')) return;
-    const el = document.head.createEl('style', { attr: { id: 'hilighter-phone-studio-css' } });
-    el.textContent = PHONE_STUDIO_CSS;
-}
-
+// Phone studio header layout lives in styles.css (searched there under
+// "Phone studio header"). Obsidian loads styles.css for us, so we must
+// not inject a <style> tag from main.js.
 
 /** Applies icon + tooltip matching the current collapse state. */
 export function refreshCollapseButton(view: HighlightManagerView): void {
@@ -131,7 +68,6 @@ function renderCollapseControl(view: HighlightManagerView, parent: HTMLElement):
 
 /** Builds the persistent toolbar header into the content pane. */
 export function buildToolbar(view: HighlightManagerView, parent: HTMLElement): HTMLElement {
-    ensurePhoneStudioStyles();
     const header = parent.createDiv('hl-studio-content-header');
 
     // Phones mount the search beside the brand in the topbar; the header
