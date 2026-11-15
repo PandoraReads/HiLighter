@@ -135,6 +135,22 @@ export class CoverStore {
 		this.scheduleFlush();
 	}
 
+	/**
+	 * Moves a stored entry when its file moves. A vault move keeps the
+	 * mtime, so re-keying preserves the cover instead of forcing a full
+	 * binary re-extraction (painful for multi-MB files on iCloud vaults).
+	 * No-op when the old entry is missing or the target already has one.
+	 */
+	rekey(oldPath: string, newPath: string): void {
+		if (this.broken) return;
+		const entry = this.file.items[oldPath];
+		if (!entry || this.file.items[newPath]) return;
+		this.file.items[newPath] = entry;
+		delete this.file.items[oldPath];
+		this.dirty = true;
+		this.scheduleFlush();
+	}
+
 	private evictIfNeeded(): void {
 		const paths = Object.keys(this.file.items);
 		if (paths.length <= MAX_STORED_COVERS) return;

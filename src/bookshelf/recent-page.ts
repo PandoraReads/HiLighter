@@ -258,7 +258,6 @@ function buildFocusCard(
 		openBookMenu(host, focus.file, event, {
 			onEditMeta: file => new BookMetaModal(host.app, plugin, file, notify.onSettingsChange).open(),
 			onChanged: notify.onSettingsChange,
-			favorites: notify.favorites,
 		});
 	});
 }

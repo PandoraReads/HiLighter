@@ -17,6 +17,8 @@ import {
     normalizeReadingDays,
 } from './book-meta';
 import { removeTagPaths } from './book-tags';
+import { TagBooksModal } from './book-tags-modal';
+import { moveBooksViaPicker } from './book-move';
 import { withBookMetaDeletion } from '../sync/shelf-collections';
 import { ConfirmModal } from '../ui/confirm-modal';
 import type { GridHost } from './book-card';
@@ -65,19 +67,15 @@ export async function markBookFinished(
 export interface BookMenuActions {
     /** Opens the metadata editor modal. */
     onEditMeta: (file: TFile) => void;
-    /** Refresh hook after destructive actions (delete). */
+    /** Refresh hook after destructive actions (delete, move). */
     onChanged: () => void;
-    /** Heart state for the favorite menu item (both grid pages supply it). */
-    favorites?: {
-        isFavorite: (path: string) => boolean;
-        onToggle: (path: string) => void;
-    };
 }
 
 /**
  * Card context menu (desktop right-click, mobile long-press where the
- * webview fires contextmenu): edit metadata, mark finished, toggle
- * favorite, delete the book file.
+ * webview fires contextmenu): edit metadata, edit tags, move, mark
+ * finished, delete the book file. Favorites keep their dedicated
+ * heart button on the card itself.
  */
 export function openBookMenu(
     host: GridHost,
@@ -91,16 +89,17 @@ export function openBookMenu(
         .setIcon('info')
         .onClick(() => actions.onEditMeta(file)));
     menu.addItem(item => item
+        .setTitle(t('bookshelf.meta.editTags'))
+        .setIcon('tags')
+        .onClick(() => new TagBooksModal(host.app, host.plugin, [file.path], actions.onChanged).open()));
+    menu.addItem(item => item
+        .setTitle(t('bookshelf.meta.move'))
+        .setIcon('folder-input')
+        .onClick(() => moveBooksViaPicker(host, [file], actions.onChanged)));
+    menu.addItem(item => item
         .setTitle(t('bookshelf.meta.markFinished'))
         .setIcon('check-circle-2')
         .onClick(() => { void markBookFinished(host.plugin, file, actions.onChanged); }));
-    if (actions.favorites) {
-        const isFavorite = actions.favorites.isFavorite(file.path);
-        menu.addItem(item => item
-            .setTitle(t(isFavorite ? 'bookshelf.favRemove' : 'bookshelf.favAdd'))
-            .setIcon('heart')
-            .onClick(() => actions.favorites!.onToggle(file.path)));
-    }
     menu.addSeparator();
     menu.addItem(item => item
         .setTitle(t('bookshelf.meta.delete'))

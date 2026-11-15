@@ -20,6 +20,7 @@ import { toggleShelfDropdown } from './shelf-menu';
 import { matchesBookTitle } from './title-match';
 import { collectBookTags, removeTagPaths } from './book-tags';
 import { TagBooksModal } from './book-tags-modal';
+import { moveBooksViaPicker } from './book-move';
 import { ConfirmModal } from '../ui/confirm-modal';
 import type HiLighterPlugin from '../main';
 
@@ -686,6 +687,7 @@ function refreshSelectionUI(body: HTMLElement, ctx: LibraryPageCtx): void {
 	if (bar) {
 		const empty = selected.size === 0;
 		(bar.querySelector<HTMLElement>('.hl-shelf-batch-tag'))?.toggleAttribute('disabled', empty);
+		(bar.querySelector<HTMLElement>('.hl-shelf-batch-move'))?.toggleAttribute('disabled', empty);
 		(bar.querySelector<HTMLElement>('.hl-shelf-batch-delete'))?.toggleAttribute('disabled', empty);
 	}
 }
@@ -716,6 +718,29 @@ function buildBatchBar(host: GridHost, root: HTMLElement, ctx: LibraryPageCtx): 
 		const selected = [...ctx.getSelected()];
 		if (selected.length === 0) return;
 		new TagBooksModal(host.app, plugin, selected, ctx.onSearchChange).open();
+	};
+
+	// Move: between tagging and delete — the "organize" middle ground.
+	const moveBtn = bar.createEl('button', {
+		cls: 'hl-shelf-batch-btn hl-shelf-batch-move',
+		attr: {
+			'aria-label': t('bookshelf.library.moveAction'),
+			title: t('bookshelf.library.moveAction'),
+			...(ctx.getSelected().size === 0 ? { disabled: 'disabled' } : {}),
+		},
+	});
+	setIcon(moveBtn, 'folder-input');
+	moveBtn.onclick = () => {
+		const selected = [...ctx.getSelected()];
+		if (selected.length === 0) return;
+		const files = selected
+			.map(path => host.app.vault.getAbstractFileByPath(path))
+			.filter((f): f is TFile => f instanceof TFile);
+		if (files.length === 0) return;
+		moveBooksViaPicker(host, files, () => {
+			ctx.clearSelection();
+			ctx.onScopeChange();
+		});
 	};
 
 	const deleteBtn = bar.createEl('button', {

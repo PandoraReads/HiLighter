@@ -301,6 +301,11 @@ export function withBookMetaDeletion(list: SyncTombstone[] | undefined, path: st
     return addTombstone(list, path, now);
 }
 
+/** Clears a book-metadata tombstone (e.g. a book moved onto that path). */
+export function withoutBookMetaDeletion(list: SyncTombstone[] | undefined, path: string): SyncTombstone[] {
+    return dropTombstone(list, path);
+}
+
 /** Reads the four collections + tombstones out of a live settings object. */
 export function collectionsFromSettings(settings: {
     bookshelfShelves?: ShelfPreset[];

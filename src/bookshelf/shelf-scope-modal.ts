@@ -8,15 +8,14 @@
 
 import {
 	App,
-	FuzzySuggestModal,
 	Modal,
 	Notice,
-	TFolder,
 	setIcon,
 } from 'obsidian';
 import { t } from '../i18n';
 import type { ShelfPreset } from '../models';
 import { normalizeFolderList, normalizeIncludeFolders } from './scope';
+import { FolderPickerModal } from './folder-picker';
 import {
 	activeShelfId,
 	addShelf,
@@ -29,29 +28,6 @@ import { wireRowDrag } from './shelf-reorder';
 import { withShelfDeletion } from '../sync/shelf-collections';
 import { ConfirmModal } from '../ui/confirm-modal';
 import type HiLighterPlugin from '../main';
-
-/** Folder picker (fuzzy) used by the scope modal. */
-class FolderPickerModal extends FuzzySuggestModal<TFolder> {
-	private readonly onPick: (folder: TFolder) => void;
-
-	constructor(app: App, onPick: (folder: TFolder) => void) {
-		super(app);
-		this.onPick = onPick;
-		this.setPlaceholder(t('bookshelf.scope.pick'));
-	}
-
-	getItems(): TFolder[] {
-		return this.app.vault.getAllLoadedFiles().filter((f): f is TFolder => f instanceof TFolder);
-	}
-
-	getItemText(folder: TFolder): string {
-		return folder.isRoot() ? t('bookshelf.scope.root') : folder.path;
-	}
-
-	onChooseItem(folder: TFolder): void {
-		this.onPick(folder);
-	}
-}
 
 /** Saved shelves + include / exclude editor for the library scan scope. */
 export class ShelfScopeModal extends Modal {

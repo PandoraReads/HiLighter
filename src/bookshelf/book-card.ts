@@ -209,14 +209,13 @@ export function renderBookGrid(
 		}
 
 		// Metadata entry: right-click / long-press opens the context
-		// menu (edit metadata, mark finished, favorite, delete).
+		// menu (edit metadata, tags, move, finished, delete).
 		if (opts.meta) {
 			card.addEventListener('contextmenu', (event) => {
 				event.preventDefault();
 				openBookMenu(host, entry.file, event, {
 					onEditMeta: opts.meta!.onEdit,
 					onChanged: opts.meta!.onChanged,
-					favorites: opts.favorites,
 				});
 			});
 		}
