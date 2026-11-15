@@ -12,7 +12,7 @@ export interface SyncHostPlugin {
     app: App;
     settings: HiLighterSettings;
     saveSettings(): Promise<void>;
-    refreshViews(): void;
+    refreshAllViews(): void;
     registerInterval(id: number): number;
     registerEvent(ref: EventRef): void;
     register(cb: () => void): void;
@@ -66,7 +66,7 @@ export function createSyncHost(plugin: SyncHostPlugin): SyncControllerDeps {
         adapter,
         timers,
         notice: (message) => new Notice(message),
-        refreshViews: () => plugin.refreshViews(),
+        refreshViews: () => plugin.refreshAllViews(),
         db: getDb(),
         onVaultModify: (cb) => {
             const ref = plugin.app.vault.on('modify', (file) => cb(file.path));
