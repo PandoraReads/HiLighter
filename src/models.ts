@@ -245,6 +245,9 @@ export interface HiLighterSettings {
     bookshelfTags?: Record<string, string[]>;   // vault path -> shelf tags (all formats)
     bookshelfFavorites?: string[];              // vault paths the user hearted (all formats)
     bookshelfPageSize?: number;                 // library pagination size (20/50/100/200)
+    // 笔记本 tab: per-source pattern cover picks
+    // (vault path -> pattern id; absent = stable hash-derived default).
+    bookshelfNotebookCovers?: Record<string, string>;
     // Per-book user metadata (阅读进度/作者/出版日期/页数/评分) + the
     // daily reading-activity log that drives streak / annual stats.
     bookshelfBookMeta?: Record<string, BookMeta>;
@@ -354,6 +357,7 @@ export const DEFAULT_SETTINGS: HiLighterSettings = {
     bookshelfFavorites: [],
     bookshelfShelves: [],
     bookshelfPageSize: 20,
+    bookshelfNotebookCovers: {},
     language: 'zh',
     translationTargetLang: '中文',
     highlightShortcut: '',

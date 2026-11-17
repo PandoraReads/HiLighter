@@ -23,11 +23,16 @@ import {
 import { renderStatsPanel } from '../studio/stats';
 import { renderRecentPage } from './recent-page';
 import { renderLibraryPage, type ShelfProgressFilter } from './library-page';
+import {
+	renderNotebookPage,
+	type NotebookPageCtx,
+	type NotebookSortBy,
+} from './notebook-page';
 import { ShelfCoverCache } from './covers';
 import { isShelfRelevantPath, normalizeIncludeFolders, shelfKind } from './scope';
 import { withFavoriteDeletion, withoutFavoriteDeletion } from '../sync/shelf-collections';
 
-export type BookshelfTab = 'recent' | 'library' | 'cards' | 'mindmap' | 'stats';
+export type BookshelfTab = 'recent' | 'library' | 'notebook' | 'cards' | 'mindmap' | 'stats';
 
 const TABS: Array<{ id: BookshelfTab; labelKey: string; shortKey?: string }> = [
 	{
@@ -39,6 +44,11 @@ const TABS: Array<{ id: BookshelfTab; labelKey: string; shortKey?: string }> = [
 		id: 'library',
 		labelKey: 'bookshelf.tab.library',
 		shortKey: 'bookshelf.tab.library.short',
+	},
+	{
+		id: 'notebook',
+		labelKey: 'bookshelf.tab.notebook',
+		shortKey: 'bookshelf.tab.notebook.short',
 	},
 	{ id: 'mindmap', labelKey: 'bookshelf.tab.mindmap' },
 	{
@@ -81,6 +91,12 @@ export class BookshelfView extends ItemView {
 	private dragDepth = 0;
 	/** Library pagination (transient page; size persists in settings). */
 	private libraryPage = 1;
+	/** Notebook-page drill-down source (transient, survives tab switches). */
+	private notebookOpenPath: string | null = null;
+	/** Notebook-page title search (transient). */
+	notebookSearchQuery = '';
+	/** Notebook-page sort order (transient). */
+	private notebookSortBy: NotebookSortBy = 'recent';
 
 	constructor(leaf: WorkspaceLeaf, plugin: HiLighterPlugin) {
 		super(leaf);
@@ -124,16 +140,28 @@ export class BookshelfView extends ItemView {
 		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => onChange(file, oldPath)));
 
 		this.registerDragDrop();
+
+		// Back-to-top visibility: a capture-phase scroll listener on the
+		// whole view survives page re-renders (the old per-element
+		// onscroll binding went stale the moment a re-render replaced
+		// the scroll container, killing the button on every page that
+		// rebuilt it — the notebook reader included).
+		this.registerDomEvent(this.contentEl, 'scroll', (event) => {
+			const target = event.target as HTMLElement | null;
+			if (!target || !target.hasClass('hl-shelf-scroll')) return;
+			const btn = this.contentEl.querySelector('.hl-shelf-scroll-top');
+			btn?.classList.toggle('is-visible', target.scrollTop > 300);
+		}, { capture: true });
 	}
 
 	/**
 	 * True when a vault change can affect the visible page. Folders
 	 * always count (a rename re-paths whole subtrees); files only when
 	 * the shelf scans them (library tab) or they carry highlights
-	 * (recent tab).
+	 * (recent / notebook tabs).
 	 */
 	private isRelevantChange(target: TAbstractFile, oldPath?: string): boolean {
-		if (this.activeTab !== 'recent' && this.activeTab !== 'library') return false;
+		if (this.activeTab !== 'recent' && this.activeTab !== 'library' && this.activeTab !== 'notebook') return false;
 		if (target instanceof TFolder) return true;
 		if (!(target instanceof TFile)) return false;
 		const paths = oldPath ? [target.path, oldPath] : [target.path];
@@ -274,13 +302,13 @@ export class BookshelfView extends ItemView {
 		scrollTopBtn.setAttribute('aria-label', t('sidebar.backToTop'));
 		scrollTopBtn.setAttribute('title', t('sidebar.backToTop'));
 		setIcon(scrollTopBtn, 'arrow-up');
-		const scrollEl = this.pageEl.querySelector<HTMLElement>('.hl-shelf-scroll');
-		scrollTopBtn.onclick = () => { scrollEl?.scrollTo({ top: 0 }); };
-		if (scrollEl) {
-			scrollEl.onscroll = () => {
-				scrollTopBtn.toggleClass('is-visible', scrollEl.scrollTop > 300);
-			};
-		}
+		// Query the live scroll container on click: page re-renders
+		// replace it, so a captured reference would scroll a detached
+		// element (a no-op).
+		scrollTopBtn.onclick = () => {
+			this.pageEl?.querySelector<HTMLElement>('.hl-shelf-scroll')
+				?.scrollTo({ top: 0 });
+		};
 
 		// External-file drop overlay (visible while dragging over the view)
 		const dropzone = container.createDiv('hl-shelf-dropzone');
@@ -347,6 +375,9 @@ export class BookshelfView extends ItemView {
 			case 'library':
 				this.mountLibraryPage(page);
 				break;
+			case 'notebook':
+				this.mountNotebookPage(page);
+				break;
 			case 'stats': {
 				const scroll = page.createDiv('hl-shelf-scroll');
 				renderStatsPanel(this, scroll);
@@ -394,6 +425,37 @@ export class BookshelfView extends ItemView {
 			getPage: () => this.libraryPage,
 			setPage: (pageNumber: number) => { this.libraryPage = pageNumber; },
 		});
+	}
+
+	/**
+	 * Mounts (or refreshes) the notebook page. Same re-mount pattern
+	 * as the library page: the toolbar survives body re-renders, so
+	 * the search input keeps focus.
+	 */
+	private mountNotebookPage(page: HTMLElement): void {
+		const ctx: NotebookPageCtx = {
+			getOpenPath: () => this.notebookOpenPath,
+			setOpenPath: (path) => { this.notebookOpenPath = path; },
+			getSortBy: () => this.notebookSortBy,
+			setSortBy: (sort) => { this.notebookSortBy = sort; },
+			getSearchQuery: () => this.notebookSearchQuery,
+			setSearchQuery: (query) => { this.notebookSearchQuery = query; },
+			onScopeChange: () => this.rerenderPage(),
+			onSearchChange: () => this.mountNotebookPage(page),
+			// Note edits reload the DB snapshot; the reader remounts with
+			// its scroll position restored so editing never jumps the page.
+			onNotesChanged: () => {
+				const scrollEl = page.querySelector<HTMLElement>('.hl-shelf-scroll');
+				const scrollTop = scrollEl?.scrollTop ?? 0;
+				void this.loadHighlights().then(() => {
+					if (!page.isConnected) return;
+					this.mountNotebookPage(page);
+					const restored = page.querySelector<HTMLElement>('.hl-shelf-scroll');
+					if (restored) restored.scrollTop = scrollTop;
+				});
+			},
+		};
+		renderNotebookPage(this, page, this.highlights, ctx);
 	}
 
 	// ── Header: brand + tabs + actions in one row ──
@@ -548,7 +610,7 @@ export class BookshelfView extends ItemView {
 		if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
 		this.refreshTimer = window.setTimeout(() => {
 			this.refreshTimer = null;
-			if (this.activeTab !== 'recent' && this.activeTab !== 'library') return;
+			if (this.activeTab !== 'recent' && this.activeTab !== 'library' && this.activeTab !== 'notebook') return;
 			void this.loadHighlights().then(() => this.rerenderPage());
 		}, 1000);
 	}
