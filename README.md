@@ -71,17 +71,34 @@
 *   **Focused Review Session**: Flip cards with Space, rate recall 1–4 (Again/Hard/Good/Easy), skip or archive — all keyboard-driven.
 *   **Review Insights**: Due/new counts on the studio toolbar, plus review statistics in the stats dashboard.
 
-### 📚 Bookshelf Navigation (Desktop & Tablet)
-*   **One home for everything**: A new bookshelf icon in the ribbon opens the HiLighter bookshelf — a navigation page with six tabs: **Recent reading**, **Books**, **Cards**, **Mind Map**, **Review**, and **Stats**. Theme switching and the light/dark toggle live here too; the card studio stays focused on card management. Phones keep the original sidebar flows.
+### 📚 Bookshelf Navigation
+*   **One home for everything**: A bookshelf icon in the ribbon opens the HiLighter bookshelf — a navigation page with five tabs: **Recent reading**, **Books**, **Notebooks**, **Mind Map**, and **Stats**. The card studio, theme switching and the light/dark toggle live in the top bar too; the card studio stays focused on card management.
 *   **Recent reading**: Files that recently received highlights — markdown, PDF, and EPUB — as a cover grid with per-file highlight counts, newest activity first. Click a book to open it where you left off.
 *   **Books**: A calibre-style shelf of every EPUB / PDF / Markdown file inside your scan scope. Configure any number of include folders plus exclusions; switch between large covers, small covers, and a list view, and sort by title, recent highlights, or file modification.
 *   **Custom shelves**: Save any scan scope under a name — then the toolbar's shelf button opens a dropdown where one click switches the whole library to that shelf. "Add shelf" at the bottom of the dropdown opens the full scope editor (include / exclude folders, per-folder recursion, saved-shelf management).
 *   **Book & File Management**: Search books by title, filter by format (EPUB / PDF / Markdown) or tag, and paginate large libraries (20/50/100/200 per page). Tag any book for categorization, multi-select books for batch tagging, and trash-delete stale files in one click.
 *   **Drag-and-Drop Import**: Drag external EPUB / PDF / Markdown files straight into the shelf — HiLighter copies them into your vault automatically, ready to read and highlight.
 *   **Covers everywhere**: EPUB covers and titles/authors are read straight from the book files (including `cover.xhtml` wrapper pages); PDFs render their first page; markdown notes use a `cover` / `image` / `banner` / `featured` / `thumbnail` frontmatter property — a vault image in any link spelling or a network URL — and fall back to a generated cover. Everything loads lazily and is cached.
-*   **Review without leaving the shelf**: The review tab starts an FSRS session right inside the bookshelf with the same keyboard-driven flow, and the stats tab shows the full statistics dashboard.
+*   **Stats without leaving the shelf**: The stats tab shows the full statistics dashboard.
 
 ![bookshelf](screenshots/bookshelf.png)
+
+### 📓 Notebooks (New in 2.9)
+*   **A notebook for every book**: The Notebooks tab gives each book or article with highlights its own notebook, with a patterned cover — plaid, floral, watercolor, geometric, dots, stripes, grid, terrazzo, marble, denim, kraft, constellation — and the book title on the front. Click a notebook to read all its highlights and notes in document order.
+*   **Personalize**: Right-click a notebook to rename it, swap its cover (12 built-in patterns, or your own images dropped into the plugin's `covers/` folder), or export the whole notebook to Markdown in your configured card folder — quotes and notes together, no extra headings.
+*   **Read and annotate**: Each entry pairs the highlighted passage with your note. Click a note to edit it in place — a clean, chrome-free input that saves silently — and use the locate button to jump back to the exact spot in the book.
+*   **Per-entry actions**: Every entry's icon buttons save that single entry as Markdown or open the quote card editor. Search, sort and format filters work across notebooks, and long lists get a back-to-top button.
+
+![notebook](screenshots/notebook.png)
+
+### 🎴 Quote Cards (New in 2.9)
+*   **Turn any highlight into a shareable image**: The image icon on a notebook entry opens a full-height quote card editor with a live preview — rendered quote, your note beneath it, and the book title in the footer.
+*   **Typography controls**: Font size, 18 Chinese and Latin fonts (Song, Kai, Fangsong, Yuan, Lishu, Xingkai, Georgia, Didot, Baskerville, Futura, typewriter, handwriting…), three layouts (centered / left-aligned / big quote), five aspect ratios (3:4, 4:3, 1:1, 16:9, 9:16), plus margin, line-height and letter-spacing sliders, and text colors from presets or a custom picker.
+*   **Backgrounds**: 22 built-in backdrops, a custom color picker with solid or gradient fills (auto-tuned ink color by luminance), and image backgrounds — upload a local file or paste a network URL.
+*   **Mask and light effects**: Tune the overlay opacity, pick a mask color (black / navy / warm), add light effects — vignette, center light, top light, bottom fade — and blur the background image for readability. A reset button clears the mask in one click.
+*   **Five watermark styles**: highlighter stroke (the default), plain text, serif caption, stamp, and outline text. Download the card as a PNG with one click.
+
+![quote card](screenshots/quote-card.png)
 
 ---
 
@@ -181,6 +198,12 @@ If HiLighter saves you time, you can treat the developer to a coffee (scan with 
 ---
 
 ## Changelog
+
+### v2.9.0 (2026-11-17)
+
+- **Notebooks (new)**: A new bookshelf tab that turns every highlighted book or article into a notebook with a patterned cover — 12 built-in patterns (plaid, floral, watercolor, geometric, dots, stripes, grid, terrazzo, marble, denim, kraft, constellation) or your own images in the plugin's `covers/` folder. Open a notebook to read all highlights and notes in document order; edit notes in place with a clean inline input; rename notebooks (the link to the book stays intact); export a whole notebook or a single entry to your card Markdown folder.
+- **Quote cards (new)**: A full-height editor that renders any highlight as a shareable PNG — 18 CJK/Latin fonts, three layouts, five aspect ratios, margin/line-height/letter-spacing sliders, text color presets plus a custom picker, 22 backgrounds with custom solid/gradient colors and image backgrounds (upload or URL), mask overlays with opacity, color, light effects and background blur, and five watermark styles.
+- Fixed the card studio's sort/filter/group dropdowns, which had stopped opening (a stylesheet rule was overriding their position), and the bookshelf back-to-top button after tab switches.
 
 ### v2.8.3 (2026-11-11)
 
