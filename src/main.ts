@@ -18,9 +18,10 @@ import { DEFAULT_RESEARCH_PROMPTS } from './models';
 import type { AIModelConfig, ThemeId } from './models';
 import { HighlightView } from './highlight-view';
 import { HighlightManagerView, HIGHLIGHT_MANAGER_VIEW_TYPE } from './studio/studio-view';
-import { HIGHLIGHT_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE, MINDMAP_VIEW_TYPE, BOOKSHELF_VIEW_TYPE } from './view-types';
+import { HIGHLIGHT_VIEW_TYPE, MOBILE_RECENT_VIEW_TYPE, MINDMAP_VIEW_TYPE, BOOKSHELF_VIEW_TYPE, WHITEBOARD_VIEW_TYPE } from './view-types';
 import { MobileRecentHighlightsView } from './mobile-recent-view';
 import { HighlightMindMapView } from './mindmap/view';
+import { HighlightWhiteboardView } from './whiteboard/view';
 import { BookshelfView } from './bookshelf/view';
 import { showHighlightMenu, hideHighlightMenu } from './selection/selection-menu';
 import { AIService } from './ai-service';
@@ -178,6 +179,7 @@ export default class HiLighterPlugin extends Plugin {
 		this.registerView(HIGHLIGHT_MANAGER_VIEW_TYPE, (leaf) => new HighlightManagerView(leaf, this));
 		this.registerView(MOBILE_RECENT_VIEW_TYPE, (leaf) => new MobileRecentHighlightsView(leaf, this));
 		this.registerView(MINDMAP_VIEW_TYPE, (leaf) => new HighlightMindMapView(leaf, this));
+		this.registerView(WHITEBOARD_VIEW_TYPE, (leaf) => new HighlightWhiteboardView(leaf, this));
 		// Bookshelf navigation page: everywhere. Phones route their entry
 		// flows into it (the old mobile recent list stays registered for
 		// pre-existing leaves but is no longer opened).
@@ -223,6 +225,11 @@ export default class HiLighterPlugin extends Plugin {
 		this.addRibbonIcon('library', t('bookshelf.open'), () => {
 			void this.activateView(BOOKSHELF_VIEW_TYPE, 'main');
 		});
+		if (!Platform.isMobile) {
+			this.addRibbonIcon('layout-dashboard', t('whiteboard.viewName'), () => {
+				void this.activateView(WHITEBOARD_VIEW_TYPE, 'main');
+			});
+		}
 
 		// 2. Commands
 		this.addCommand({
@@ -246,6 +253,15 @@ export default class HiLighterPlugin extends Plugin {
 			checkCallback: (checking: boolean) => {
 				if (Platform.isMobile) return false;
 				if (!checking) void this.activateView(MINDMAP_VIEW_TYPE, 'main');
+				return true;
+			},
+		});
+		this.addCommand({
+			id: 'open-whiteboard',
+			name: t('whiteboard.viewName'),
+			checkCallback: (checking: boolean) => {
+				if (Platform.isMobile) return false;
+				if (!checking) void this.activateView(WHITEBOARD_VIEW_TYPE, 'main');
 				return true;
 			},
 		});
@@ -633,10 +649,10 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** Applies a highlight from the selection menu (markdown / pdf / epub branches). */
-	async applyHighlight(text: string, context: HighlightContext, color: string, note = '', draft?: HighlightNote) {
+	async applyHighlight(text: string, context: HighlightContext, color: string, note = '', draft?: HighlightNote, tags?: string[]) {
 		// EPUB selections: DB-only anchor (CFI) + live annotation
 		if (context?.anchorType === 'epub' && context?.cfi) {
-			await this.applyEpubHighlight(text, context, color, note, draft);
+			await this.applyEpubHighlight(text, context, color, note, draft, tags);
 			this.revealHighlightSidebarOnce();
 			return;
 		}
@@ -646,7 +662,7 @@ export default class HiLighterPlugin extends Plugin {
 			? context.leaf.view
 			: null;
 		if (context?.pdfPage != null || pdfView) {
-			await this.applyPdfHighlight(text, context, color, pdfView || context?.leaf?.view, note, draft);
+			await this.applyPdfHighlight(text, context, color, pdfView || context?.leaf?.view, note, draft, tags);
 			this.revealHighlightSidebarOnce();
 			return;
 		}
@@ -674,6 +690,7 @@ export default class HiLighterPlugin extends Plugin {
 				...draft, id: draft?.id ?? randomUUID(), text, color, note, sourcePath,
 				lineIndex: context?.lineIndex ?? 0, createdAt: Date.now(),
 				anchorType: 'note', contextQuote: context?.lineText || text,
+				...(tags && tags.length > 0 ? { tags } : {}),
 			});
 			this.refreshAllViews();
 			this.revealHighlightSidebarOnce();
@@ -719,7 +736,8 @@ export default class HiLighterPlugin extends Plugin {
 				sourcePath: finalPath,
 				lineIndex: context.lineIndex,
 				createdAt: Date.now(),
-				colorHex
+				colorHex,
+				...(tags && tags.length > 0 ? { tags } : {}),
 			};
 
 			await db.addHighlightNote(highlightEntry);
@@ -741,7 +759,7 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** EPUB highlight: DB-only CFI anchor + immediate annotation on the open book. */
-	private async applyEpubHighlight(text: string, context: HighlightContext, color: string, note = '', draft?: HighlightNote) {
+	private async applyEpubHighlight(text: string, context: HighlightContext, color: string, note = '', draft?: HighlightNote, tags?: string[]) {
 		try {
 			const colorDef = getColorDef(this.settings, color);
 			const entry: HighlightNote = {
@@ -757,6 +775,7 @@ export default class HiLighterPlugin extends Plugin {
 				cfi: context.cfi,
 				contextQuote: context.contextQuote || '',
 				...(colorDef?.isCustom ? { colorHex: colorDef.hex } : {}),
+				...(tags && tags.length > 0 ? { tags } : {}),
 			};
 			if (!entry.sourcePath) {
 				new Notice(t('notice.noEditor'));
@@ -772,7 +791,7 @@ export default class HiLighterPlugin extends Plugin {
 	}
 
 	/** PDF highlight: no file write; anchor = path + page + context quote. */
-	private async applyPdfHighlight(text: string, context: HighlightContext, color: string, view: (View & { file?: TFile }) | null | undefined, note = '', draft?: HighlightNote) {
+	private async applyPdfHighlight(text: string, context: HighlightContext, color: string, view: (View & { file?: TFile }) | null | undefined, note = '', draft?: HighlightNote, tags?: string[]) {
 		try {
 			const file = view?.file || this.app.workspace.getActiveFile();
 			if (!file) {
@@ -795,6 +814,7 @@ export default class HiLighterPlugin extends Plugin {
 				...(context?.pdfRects && context.pdfRects.length > 0 ? { pdfRects: context.pdfRects } : {}),
 				contextQuote: context?.lineText || '',
 				...(colorDef?.isCustom ? { colorHex: colorDef.hex } : {}),
+				...(tags && tags.length > 0 ? { tags } : {}),
 			};
 			await db.addHighlightNote(entry);
 			this.refreshAllViews();

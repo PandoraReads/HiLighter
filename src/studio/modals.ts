@@ -19,6 +19,7 @@ import type { CardTemplateId } from '../models';
 import { renderCardRelations } from './card-relations';
 import { randomUUID } from '../mocks/crypto';
 import { AutosaveQueue } from './autosave-queue';
+import { createTagEditor } from '../ui/tag-editor';
 
 export class BatchTagModal extends Modal {
     private onSubmit: (tag: string) => void | Promise<void>;
@@ -172,6 +173,7 @@ export class HighlightDetailModal extends Modal {
         renderFields();
         let draftLinks = [...(this.note.links ?? [])];
         let draftSourceIds = [...(this.note.sourceHighlightIds ?? [])];
+        let draftTags = [...(this.note.tags ?? [])];
         const relationsEl = body.createDiv('hl-card-relations-host');
         void renderCardRelations(relationsEl, {
             card: this.note, links: draftLinks, sourceIds: draftSourceIds,
@@ -216,6 +218,7 @@ export class HighlightDetailModal extends Modal {
                 cardFields: { ...draftFields },
                 links: [...draftLinks],
                 sourceHighlightIds: [...draftSourceIds],
+                tags: [...draftTags],
                 updatedAt: Date.now(),
             });
         };
@@ -257,6 +260,15 @@ export class HighlightDetailModal extends Modal {
             },
         }, this.imageFolder);
         body.appendChild(relationsEl);
+        const tagsHost = body.createDiv('hl-detail-tags-host');
+        createTagEditor({
+            container: tagsHost,
+            initialTags: draftTags,
+            onChange: tags => {
+                draftTags = tags;
+                scheduleSave();
+            },
+        });
         textarea.onkeydown = (event) => {
             if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault();

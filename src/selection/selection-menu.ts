@@ -21,7 +21,7 @@ export interface SelectionMenuHost {
     highlightMenu: HTMLElement | null;
     lastSelection: string;
     lastContext: unknown;
-    applyHighlight(text: string, context: unknown, colorId: string, note?: string, draft?: HighlightNote): void | Promise<void>;
+    applyHighlight(text: string, context: unknown, colorId: string, note?: string, draft?: HighlightNote, tags?: string[]): void | Promise<void>;
     saveSettings(): Promise<void>;
     /** Short AI annotation of the selected text (used to prefill a note). */
     annotateSelection(text: string): Promise<string>;
@@ -100,7 +100,16 @@ export function showHighlightMenu(
             imageFolder: plugin.settings.noteImageFolder,
             onEdit: result => {
                 const color = getColors(plugin.settings)[0]?.id ?? 'yellow';
-                const draft: HighlightNote = { id: randomUUID(), text: selection, note: result.note, color, sourcePath, lineIndex: 0, createdAt: Date.now() };
+                const draft: HighlightNote = {
+                    id: randomUUID(),
+                    text: selection,
+                    note: result.note,
+                    color,
+                    sourcePath,
+                    lineIndex: 0,
+                    createdAt: Date.now(),
+                    ...(result.tags.length > 0 ? { tags: result.tags } : {}),
+                };
                 new HighlightDetailModal(plugin.app, draft, () => {}, plugin.settings.noteImageFolder,
                     plugin.settings.groupExportFolder || '', true, false, async updated => {
                         await plugin.applyHighlight(selection, context, color, updated.note, updated);
@@ -110,7 +119,7 @@ export function showHighlightMenu(
             onSave: async result => {
                 if (result.isEmpty) return;
                 const defaultColor = getColors(plugin.settings)[0]?.id ?? 'yellow';
-                await plugin.applyHighlight(selection, context, defaultColor, result.note);
+                await plugin.applyHighlight(selection, context, defaultColor, result.note, undefined, result.tags);
             },
         });
     };
@@ -181,7 +190,7 @@ export function showHighlightMenu(
             onSave: async result => {
                 if (result.isEmpty) return;
                 const defaultColor = getColors(plugin.settings)[0]?.id ?? 'yellow';
-                await plugin.applyHighlight(selection, context, defaultColor, result.note);
+                await plugin.applyHighlight(selection, context, defaultColor, result.note, undefined, result.tags);
             },
         });
     };
