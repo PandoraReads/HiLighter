@@ -19,6 +19,7 @@ import {
 	BOOKSHELF_VIEW_TYPE,
 	HIGHLIGHT_MANAGER_VIEW_TYPE,
 	MINDMAP_VIEW_TYPE,
+	WHITEBOARD_VIEW_TYPE,
 } from '../view-types';
 import { renderStatsPanel } from '../studio/stats';
 import { renderRecentPage } from './recent-page';
@@ -32,7 +33,7 @@ import { ShelfCoverCache } from './covers';
 import { isShelfRelevantPath, normalizeIncludeFolders, shelfKind } from './scope';
 import { withFavoriteDeletion, withoutFavoriteDeletion } from '../sync/shelf-collections';
 
-export type BookshelfTab = 'recent' | 'library' | 'notebook' | 'cards' | 'mindmap' | 'stats';
+export type BookshelfTab = 'recent' | 'library' | 'notebook' | 'cards' | 'mindmap' | 'whiteboard' | 'stats';
 
 const TABS: Array<{ id: BookshelfTab; labelKey: string; shortKey?: string }> = [
 	{
@@ -51,6 +52,7 @@ const TABS: Array<{ id: BookshelfTab; labelKey: string; shortKey?: string }> = [
 		shortKey: 'bookshelf.tab.notebook.short',
 	},
 	{ id: 'mindmap', labelKey: 'bookshelf.tab.mindmap' },
+	{ id: 'whiteboard', labelKey: 'bookshelf.tab.whiteboard' },
 	{
 		id: 'stats',
 		labelKey: 'bookshelf.tab.stats',
@@ -58,9 +60,9 @@ const TABS: Array<{ id: BookshelfTab; labelKey: string; shortKey?: string }> = [
 	},
 ];
 
-/** Phones hide the mind-map tab (the mindmap view is desktop/tablet only). */
+/** Phones hide the mind-map and whiteboard tabs (desktop/tablet only). */
 const VISIBLE_TABS: typeof TABS = Platform.isPhone
-	? TABS.filter(tab => tab.id !== 'mindmap')
+	? TABS.filter(tab => tab.id !== 'mindmap' && tab.id !== 'whiteboard')
 	: TABS;
 
 const THEMES: ThemeId[] = ['editorial', 'native', 'paper', 'ocean', 'forest', 'galaxy', 'cyber', 'sunset', 'rose'];
@@ -325,6 +327,10 @@ export class BookshelfView extends ItemView {
 		}
 		if (tab === 'mindmap') {
 			void this.plugin.activateView(MINDMAP_VIEW_TYPE, 'main');
+			return;
+		}
+		if (tab === 'whiteboard') {
+			void this.plugin.activateView(WHITEBOARD_VIEW_TYPE, 'main');
 			return;
 		}
 		this.activeTab = tab;

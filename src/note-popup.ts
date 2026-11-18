@@ -8,12 +8,15 @@
 import { App, Notice } from 'obsidian';
 import { t } from './i18n';
 import { attachImageHandlers, createImagePickButton, extractImageFiles, saveImageAttachments } from './image-paste';
+import { createTagEditor } from './ui/tag-editor';
 
 export interface NotePopupResult {
     /** Markdown text; image embeds already appended on their own lines. */
     note: string;
     /** Image embed lines, for callers that track them separately. */
     images: string[];
+    /** Normalized tags without leading '#'. */
+    tags: string[];
     /** True when nothing was entered (treated as cancel). */
     isEmpty: boolean;
 }
@@ -31,6 +34,8 @@ export interface NotePopupOptions {
     sourcePath: string;
     /** Optional vault-relative folder; empty follows Obsidian's attachment settings. */
     imageFolder?: string;
+    /** Optional pre-populated tags. */
+    initialTags?: string[];
     /** AI note generation: while pending the textarea is read-only with a
      *  "generating" placeholder; the resolved text is filled in for review. */
     aiPending?: Promise<string>;
@@ -120,6 +125,13 @@ export function openNotePopup(opts: NotePopupOptions): void {
         onImageSaved: (line) => { images = [...images, line]; renderChips(); },
     }, opts.imageFolder);
 
+    const tagWrap = body.createDiv('hl-note-popup-tags');
+    const tagEditor = createTagEditor({
+        container: tagWrap,
+        initialTags: opts.initialTags,
+        compact: true,
+    });
+
     // Image-only mode has no textarea, so paste events have no focused
     // receiver — capture them at the document level while the popup lives.
     const docPaste = (e: ClipboardEvent) => {
@@ -154,10 +166,12 @@ export function openNotePopup(opts: NotePopupOptions): void {
 
     const save = () => {
         const text = textarea ? textarea.value.trim() : '';
+        const tags = tagEditor.getTags();
         const result: NotePopupResult = {
             note: [text, ...images].filter(Boolean).join('\n\n'),
             images: [...images],
-            isEmpty: !text && images.length === 0,
+            tags,
+            isEmpty: !text && images.length === 0 && tags.length === 0,
         };
         close();
         void Promise.resolve(opts.onSave(result)).catch(() => new Notice(t('notePopup.saveFailed')));
@@ -166,7 +180,13 @@ export function openNotePopup(opts: NotePopupOptions): void {
     cancelBtn.onclick = close;
     if (editBtn) editBtn.onclick = () => {
         const text = textarea?.value.trim() ?? '';
-        const result = { note: [text, ...images].filter(Boolean).join('\n\n'), images: [...images], isEmpty: !text && images.length === 0 };
+        const tags = tagEditor.getTags();
+        const result: NotePopupResult = {
+            note: [text, ...images].filter(Boolean).join('\n\n'),
+            images: [...images],
+            tags,
+            isEmpty: !text && images.length === 0 && tags.length === 0,
+        };
         close();
         opts.onEdit?.(result);
     };

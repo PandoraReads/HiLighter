@@ -440,3 +440,59 @@ export interface MindMapDoc {
     createdAt: number;          // Unix ms
     updatedAt: number;          // Unix ms
 }
+
+export type WhiteboardNodeType = 'card' | 'text' | 'subboard';
+
+export interface WhiteboardViewport {
+    x: number;
+    y: number;
+    zoom: number;
+}
+
+export interface WhiteboardNode {
+    id: string;                 // Canvas node instance UUID
+    type: WhiteboardNodeType;
+    highlightId?: string;       // Points to HighlightNote.id when type === 'card'
+    subboardId?: string;        // Points to child WhiteboardDoc.id when type === 'subboard'
+    text?: string;              // Freeform sticky note text when type === 'text'
+    x: number;
+    y: number;
+    width: number;
+    height?: number;            // Auto height when omitted
+    collapsed?: boolean;        // Collapsed shows title and first excerpt line only
+    color?: string;             // Note color or override color
+    sectionId?: string;         // Containing WhiteboardSection.id
+}
+
+export interface WhiteboardSection {
+    id: string;                 // Section UUID
+    title: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    color: string;              // Preset or custom color ID
+}
+
+export interface WhiteboardEdge {
+    id: string;                 // Edge UUID
+    fromNodeId: string;
+    toNodeId: string;
+    fromSide?: 'top' | 'right' | 'bottom' | 'left';
+    toSide?: 'top' | 'right' | 'bottom' | 'left';
+    relation?: string;          // Optional semantic relation (mirrors CardLink.relation)
+    label?: string;             // Custom edge label
+}
+
+export interface WhiteboardDoc {
+    id: string;                 // UUID v4
+    title: string;
+    parentId?: string;          // Optional parent whiteboard ID for subboard drill-down
+    sourcePath?: string;        // Optional linked source document path
+    viewport: WhiteboardViewport;
+    nodes: WhiteboardNode[];
+    sections: WhiteboardSection[];
+    edges: WhiteboardEdge[];
+    createdAt: number;          // Unix ms
+    updatedAt: number;          // Unix ms
+}

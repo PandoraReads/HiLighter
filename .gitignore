@@ -40,3 +40,6 @@ docs/zotero-academic-research.md
 screenshots/*-sample.png
 screenshots/studio-*.png
 screenshots/studio-*.jpg
+
+# Obsidian local runtime settings
+data.json

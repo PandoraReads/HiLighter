@@ -3,7 +3,7 @@
 // ============================================================
 
 import Dexie, { type Table } from 'dexie';
-import type { EpubLocations, HighlightNote, MindMapDoc, SyncTombstone } from './models';
+import type { EpubLocations, HighlightNote, MindMapDoc, SyncTombstone, WhiteboardDoc } from './models';
 import {
     planMerge,
     dedupeById,
@@ -18,6 +18,7 @@ export class HiLighterDatabase extends Dexie {
     syncTombstones!: Table<SyncTombstone, string>;
     mindmaps!: Table<MindMapDoc, string>;
     epubLocations!: Table<EpubLocations, string>;
+    whiteboards!: Table<WhiteboardDoc, string>;
 
     private changeSeq = 0;
     private changeListeners = new Set<() => void>();
@@ -51,6 +52,13 @@ export class HiLighterDatabase extends Dexie {
             syncTombstones: 'id, deletedAt',
             mindmaps: 'id, sourcePath, updatedAt',
             epubLocations: 'path',
+        });
+        this.version(7).stores({
+            highlightNotes: 'id, sourcePath, createdAt, fsrs.due',
+            syncTombstones: 'id, deletedAt',
+            mindmaps: 'id, sourcePath, updatedAt',
+            epubLocations: 'path',
+            whiteboards: 'id, sourcePath, updatedAt',
         });
     }
 
@@ -259,6 +267,26 @@ export class HiLighterDatabase extends Dexie {
 
     async deleteMindMap(id: string): Promise<void> {
         await this.mindmaps.delete(id);
+        this.notify();
+    }
+
+    // ── Whiteboard documents ──────────────────────────────────
+
+    async listWhiteboards(): Promise<WhiteboardDoc[]> {
+        return this.whiteboards.orderBy('updatedAt').reverse().toArray();
+    }
+
+    async getWhiteboard(id: string): Promise<WhiteboardDoc | undefined> {
+        return this.whiteboards.get(id);
+    }
+
+    async saveWhiteboard(doc: WhiteboardDoc): Promise<void> {
+        await this.whiteboards.put(doc);
+        this.notify();
+    }
+
+    async deleteWhiteboard(id: string): Promise<void> {
+        await this.whiteboards.delete(id);
         this.notify();
     }
 

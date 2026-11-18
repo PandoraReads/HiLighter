@@ -250,8 +250,10 @@ const zh: Record<string, string> = {
 		'notice.headingsError': '标题提取出错: ',
 		'notice.headingsEmpty': 'AI 未能从文中提取出章节标题',
 
-		// ── Tag Input ─────────────────────────────────────────
+	// ── Tag Input ─────────────────────────────────────────
 	'tag.input.placeholder': '输入新标签 (回车保存)...',
+	'tagEditor.placeholder': '添加标签，回车确认…',
+	'tagEditor.remove': '移除标签 ${tag}',
 
 	// ── Commands & Ribbon ─────────────────────────────────
 	'ribbon.highlight': '高亮笔记',
@@ -268,6 +270,7 @@ const zh: Record<string, string> = {
 	'bookshelf.tab.notebook': '笔记本',
 	'bookshelf.tab.cards': '卡片集',
 	'bookshelf.tab.mindmap': '思维导图',
+	'bookshelf.tab.whiteboard': '白板',
 	'bookshelf.tab.review': '闪卡复习',
 	'bookshelf.tab.stats': '统计数据',
 	'bookshelf.kind.markdown': 'Markdown',
@@ -1093,6 +1096,34 @@ const zh: Record<string, string> = {
 	'mindmap.notice.xmindImported': '已导入 Xmind 文件：${file}',
 	'mindmap.notice.xmindImportFailed': 'Xmind 文件解析失败，请确认是有效的 .xmind 文件',
 	'mindmap.notice.initFailed': '导图画布初始化失败，请重试或查看开发者控制台',
+
+	// ── Whiteboard ────────────────────────────────────────
+	'whiteboard.viewName': '白板',
+	'whiteboard.defaultTitle': '未命名白板',
+	'whiteboard.board.select': '切换白板',
+	'whiteboard.board.new': '新建白板',
+	'whiteboard.board.rename': '重命名白板',
+	'whiteboard.board.delete': '删除白板',
+	'whiteboard.board.namePlaceholder': '输入白板名称…',
+	'whiteboard.board.confirmDelete': '确定要删除白板「${title}」吗？画布中的高亮卡片仍会保留在卡片库中。',
+	'whiteboard.board.created': '已创建白板：${title}',
+	'whiteboard.board.renamed': '已重命名为：${title}',
+	'whiteboard.board.deleted': '已删除白板：${title}',
+	'whiteboard.toolbar.drawer': '切换卡片库抽屉',
+	'whiteboard.toolbar.addText': '添加自由便签',
+	'whiteboard.toolbar.addSection': '添加分区 (Section)',
+	'whiteboard.toolbar.tidyGrid': '将选中卡片整理为网格',
+	'whiteboard.toolbar.zoomOut': '缩小',
+	'whiteboard.toolbar.zoomIn': '放大',
+	'whiteboard.toolbar.zoomReset': '适应画布内容',
+	'whiteboard.toolbar.fit': '适应全部内容',
+	'whiteboard.toolbar.pan': '抓手平移模式',
+	'whiteboard.toolbar.export': '导出白板',
+	'whiteboard.export.canvas': '导出为 Obsidian 白板 (.canvas)',
+	'whiteboard.export.markdown': '导出为结构化 Markdown (.md)',
+	'whiteboard.modal.cancel': '取消',
+	'whiteboard.modal.confirm': '确定',
+	'whiteboard.modal.delete': '删除',
 };
 
 const en: Record<string, string> = {
@@ -1292,6 +1323,8 @@ const en: Record<string, string> = {
 
 // ── Tag Input ─────────────────────────────────────────
 	'tag.input.placeholder': 'Enter new tag (Enter to save)...',
+	'tagEditor.placeholder': 'Add tag, press Enter…',
+	'tagEditor.remove': 'Remove tag ${tag}',
 
 	// ── Commands & Ribbon ─────────────────────────────────
 	'ribbon.highlight': 'Highlight Notes',
@@ -1308,6 +1341,7 @@ const en: Record<string, string> = {
 	'bookshelf.tab.notebook': 'Notebooks',
 	'bookshelf.tab.cards': 'Cards',
 	'bookshelf.tab.mindmap': 'Mind Map',
+	'bookshelf.tab.whiteboard': 'Whiteboard',
 	'bookshelf.tab.review': 'Review',
 	'bookshelf.tab.stats': 'Stats',
 	'bookshelf.kind.markdown': 'Markdown',
@@ -2133,6 +2167,34 @@ const en: Record<string, string> = {
 	'mindmap.notice.xmindImported': 'Xmind file imported: ${file}',
 	'mindmap.notice.xmindImportFailed': 'Failed to parse the Xmind file — please check it is a valid .xmind',
 	'mindmap.notice.initFailed': 'Mind map canvas failed to initialize. Please retry or check the developer console',
+
+	// ── Whiteboard ────────────────────────────────────────
+	'whiteboard.viewName': 'Whiteboard',
+	'whiteboard.defaultTitle': 'Untitled Whiteboard',
+	'whiteboard.board.select': 'Switch whiteboard',
+	'whiteboard.board.new': 'New whiteboard',
+	'whiteboard.board.rename': 'Rename whiteboard',
+	'whiteboard.board.delete': 'Delete whiteboard',
+	'whiteboard.board.namePlaceholder': 'Enter whiteboard name…',
+	'whiteboard.board.confirmDelete': 'Delete whiteboard "${title}"? Highlight cards on the board will remain in your Card Library.',
+	'whiteboard.board.created': 'Created whiteboard: ${title}',
+	'whiteboard.board.renamed': 'Renamed to: ${title}',
+	'whiteboard.board.deleted': 'Deleted whiteboard: ${title}',
+	'whiteboard.toolbar.drawer': 'Toggle Card Drawer',
+	'whiteboard.toolbar.addText': 'Add Text Note',
+	'whiteboard.toolbar.addSection': 'Add Section',
+	'whiteboard.toolbar.tidyGrid': 'Tidy Selected into Grid',
+	'whiteboard.toolbar.zoomOut': 'Zoom Out',
+	'whiteboard.toolbar.zoomIn': 'Zoom In',
+	'whiteboard.toolbar.zoomReset': 'Fit to Content',
+	'whiteboard.toolbar.fit': 'Fit Content',
+	'whiteboard.toolbar.pan': 'Pan Mode',
+	'whiteboard.toolbar.export': 'Export Whiteboard',
+	'whiteboard.export.canvas': 'Export as Obsidian Canvas (.canvas)',
+	'whiteboard.export.markdown': 'Export as Structured Markdown (.md)',
+	'whiteboard.modal.cancel': 'Cancel',
+	'whiteboard.modal.confirm': 'Confirm',
+	'whiteboard.modal.delete': 'Delete',
 };
 
 export function t(key: string, params?: Record<string, string | number>): string {

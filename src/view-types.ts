@@ -9,3 +9,4 @@ export const HIGHLIGHT_MANAGER_VIEW_TYPE = 'hl-highlight-manager';
 export const MOBILE_RECENT_VIEW_TYPE = 'hl-mobile-recent-highlights';
 export const MINDMAP_VIEW_TYPE = 'hl-mindmap-view';
 export const BOOKSHELF_VIEW_TYPE = 'hl-bookshelf-view';
+export const WHITEBOARD_VIEW_TYPE = 'hl-whiteboard-view';
